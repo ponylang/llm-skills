@@ -1,0 +1,83 @@
+# Pony Patterns
+
+> A cookbook of patterns for writing idiomatic Pony code.
+
+## Asynchronous Patterns
+
+- [Overview](https://patterns.ponylang.io/async/index.md)
+- [Accessing an Actor with Arbitrary Transactions](https://patterns.ponylang.io/async/access.md)
+- [Interrogating Actors with Promises](https://patterns.ponylang.io/async/actorpromise.md)
+- [Batch and Yield](https://patterns.ponylang.io/async/batch-and-yield.md)
+- [Waiting](https://patterns.ponylang.io/async/waiting.md)
+
+## Behavioral Patterns
+
+- [Overview](https://patterns.ponylang.io/behavioral/index.md)
+- [State Machine](https://patterns.ponylang.io/behavioral/state-machine.md)
+
+## Code Sharing Patterns
+
+- [Overview](https://patterns.ponylang.io/code-sharing/index.md)
+- [Embed and Delegate](https://patterns.ponylang.io/code-sharing/embed-and-delegate.md)
+- [Global Function](https://patterns.ponylang.io/code-sharing/global-function.md)
+- [Inheritance](https://patterns.ponylang.io/code-sharing/inheritance.md)
+- [Mixin](https://patterns.ponylang.io/code-sharing/mixin.md)
+- [Notifier](https://patterns.ponylang.io/code-sharing/notifier.md)
+- [Object Algebra](https://patterns.ponylang.io/code-sharing/object-algebra.md)
+
+## Creation Patterns
+
+- [Overview](https://patterns.ponylang.io/creation/index.md)
+- [FFI Global Initializer](https://patterns.ponylang.io/creation/ffi-global-initializer.md)
+- [Static Constructor](https://patterns.ponylang.io/creation/static-constructor.md)
+- [Supply Chain](https://patterns.ponylang.io/creation/supply-chain.md)
+- [Typed Step Builder](https://patterns.ponylang.io/creation/typed-step-builder.md)
+
+## Data Sharing Patterns
+
+- [Overview](https://patterns.ponylang.io/data-sharing/index.md)
+- [Copying](https://patterns.ponylang.io/data-sharing/copying.md)
+- [Isolated Field](https://patterns.ponylang.io/data-sharing/isolated-field.md)
+- [Mutable and Sendable](https://patterns.ponylang.io/data-sharing/mutable-and-sendable.md)
+- [Persistent Data Structures](https://patterns.ponylang.io/data-sharing/persistent-data-structures.md)
+
+## Domain Modeling Patterns
+
+- [Overview](https://patterns.ponylang.io/domain-modeling/index.md)
+- [Constrained Types](https://patterns.ponylang.io/domain-modeling/constrained-types.md)
+
+## Error Handling Patterns
+
+- [Overview](https://patterns.ponylang.io/error-handling/index.md)
+- [Error as Union Type](https://patterns.ponylang.io/error-handling/error-as-union-type.md)
+
+## Object Capabilities Patterns
+
+- [Overview](https://patterns.ponylang.io/object-capabilities/index.md)
+- [Authority Hierarchy](https://patterns.ponylang.io/object-capabilities/authority-hierarchy.md)
+- [Single Use Object Capabilities](https://patterns.ponylang.io/object-capabilities/single-use.md)
+
+## Performance Patterns
+
+- [Overview](https://patterns.ponylang.io/performance/index.md)
+- [Avoid Boxing with Parameterization](https://patterns.ponylang.io/performance/avoid-boxing.md)
+- [Boolean Short-Circuit](https://patterns.ponylang.io/performance/boolean-short-circuit.md)
+- [Limiting String Allocations](https://patterns.ponylang.io/performance/limiting-string-allocations.md)
+- [Preallocate Arrays](https://patterns.ponylang.io/performance/preallocate-arrays.md)
+
+## Resource Management Patterns
+
+- [Overview](https://patterns.ponylang.io/resource-management/index.md)
+- [FFI Resource Lifecycle](https://patterns.ponylang.io/resource-management/ffi-resource-lifecycle.md)
+
+## Streaming Patterns
+
+- [Overview](https://patterns.ponylang.io/streaming/index.md)
+- [Peek Before Consume](https://patterns.ponylang.io/streaming/peek-before-consume.md)
+
+## Testing Patterns
+
+- [Overview](https://patterns.ponylang.io/testing/index.md)
+- [Testing Notifier Interactions](https://patterns.ponylang.io/testing/notifier-interactions.md)
+- [Testing Output Only Actors](https://patterns.ponylang.io/testing/output-only-actors.md)
+

@@ -1,0 +1,4079 @@
+# Pony
+
+Pony is an open-source, object-oriented, actor-model, capabilities-secure,
+high-performance programming language. This documentation covers learning
+Pony, using the ecosystem, frequently asked questions, and the philosophy
+behind the language.
+
+
+# Learn
+
+# Learn Pony
+
+New to Pony? Start with [installing Pony](https://www.ponylang.io/learn/installing-pony/index.md) and then work through the [tutorial](https://tutorial.ponylang.io). The tutorial covers the language from the ground up and is the best way to get a feel for how Pony works.
+
+Once you’re comfortable with the basics, the [Pony Patterns](https://patterns.ponylang.io) cookbook and [standard library documentation](https://stdlib.ponylang.io) are good next steps. The [cheat sheet](https://www.ponylang.io/media/cheatsheet/pony-cheat-sheet.pdf) is handy to keep nearby as a quick reference.
+
+[Reference capabilities](https://www.ponylang.io/learn/reference-capabilities/index.md) are the concept most people struggle with. We have a page dedicated to resources that will help you get over that hump.
+
+If you get stuck, don’t worry. The Pony community is small but helpful. Check out [getting help](https://www.ponylang.io/learn/getting-help/index.md) for how to reach us.
+
+# Getting Help
+
+If you run into trouble while you are learning Pony, don’t worry, we’ve got you covered. If you are looking for an answer “right now”, we suggest you give our Zulip community a try. Whatever your question is, it isn’t dumb, and we won’t get annoyed. We only request that you follow proper etiquette:
+
+- Be polite and respectful. Constructive criticism is good, but it’s even more important that users get along and foster a welcoming community. Being rude won’t get your questions answered.
+- Be clear whether you are asking if something already exists in Pony (eg. “does Pony have X?”), or if you are requesting new functionality. We’ve received several messages asking about libraries or features present in other languages, by new users who weren’t familiarized with Pony’s philosophy or programming style well enough. Make sure that you understand what is your problem and if it makes sense in Pony’s ecosystem, and clarify your intention of proposing a change. Baseless suggestions will be ignored.
+- Don’t rush experienced users for immediate answers. This is an all-volunteer project, and folks will help whenever they are available. Also, Zulip makes it easy to keep conversations of the same topic in one place, so you can check later to see if someone has answered your questions.
+
+The [#beginner help](https://ponylang.zulipchat.com/#narrow/stream/189985-beginner-help) channel is a good starting point for basic questions. If you need more information on what is considered appropriate or inappropriate behaviour, check out our [Code of Conduct](https://github.com/ponylang/ponyc/blob/main/CODE_OF_CONDUCT.md).
+
+Many folks encounter the same issues or have the same questions, be sure to give the [frequently asked questions](https://www.ponylang.io/faq/index.md) section of this website a read.
+
+Think you’ve found a bug? It’s quite possible. Pony is a relatively young language that is still changing at a rapid pace and bugs do happen. Your best bet. Write to the mailing list with your issue and verify that you are experiencing an issue. Once a more knowledge member of the community confirms you are experiencing a bug, open an issue.
+
+- [Open an issue](https://github.com/ponylang/ponyc/issues)
+
+The Pony community while small is very helpful and inviting. We think you’ll find interacting with us to be an enjoyable experience. You can find a lot more community-related resources in the [community section](https://www.ponylang.io/community/index.md) of this site.
+
+# Installing Pony
+
+The easiest way to install Pony is through [ponyup](https://github.com/ponylang/ponyup), Pony’s toolchain manager. Ponyup handles installing and updating the Pony compiler and related tools.
+
+## Install ponyup
+
+On Linux or macOS, run:
+
+```
+sh -c "$(curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/ponylang/ponyup/latest-release/ponyup-init.sh)"
+```
+
+## Install the Pony compiler
+
+Once ponyup is installed, install the latest release of the Pony compiler:
+
+```
+ponyup update ponyc release
+```
+
+Prebuilt packages are only available for certain platforms. Check the [ponyc INSTALL.md](https://github.com/ponylang/ponyc/blob/main/INSTALL.md) for the current list of supported distributions. If yours isn’t listed, you’ll need to build from source.
+
+## Additional dependencies
+
+On Linux, the Pony compiler requires a C compiler and may need additional libraries depending on your distribution. See the [ponyc installation instructions](https://github.com/ponylang/ponyc/blob/main/README.md#installation) for distro-specific details.
+
+## More information
+
+See the [ponyup repository](https://github.com/ponylang/ponyup) for full documentation, including how to install nightly builds and manage multiple toolchain versions.
+
+# Papers
+
+If reading academic papers is your thing, you’re in luck. There are a number of papers that have been written about Pony. We host a number of them on this website. If you’re interested in learning more about “deep Pony”, these papers are a great place to start.
+
+## [Pony: Co-designing a Type System and a Runtime](https://www.ponylang.io/media/papers/codesigning.pdf)
+
+The best overview paper. Explains how Pony’s type system and runtime were designed together so that reference capabilities enable a concurrent garbage collector without stop-the-world pauses.
+
+## [Deny Capabilities for Safe, Fast Actors](https://www.ponylang.io/media/papers/fast-cheap.pdf)
+
+Introduces deny capabilities, the formal foundation for Pony’s reference capability system. Shows how denying certain operations on a reference (rather than granting them) lets the type system guarantee data-race freedom.
+
+## [A Principled Design of Capabilities in Pony](https://www.ponylang.io/media/papers/a_prinicipled_design_of_capabilities_in_pony.pdf)
+
+Extends the deny capabilities work with a more complete formalization. Covers viewpoint adaptation, safe-to-write, and how capabilities compose under aliasing and subtyping.
+
+## [ORCA: GC and Type System Co-Design for Actor Languages](https://www.ponylang.io/media/papers/orca_gc_and_type_system_co-design_for_actor_languages.pdf)
+
+Describes Pony’s production garbage collector. ORCA uses the type system’s knowledge of reference capabilities to do per-actor garbage collection with no stop-the-world pauses and no read or write barriers.
+
+## [Ownership and Reference Counting based Garbage Collection in the Actor World](https://www.ponylang.io/media/papers/OGC.pdf)
+
+An earlier take on actor garbage collection that influenced ORCA. Combines ownership tracking with reference counting to collect both objects within an actor and actors themselves.
+
+## [Fully Concurrent Garbage Collection of Actors on Many-Core Machines](https://www.ponylang.io/media/papers/opsla237-clebsch.pdf)
+
+Focuses on collecting actors themselves (not just the objects they own) without stopping the world. Covers the protocol for detecting when an actor is unreachable and can be reclaimed.
+
+## [A String of Ponies: Transparent Distributed Programming with Actors](https://www.ponylang.io/media/papers/a_string_of_ponies.pdf)
+
+Explores distributing Pony actors across multiple machines. Actors communicate the same way whether local or remote, so distribution is transparent to the programmer.
+
+## [Formalizing Generics for Pony](https://www.ponylang.io/media/papers/formalizing-generics-for-pony.pdf)
+
+Covers how generic types interact with reference capabilities. Works through the formalism for constraining type parameters with capabilities and how that affects subtyping.
+
+# Reference Capabilities
+
+If you are like most people learning Pony, your biggest stumbling block is going to be [reference capabilities](https://tutorial.ponylang.io/capabilities/reference-capabilities.html). Reference capabilities look like a very foreign concept to most folks. This isn’t surprising as they are one of the ideas that make Pony unique. Lots of folks get frustrated while learning reference capabilities and end up thinking that Pony has “too much type system” or is “too hard”. While we don’t agree with such assessments, we will agree that they can be quite hard for some folks to get a handle on.
+
+## What are reference capabilities
+
+Reference capabilities allow you the programmer to use the Pony type system to guarantee that you are safely handling data in your application. If you try to do something unsafe, your program won’t compile.
+
+## What background do I need?
+
+We’ve noticed that folks who have the easiest time with reference capabilities tend to have a couple things in common:
+
+- Familiarity with at least one strongly-typed language
+- Experience working in a highly concurrent, non-actor based language
+
+If you are coming from a dynamically typed background then reference capabilities are probably going to be doubly hard for you. Why? Well, you are going to be learning to navigate general type errors in general and then, you’ll have the added overhead of reference capabilities related type errors. It’s quite possible to get over the hump but just be aware you are in for a bit more work. More important than your type system background is your “concurrency background”.
+
+While reference capabilities might seem exotic, they aren’t really. They codify in the type system safe data handling practices that many programmers have learned over the course of time. If you have previously worked in a highly-concurrent, thread-based programming language like Java or C++ then there’s a chance that you have a leg up on learning reference capabilities.
+
+We’re not going to pretend that all programmers know how to safely handle data when using threads. If they did, we wouldn’t need Pony. The sad fact is, handling data correctly when you have many threads is hard. Even the most experienced programmer makes mistakes and they are really hard to go back and find. That said, if you are at least used to thinking about how different threads interact with data in your program, you have a leg up. Reference capabilities are all about describing for the compiler how data should be handled.
+
+So, if you are coming from a single-threaded language like Ruby or Python, odds are, you haven’t thought a lot about many threads safely accessing your variables. That’s ok, it just means you are going to have more work to do on understanding the concepts that the various reference capabilities represent. If you get hung up on something, don’t worry. [We’re here to help](https://www.ponylang.io/learn/getting-help/index.md).
+
+## Reference capabilities resources
+
+A note about code samples
+
+All recommended resources are incredibly helpful but represent Pony at a given point in time. While the core concepts will remain static, it’s possible that individual code examples will no longer compile with the latest versions of Pony. Pony is pre-1.0 and breaking changes are still quite common. If you run into code that doesn’t work, reach out and [get help](https://www.ponylang.io/learn/getting-help/index.md).
+
+There are 4 primary resources that we currently recommend for understanding reference capabilities:
+
+- [Safely Sharing Data: Reference Capabilities in Pony](http://jtfmumm.com/blog/2016/03/06/safely-sharing-data-pony-reference-capabilities/)
+- [Reference Capabilities, Consume and Recover in Pony](https://bluishcoder.co.nz/2017/07/31/reference_capabilities_consume_recover_in_pony.html)
+- [Pony VUG #1: Sylvan Clebsch - Writing Generic Code](https://vimeo.com/163871856)
+- [Bang, Hat and Arrow in Pony](https://bluishcoder.co.nz/2016/05/04/bang-hat-and-arrow-in-pony.html)
+
+We suggest you start with John Mumm’s excellent overview “[Safely Sharing Data: Reference Capabilities in Pony](http://jtfmumm.com/blog/2016/03/06/safely-sharing-data-pony-reference-capabilities/)” and Chris Double’s “[Reference Capabilities, Consume and Recover in Pony](https://bluishcoder.co.nz/2017/07/31/reference_capabilities_consume_recover_in_pony.html)”. They are both good general overviews of reference capabilities and why they exist. From there, continue on and watch Sylvan’s Pony Virtual Users’ Group presentation on “[Writing Generic Code](https://vimeo.com/163871856)”. A lot of what you see and watch in that video is going to go over your head. Don’t worry, that happens to everyone. We suggest that you pair it with “[Bang, Hat and Arrow in Pony](https://bluishcoder.co.nz/2016/05/04/bang-hat-and-arrow-in-pony.html)”. It’s an excellent write-up of the concepts introduced in the video. If you are looking for a slightly more academic take, [Adrian Colyer](https://twitter.com/adriancolyer) did an excellent write up of [Deny Capabilities for Safe, Fast Actors](https://web.archive.org/web/20241207181100/https://blog.acolyer.org/2016/02/17/deny-capabilities/). It’s an overview of Pony’s reference capabilities.
+
+Generics and references capabilities are the hardest things to get a handle on while learning Pony so don’t get frustrated. It’s not just you. We all go through this. During the video, you’ll hear one of our core team members, Sean T. Allen, commenting at numerous points that he was sort of following everything but not all of it. Sean now has a strong grasp on all the concepts. It takes time.
+
+Our recommendation is to [watch the video](https://vimeo.com/163871856), read “[Bang, Hat and Arrow in Pony](https://bluishcoder.co.nz/2016/05/04/bang-hat-and-arrow-in-pony.html)” and then try writing code that uses generic classes like collections. Once you have a handle on using generic classes, move on to trying to write your own generic classes. All the while, repeatedly return to watching the video and reading the accompanying blog post.
+
+Don’t worry. You will get it. And remember, the [helpful Pony community](https://www.ponylang.io/learn/getting-help/index.md) is waiting to assist.
+
+# Watch
+
+Videos are a great way to get a feel for Pony. Here are some we recommend.
+
+## [Pony: High-Performance, Memory-Safe Actors (Developer Voices)](https://www.youtube.com/watch?v=u9da3UzEhEI)
+
+Sean Allen explains what Pony is, why reference capabilities exist, and how the garbage collector works. Good first video if you want to understand the “why” behind Pony.
+
+## [VUG #11: Pony via a GitHub REST API](https://vimeo.com/592434464)
+
+Sean walks through a real Pony library in progress. Good for seeing what actual Pony code looks like.
+
+## [Learn Pony with Brian and Sean, Episode 1](https://www.youtube.com/watch?v=ODelwNLePRA)
+
+Sean teaches Brian Pony from scratch. Watch someone ask the questions you’ll have.
+
+## [Learn Pony with Brian and Sean, Episode 2](https://www.youtube.com/watch?v=wBzPIYgfbdo)
+
+Continuation of the hands-on learning session.
+# Use
+
+# Use
+
+The Use section collects practical information for developing with Pony.
+
+**Development Environment** covers tools for setting up and managing your project: dependency management with corral, the Pony language server for editor integration, linting with pony-lint, and documentation generation with pony-doc.
+
+**Development** covers writing, testing, debugging, and optimizing Pony code. You’ll find guides on unit testing and property-based testing with the standard library, step debugging with LLDB, memory tracking, tracing, and performance tuning.
+
+**Cross-Compilation** covers building Pony programs on one platform to run on another. ponyc has a built-in linker for cross-compiling to Linux targets including RISC-V and ARM.
+
+**Ecosystem** lists official packages maintained by the Pony developers.
+
+**Build and Release Tools** covers Docker images, GitHub Actions, and CI/CD tooling maintained by the Pony developers for building and releasing Pony projects.
+
+# Build and Release Tools
+
+The Pony Developers maintain a number of repositories that contain tools designed to make it easier to build and release projects associated with the Pony programming language. Each of the repositories is used extensively by us.
+
+We encourage the community to use and contribute to these repositories. If you’d like to discuss contributing to any of the repositories, please stop by the [#contribute to Pony](https://ponylang.zulipchat.com/#narrow/stream/192795-contribute-to-Pony) channel.
+
+To get assistance using any of the build and release tools, please stop by the [#tooling](https://ponylang.zulipchat.com/#narrow/stream/190367-tooling) channel.
+
+## Container Images
+
+The [shared-docker](https://github.com/ponylang/shared-docker) repository contains the Dockerfiles and scripts used to build the Docker images used by the Pony Developers.
+
+We have a variety of different types of images available. See the repository for more information. A variety of different images are available including:
+
+- Build environments with the Pony compiler and SSL libraries installed. These are updated nightly and for each release of the Pony compiler.
+- Build environment with the Pony compiler and PCRE installed. It is updated nightly and for each release of the Pony compiler.
+
+## Tools
+
+### [changelog-tool](https://github.com/ponylang/changelog-tool)
+
+Tool for modifying “standard Pony” changelogs.
+
+## GitHub Actions
+
+### [changelog-bot-action](https://github.com/ponylang/changelog-bot-action)
+
+Bot to update a Pony format changelogs with new entries.
+
+### [library-documentation-action-v2](https://github.com/ponylang/library-documentation-action-v2)
+
+Generates documentation for Pony packages.
+
+### [release-bot-action](https://github.com/ponylang/release-bot-action)
+
+Bot that handles the standard release process for ponylang projects.
+
+### [release-notes-bot-action](https://github.com/ponylang/release-notes-bot-action)
+
+Bot to update release notes with new entries.
+
+### [release-notes-reminder-bot-action](https://github.com/ponylang/release-notes-reminder-bot-action)
+
+Bot to remind that release notes are needed when a “CHANGELOG label” is added to a PR.
+
+# Working with the Compiler
+
+This section covers compiler-related topics for Pony users: runtime flags for tuning compiled programs, building ponyc from source with instrumentation for debugging, and cross-compilation to other platforms.
+
+## Runtime Options
+
+Compiled Pony programs accept `--pony*` command-line flags for tuning scheduler threads, garbage collection, the cycle detector, and other runtime behavior. These flags are passed to the compiled binary, not to `ponyc`.
+
+- [Runtime Options](https://www.ponylang.io/use/compiler/runtime-options/index.md)
+
+## Custom ponyc Builds
+
+ponyc can be built from source with instrumentation options for debugging: Valgrind annotations, sanitizers (address, thread, undefined behavior), DTrace/SystemTap probes, and systematic testing for concurrency bugs.
+
+- [Custom ponyc Builds for Debugging](https://www.ponylang.io/use/compiler/custom-ponyc-builds/index.md)
+
+## Cross-Compilation
+
+ponyc can cross-compile Pony programs to run on a different architecture. The compiler embeds the LLD linker for cross-compiling to Linux targets, so you don’t need an external cross-linker installed.
+
+- [Cross-Compilation](https://www.ponylang.io/use/cross-compilation/index.md)
+
+# Cross-Compilation
+
+Cross-compilation is building a program on one platform that runs on a different one. You compile on your x86-64 Linux workstation, and the resulting binary runs on a RISC-V board or an ARM device. The compiler does all the work on your machine; the target hardware only needs to run the result.
+
+ponyc has built-in support for cross-compiling to Linux targets. The compiler embeds the [LLD](https://lld.llvm.org/) linker, which it uses for all Linux linking — both native and cross-compilation. You don’t need an external cross-linker installed. For cross-compilation, you still need a few things from the target platform (its C library and runtime objects), but ponyc handles the linking itself.
+
+## How It Works
+
+ponyc uses its embedded LLD linker for all Linux targets. Two conditions trigger this:
+
+1. No `--linker` flag is set.
+1. The target is Linux.
+
+If you do pass `--linker`, ponyc falls back to the legacy path and invokes that linker externally. This serves as an escape hatch if embedded LLD doesn’t work for your situation.
+
+## What You Need
+
+Cross-compiling a Pony program requires three things:
+
+- **A ponyc with embedded LLD.** Any ponyc built from source since the LLD integration or installed via ponyup from a nightly release as of March 8, 2026 has this.
+- **A cross-compiled Pony runtime.** The Pony runtime library (`libponyrt`) and CRT objects must be compiled for the target architecture. These are not yet included in ponyc distributions, so you currently need to build them from the ponyc source tree. We plan to include pre-built cross-compiled runtimes in future ponyc releases ([ponylang/ponyc#4968](https://github.com/ponylang/ponyc/issues/4968)) to eliminate this step.
+- **A target sysroot.** This is a directory containing the target platform’s C library (libc), CRT startup objects (`crt1.o`, `crti.o`, `crtn.o`), and system libraries. Installing a cross-compiler package for your target typically provides this.
+
+## Building the Cross-Compiled Runtime
+
+Until pre-built runtimes ship with ponyc releases, you need to build the runtime from the ponyc source. This requires a full build environment including LLVM (built via `make libs`).
+
+```
+git clone https://github.com/ponylang/ponyc.git
+cd ponyc
+make libs build_flags=-j8
+make configure config=release
+make build config=release
+```
+
+Then build the cross-compiled runtime for your target:
+
+```
+make cross-libponyrt config=release \
+  CC=<cross-compiler> CXX=<cross-c++> \
+  arch=<arch> \
+  cross_cflags="<target-cflags>" \
+  cross_lflags="<target-lflags>"
+```
+
+The output goes into a directory named after the architecture (e.g., `build/rv64gc/release/`). You point `PONYPATH` at this directory when compiling your program.
+
+See the target-specific guides below for the exact commands for each supported target.
+
+For full source build prerequisites, see [Building ponyc from Source](https://www.ponylang.io/contribute/compiler/building-ponyc-from-source/index.md).
+
+## Compiler Flags
+
+These flags control cross-compilation. Most are “rarely needed” in normal use, but essential when targeting a different platform.
+
+| Flag          | Description                                                                                           |
+| ------------- | ----------------------------------------------------------------------------------------------------- |
+| `--triple`    | Target triple (e.g., `riscv64-unknown-linux-gnu`). Defaults to the host.                              |
+| `--cpu`       | Target CPU (e.g., `generic-rv64`, `cortex-a9`). Defaults to the host CPU.                             |
+| `--features`  | CPU features to enable or disable (e.g., `+m,+a,+f,+d,+c`).                                           |
+| `--abi`       | Target ABI (e.g., `lp64d`). Defaults to the host ABI.                                                 |
+| `--link-arch` | Linking architecture (e.g., `rv64gc`, `armv7-a`).                                                     |
+| `--sysroot`   | Path to the target system root. Auto-detected from common cross-toolchain locations if not specified. |
+| `--linker`    | Override the linker command. Bypasses embedded LLD and uses the specified external linker instead.    |
+
+The `--sysroot` flag tells ponyc where to find the target’s libc CRT objects and system libraries. If you don’t specify it, ponyc searches these locations in order:
+
+1. `/usr/<system-triple>/`
+1. `/usr/local/<system-triple>/`
+1. `/usr/<system-triple>/libc/`
+1. `/usr/local/<system-triple>/libc/`
+
+If auto-detection fails, ponyc tells you which paths it searched and asks you to specify `--sysroot` explicitly.
+
+## Supported Targets
+
+These targets are tested in ponyc’s CI and have step-by-step setup guides:
+
+- [RISC-V 64-bit Linux (glibc)](https://www.ponylang.io/use/cross-compilation/riscv64-linux/index.md)
+- [ARM Linux (glibc, soft-float)](https://www.ponylang.io/use/cross-compilation/arm-linux/index.md)
+- [ARM Linux (glibc, hard-float)](https://www.ponylang.io/use/cross-compilation/armhf-linux/index.md)
+
+Other Linux targets may work with the appropriate triple, sysroot, and runtime build, but these three are the ones we actively test.
+
+## Verifying with QEMU
+
+If you don’t have the target hardware handy, [QEMU](https://www.qemu.org/) user-mode emulation lets you run cross-compiled binaries on your host machine. Each target guide includes QEMU verification instructions. QEMU is also how ponyc’s own CI tests cross-compiled binaries.
+
+# Debugging
+
+## Debugging Pony Programs
+
+[`LLDB`](https://lldb.llvm.org/) is the primary step debugger we use with Pony. However, you can use any similar step debugger like [`gdb`](https://www.sourceware.org/gdb/).
+
+We have a couple of resources that can help get up to speed with using LLDB with Pony.
+
+We have a quickstart guide: [Pony LLDB Cheat Sheet](https://www.ponylang.io/use/debugging/pony-lldb-cheat-sheet/index.md). Which if you have some experience with debuggers like LLDB, should be enough to get up going.
+
+There’s also a collection of [Pony LLDB Extensions](https://github.com/ponylang/pony-lldb-extensions) that can help improve your Pony/LLDB experience.
+
+### Debugging Pony with Visual Studio Code
+
+In order to debug programs in the Visual Studio Code debugger (either on Windows or with GDB or LLDB on Unix), you need to set the `debug.allowBreakpointsEverywhere` setting to `true`, so you can set breakpoints in `.pony` files. Then make a launch configuration that runs your program.
+
+## Tracking Memory Usage
+
+Interested in tracking Pony runtime memory consumption? Checkout [“Making Pony track memory usage”](https://www.ponylang.io/use/debugging/track-memory-usage/index.md).
+
+## Tracing Pony Programs
+
+Interested in tracing the execution of a Pony program? Checkout [“Tracing Pony Programs”](https://www.ponylang.io/use/debugging/tracing/index.md).
+
+## Custom ponyc Builds
+
+ponyc can be built from source with instrumentation options for debugging: Valgrind annotations, sanitizers (address, thread, undefined behavior), DTrace/SystemTap probes, and systematic testing for concurrency bugs. See [Custom ponyc Builds for Debugging](https://www.ponylang.io/use/compiler/custom-ponyc-builds/index.md).
+
+# Dependency Management
+
+[Corral](https://github.com/ponylang/corral) is the dependency manager for Pony. It handles fetching dependencies, managing versions, and setting up the `PONYPATH` so the compiler can find your packages. Corral is currently in beta.
+
+## Installation
+
+Install corral via [ponyup](https://github.com/ponylang/ponyup):
+
+```
+ponyup update corral release
+```
+
+To build from source, see corral’s [BUILD.md](https://github.com/ponylang/corral/blob/main/BUILD.md).
+
+## Getting Started
+
+Initialize a project in the current directory:
+
+```
+corral init
+```
+
+This creates two files: `corral.json` (your project manifest) and `lock.json` (revision locks).
+
+Add a dependency:
+
+```
+corral add github.com/ponylang/valbytes.git
+```
+
+Fetch all dependencies and lock their revisions:
+
+```
+corral update
+```
+
+Build your project with dependencies on the `PONYPATH`:
+
+```
+corral run -- ponyc
+```
+
+Arguments after `--` are passed through to the command. For example, to build in debug mode:
+
+```
+corral run -- ponyc --debug
+```
+
+In your Pony source, import the dependency by package name:
+
+```
+use "valbytes"
+```
+
+After running `corral update`, two directories appear in your project:
+
+- `_corral/` — per-project dependency workspace
+- `_repos/` — local VCS repo cache
+
+Add both to your `.gitignore`. They are managed by corral and do not belong in version control.
+
+## Configuration
+
+### corral.json
+
+The project manifest. It describes your project and lists its dependencies:
+
+```
+{
+  "info": {
+    "name": "myproject",
+    "description": "A Pony project"
+  },
+  "deps": [
+    {
+      "locator": "github.com/ponylang/valbytes.git",
+      "version": ">=0.6.0 <2.0.0"
+    }
+  ]
+}
+```
+
+The `info` section is optional metadata. The `deps` list contains one entry per dependency, each with a `locator` (where to find it) and an optional `version` constraint.
+
+### lock.json
+
+Auto-generated by `corral update`. It pins each dependency to an exact revision so that builds are reproducible. Commit `lock.json` to version control.
+
+## More Information
+
+See the corral [README](https://github.com/ponylang/corral) for an overview and the [DOCS.md](https://github.com/ponylang/corral/blob/main/DOCS.md) for the full command reference, all dependency types (remote git, local git, local path), and version constraint syntax.
+
+# Documentation Generation
+
+pony-doc generates API documentation for Pony packages. It produces a complete [MkDocs](https://www.mkdocs.org/) site with the [Material](https://squidfunk.github.io/mkdocs-material/) theme, including type pages, method signatures, docstrings, and source code browsing. It is part of the [ponylang/ponyc](https://github.com/ponylang/ponyc) repository, built alongside the compiler, and distributed with it. Installing ponyc from source or via ponyup will include pony-doc.
+
+## Usage
+
+```
+# Generate docs for the current directory
+pony-doc
+
+# Generate docs for a specific package
+pony-doc path/to/my-package
+
+# Write output to a specific directory
+pony-doc -o docs path/to/my-package
+
+# Include private types and methods
+pony-doc --include-private
+
+# Print version
+pony-doc --version
+```
+
+pony-doc compiles the package through the type-checking pass, extracts type information from the AST, and writes MkDocs-compatible markdown. The output lands in a directory named `<package>-docs/` inside the output directory (current directory by default).
+
+## Output
+
+The generated site includes:
+
+- A home page listing all packages
+- A page per package with its public (and optionally private) types
+- A page per type with constructors, fields, methods, parameters, and return types
+- Source code pages with line-numbered Pony source
+- Cross-reference links between types
+
+By default, only public types and methods are included. Use `--include-private` to include private types and methods as well.
+
+## Viewing the Output
+
+The generated output is a MkDocs project. To view it locally:
+
+```
+pip install mkdocs-material
+cd <package>-docs
+mkdocs serve
+```
+
+Then open `http://127.0.0.1:8000` in a browser.
+
+## Using with Corral
+
+For projects that use [corral](https://github.com/ponylang/corral) for dependency management, run pony-doc through `corral run` so that dependencies are on the package search path:
+
+```
+corral run -- pony-doc
+```
+
+# Linting
+
+pony-lint checks Pony source files for style violations and reports diagnostics with file, line, and column information. It is part of the ponyc repository, built alongside the compiler, and distributed with it. Installing ponyc from source or via ponyup will include pony-lint.
+
+## Usage
+
+```
+# Lint the current directory
+pony-lint
+
+# Lint specific paths
+pony-lint src/ test/
+
+# Disable a rule
+pony-lint --disable style/hard-tabs
+
+# Disable a category
+pony-lint --disable style
+
+# Use a config file
+pony-lint --config .pony-lint.json
+
+# Print version
+pony-lint --version
+```
+
+## Using with Corral
+
+For projects that use [corral](https://github.com/ponylang/corral) for dependency management, run pony-lint through `corral run` so that dependencies are on the package search path:
+
+```
+corral run -- pony-lint
+
+corral run -- pony-lint src/ test/
+```
+
+## Rules
+
+| Rule ID                             | Default | Description                                                                                |
+| ----------------------------------- | ------- | ------------------------------------------------------------------------------------------ |
+| `style/acronym-casing`              | on      | Acronyms in type names should be fully uppercased                                          |
+| `style/array-literal-format`        | on      | Multiline array literal formatting (bracket placement and spacing)                         |
+| `style/assignment-indent`           | on      | Multiline assignment RHS must start on the line after `=`                                  |
+| `style/blank-lines`                 | on      | Blank line conventions within and between entities                                         |
+| `style/call-argument-format`        | on      | Multiline call argument formatting (argument layout and placement)                         |
+| `style/comment-spacing`             | on      | `//` not followed by exactly one space                                                     |
+| `style/control-structure-alignment` | on      | Control structure keywords must be vertically aligned                                      |
+| `style/docstring-format`            | on      | Docstring `"""` tokens should be on their own lines                                        |
+| `style/dot-spacing`                 | on      | No spaces around `.`; `.>` spaced as infix operator                                        |
+| `style/file-naming`                 | on      | File name should match principal type                                                      |
+| `style/hard-tabs`                   | on      | Tab characters anywhere in source                                                          |
+| `style/indentation-size`            | on      | Indentation should be a multiple of 2 spaces                                               |
+| `style/lambda-spacing`              | on      | No space after `{` in lambdas; space before `}` only on single-line                        |
+| `style/line-length`                 | on      | Lines exceeding 80 codepoints                                                              |
+| `style/match-case-indent`           | on      | Match case `\|` must align with `match` keyword                                            |
+| `style/match-no-single-line`        | on      | Match expressions must span multiple lines                                                 |
+| `style/member-naming`               | on      | Member names should be snake_case                                                          |
+| `style/method-declaration-format`   | on      | Multiline method declaration formatting (parameter layout, return type and `=>` alignment) |
+| `style/operator-spacing`            | on      | Binary operators need surrounding spaces; no space after unary `-`                         |
+| `style/package-docstring`           | on      | Package should have a `<package>.pony` file with a docstring                               |
+| `style/package-naming`              | off     | Package directory name should be snake_case                                                |
+| `style/partial-call-spacing`        | on      | `?` at call site must immediately follow `)`                                               |
+| `style/partial-spacing`             | on      | `?` in method declaration needs surrounding spaces                                         |
+| `style/prefer-chaining`             | on      | Local variable can be replaced with `.>` chaining                                          |
+| `style/public-docstring`            | on      | Public types and methods should have a docstring                                           |
+| `style/trailing-whitespace`         | on      | Trailing spaces or tabs                                                                    |
+| `style/type-alias-format`           | on      | Multiline type alias formatting (paren placement and spacing)                              |
+| `style/type-naming`                 | on      | Type names should be CamelCase                                                             |
+| `style/type-parameter-format`       | on      | Multiline type parameter formatting (bracket placement, layout, and `is` alignment)        |
+
+See the [Rule Reference](https://www.ponylang.io/use/linting/rule-reference/index.md) for detailed explanations and code examples for each rule.
+
+## Configuration
+
+Create a `.pony-lint.json` file in your project root (next to `corral.json`) to configure rule status. Each entry maps a rule ID or category name to `"on"` or `"off"`:
+
+```
+{
+  "rules": {
+    "style/line-length": "off",
+    "style": "on"
+  }
+}
+```
+
+Rule-specific entries take precedence over category entries. CLI `--disable` flags take precedence over file configuration.
+
+Config file discovery order:
+
+1. `.pony-lint.json` in the current working directory
+1. Walk up to find `corral.json`, then `.pony-lint.json` in that directory
+1. Not found – all rules use their defaults
+
+## Suppression Comments
+
+Inline comments suppress diagnostics for specific lines or regions:
+
+```
+// pony-lint: off style/line-length
+let long = "this line won't be flagged for length"
+// pony-lint: on style/line-length
+
+// pony-lint: allow style/trailing-whitespace
+let x = 1
+```
+
+Directives:
+
+- `// pony-lint: off <rule-or-category>` – suppress from this line onward
+- `// pony-lint: on <rule-or-category>` – resume checking
+- `// pony-lint: allow <rule-or-category>` – suppress next line only
+- Omit the rule/category to suppress all rules
+
+A rule-specific `on` overrides a category-level `off`. Unclosed `off` regions produce `lint/unclosed-suppression` diagnostics. Malformed directives (missing space, unknown directive, empty directive, duplicate `off`) produce `lint/malformed-suppression` diagnostics.
+
+## Exit Codes
+
+| Code | Meaning                                                    |
+| ---- | ---------------------------------------------------------- |
+| 0    | No violations found                                        |
+| 1    | One or more violations found                               |
+| 2    | Operational error (unreadable file, malformed suppression) |
+
+# Packages
+
+The Pony Developers maintain a number of packages that exist outside of the standard library that you can utilize. Each of the packages is tested nightly to make sure it works with the latest Pony compiler builds.
+
+While the packages are maintained by us, we welcome contributions from the community at large. If you’d like to discuss contributing to any of the packages, please stop by the [#contribute to Pony](https://ponylang.zulipchat.com/#narrow/stream/192795-contribute-to-Pony) channel.
+
+## Networking
+
+### [hobby](https://github.com/ponylang/hobby)
+
+Hobby is a simple HTTP web framework for Pony, powered by [Stallion](https://github.com/ponylang/stallion). It provides radix-tree routing with named and wildcard parameters, two-phase middleware (before/after), route groups with shared prefixes and middleware, and streaming responses via chunked transfer encoding. Routes are registered through method chaining and frozen into an immutable router when the server starts, giving you a mutable-friendly setup phase followed by a fully `val` runtime with no locking or coordination overhead.
+
+Hobby is designed to feel lightweight while taking full advantage of Pony’s type system and reference capabilities. Handlers are `val` - safe to share across concurrent connections without copying. The `Context` is `ref`, so middleware and handlers can read and mutate request state without juggling `iso` ownership. If you’re building an HTTP service in Pony and want a familiar route/middleware/handler model without fighting the capability system, Hobby is a good place to start.
+
+### [http](https://github.com/ponylang/http)
+
+HTTP client package.
+
+### [http_server](https://github.com/ponylang/http_server)
+
+Pony package for building HTTP server applications.
+
+### [lori](https://github.com/ponylang/lori)
+
+A TCP networking library for Pony. Lori separates connection logic from actor scheduling — the TCP state machine lives in a plain class (`TCPConnection`) that your actor delegates to, rather than baking everything into a single actor the way the standard library’s net package does. This gives you control over how your actor is structured while lori handles the low-level I/O.
+
+Key features:
+
+- Fallible sends — `send()` returns `(SendToken | SendError)` instead of silently dropping data, so the application always knows whether data was accepted
+- Built-in SSL — switch from plain TCP to SSL by changing a single constructor call
+- Connection limits — cap the number of concurrent connections a listener will accept
+- Backpressure notifications — `_on_throttled` / `_on_unthrottled` callbacks let the application respond to socket pressure
+
+### [mare](https://github.com/ponylang/mare)
+
+Mare is a WebSocket server library for Pony, built on [lori](https://github.com/ponylang/lori). It implements RFC 6455 and provides a callback-driven API for handling WebSocket connections. You write an actor that implements `WebSocketServerActor` and responds to connection events — `on_open`, `on_text_message`, `on_binary_message`, and `on_closed` — and mare handles the protocol framing, upgrade handshake, and connection lifecycle. Configuration is explicit: bind address, port, and SSL are set through `WebSocketConfig`.
+
+### [ssl](https://github.com/ponylang/ssl)
+
+Pony wrappers for OpenSSL and LibreSSL.
+
+The package is organized into two sub-packages. `ssl/crypto` provides one-shot hash functions (MD5, SHA-1, SHA-256, SHA-512, and others), streaming digests, HMAC-SHA-256, PBKDF2-SHA-256 key derivation, cryptographic random bytes, and constant-time comparison. `ssl/net` provides `SSLContext` for TLS configuration, `SSL` for transport-agnostic encryption/decryption via memory BIOs, and `SSLConnection` — a `TCPConnectionNotify` wrapper that adds TLS to any existing TCP connection transparently. ALPN negotiation and X.509 hostname verification are supported. Compile with `-Dopenssl_1.1.x`, `-Dopenssl_3.0.x`, or `-Dlibressl` to select the underlying library.
+
+### [stallion](https://github.com/ponylang/stallion)
+
+Stallion is an HTTP/1.x server library for Pony, built on [lori](https://github.com/ponylang/lori). Rather than hiding connections behind an opaque server object, Stallion asks you to write the connection actor yourself - your actor owns an `HTTPServer` instance and receives HTTP lifecycle callbacks directly. There are no hidden internal actors, no implicit concurrency, and no magic. You get a typed request with a pre-parsed URI, a `Responder` for sending replies, and a `ResponseBuilder` state machine for constructing well-formed responses. Pipelined requests are queued and responses are sent in order, even when your actor handles them out of sequence.
+
+Stallion supports both complete and streaming responses. Complete responses are pre-serialized via `ResponseBuilder` for efficient repeated use. Streaming responses use chunked transfer encoding with flow control - each chunk gets an asynchronous acknowledgement callback so producers can match their send rate to the network. Configuration is explicit: parser limits, idle timeouts, pipelining depth, and TLS are all opt-in via `ServerConfig`. If you want a minimal, transparent HTTP layer that fits naturally into Pony’s actor model without imposing its own abstractions, Stallion is the foundation to build on.
+
+### [uri](https://github.com/ponylang/uri)
+
+URI library for Pony. Implements [RFC 3986](https://datatracker.ietf.org/doc/html/rfc3986) parsing, reference resolution, and normalization; [RFC 3987](https://datatracker.ietf.org/doc/html/rfc3987) IRI/URI conversion and IRI-aware encoding; and [RFC 6570](https://datatracker.ietf.org/doc/html/rfc6570) URI template expansion at all four levels.
+
+### [web_link](https://github.com/ponylang/web_link)
+
+Parser for [RFC 8288](https://www.rfc-editor.org/rfc/rfc8288) (Web Linking) HTTP Link headers in Pony. Implements the link-value grammar from Section 3 including quoted-string parameters, OWS/BWS handling, and multi-link comma-separated headers.
+
+## Databases
+
+### [postgres](https://github.com/ponylang/postgres)
+
+Pure Pony Postgres client.
+
+Postgres is a pure Pony PostgreSQL driver with no libpq dependency — it implements the wire protocol directly. It supports simple queries, parameterized queries (both unnamed and named prepared statements), COPY IN/OUT for bulk data transfer, row streaming with bounded memory via portal suspension, SSL/TLS, and SCRAM-SHA-256 authentication. The API is fully async and callback-driven: you implement receiver interfaces (`ResultReceiver`, `CopyInReceiver`, `StreamingResultReceiver`, etc.) and the `Session` actor calls back with results or errors. Query execution is serialized within a session — for concurrency, create multiple sessions.
+
+### [redis](https://github.com/ponylang/redis)
+
+Pure Pony Redis client.
+
+The client is built on [lori](https://github.com/ponylang/lori) and supports strings, keys, hashes, lists, sets, and pub/sub, with builder primitives for type-safe command construction. Any Redis command not covered by a builder can be sent as a raw byte array. Commands are pipelined by default — each `execute()` sends immediately without waiting for prior responses. The client supports both RESP2 and RESP3 protocols, SSL/TLS, and Redis 6.0+ ACL authentication. Backpressure is bounded: a configurable send buffer rejects commands when full rather than growing without limit. Note that this package has not yet had a formal release.
+
+## Data Formats and Parsing
+
+### [json](https://github.com/ponylang/json)
+
+A JSON package for Pony.
+
+The package provides `JsonDoc` for parsing and serializing JSON, with `JsonObject`, `JsonArray`, and the `JsonType` union covering all JSON value types. JSON integers (no decimal point) become `I64`; numbers with a fractional part or exponent become `F64`. Building JSON is done by mutating `JsonObject.data` and `JsonArray.data` directly, then calling `string()` to serialize. A `JsonExtractor` class offers chainable navigation for drilling into parsed structures — convenient for reading, though not recommended in hot paths. To send parsed JSON between actors, wrap the parse call in a `recover` block to produce a `val` or `iso` reference.
+
+### [peg](https://github.com/ponylang/peg)
+
+A parsing expression grammar package for Pony.
+
+The library offers two ways to define parsers. You can build grammars programmatically using Pony operator overloading — `*` for sequence, `/` for ordered choice, `-` for skip, `.many()` for repetition — which makes grammar definitions read close to standard PEG notation. Alternatively, you can write grammars in `.peg` text files and compile them at runtime. Both approaches produce the same `Parser val` type, which parses input into a labeled AST of nodes and tokens. The library supports hidden channels for automatic whitespace skipping, separated lists, forward declarations for recursive rules, and positional error reporting with source context.
+
+### [regex](https://github.com/ponylang/regex)
+
+Perl compatible regular expression support for Pony.
+
+The library wraps PCRE2 (the 8-bit variant) via FFI, with JIT compilation enabled by default and a graceful fallback to interpreted matching. UTF-8 mode is always on. The `Regex` class compiles a pattern once and provides `apply` for matching, `replace` for substitution (single or global), `split` for splitting, and `matches` for iterating over all non-overlapping matches. Both numbered and named capture groups are supported. PCRE2 compile-time options like case-insensitive or multiline mode are set via inline flags in the pattern (e.g., `(?i)`, `(?m)`). The library requires `libpcre2-8` to be installed on the system.
+
+### [semver](https://github.com/ponylang/semver)
+
+A semantic versioning package for Pony.
+
+The library is organized into three sub-packages. `semver/version` handles parsing, validation, comparison, and stringification of semver 2.0.0 version strings, including pre-release fields and build metadata. `semver/range` provides interval-based version ranges with inclusive/exclusive bounds. `semver/solver` is a constraint-based dependency resolver that takes a set of available artifacts with their version-constrained dependencies and finds a compatible combination using a backtracking search. Parsing never throws — `ParseVersion` always returns a `Version` object, and `is_valid()` plus the `errors` field indicate whether parsing succeeded.
+
+### [templates](https://github.com/ponylang/templates)
+
+A template engine for Pony with optional HTML-aware contextual auto-escaping.
+
+Templates uses `{{ ... }}` delimiters and supports variable substitution, dot-notation property access, `for` loops over sequences, conditionals (`if`, `ifnot`, `else`, `elseif`), filter pipes (`{{ name | upper | trim }}`), includes, template inheritance, comments, raw blocks, and whitespace trimming. Built-in filters cover common operations — `upper`, `lower`, `trim`, `capitalize`, `title`, `default("fallback")`, and `replace("old", "new")` — and custom filters can be registered via `TemplateContext`. Templates are compiled into an immutable `val` representation that can be shared across actors and rendered repeatedly with different values.
+
+`HtmlTemplate` adds automatic context-aware escaping — text content gets entity escaping, URL attributes get scheme filtering and percent-encoding, and script contexts get JS string escaping. Trusted content can bypass escaping via `TemplateValue.unescaped`. Template inheritance lets child templates extend a base with `{{ extends "base" }}` and override named `{{ block }}` sections, with multi-level chains supported. Partials are registered and resolved through `TemplateContext`, which also handles circular dependency detection at parse time.
+
+### [valbytes](https://github.com/ponylang/valbytes)
+
+Package to deal with multiple concatenated byte-arrays as if they were a single byte-array.
+
+`ByteArrays` lets you concatenate byte arrays without copying data. Each `+` operation wraps the existing data and the new chunk in a tree node, making concatenation O(1). You can then index into the combined structure, search for subsequences, slice with `select`/`drop`/`take` (also zero-copy), or read little-endian multi-byte integers — all as if the bytes were contiguous. When you do need a flat array, `trim` and `array` materialize the data. `ByteArrays` is `val` (immutable), so it is safe to share across actors. The typical use case is accumulating data from I/O in chunks and processing it later without intermediate copies.
+
+## External Services
+
+### [github_rest_api](https://github.com/ponylang/github_rest_api)
+
+Pony package for working with GitHub’s REST API.
+
+The library covers a subset of the GitHub REST API — repositories, issues, issue comments, labels, pull requests, commits, releases, and issue search. Operations are async and return promises. Two API styles are available: call operation primitives directly, or chain methods on model objects starting from a `GitHub` entry point. Authentication is via an optional personal access token. Paginated endpoints return objects with `prev_page()` and `next_page()` methods. The library does not aim for full API coverage — it implements what the Pony project’s own tooling needs and grows on demand.
+
+## Concurrency and Distribution
+
+### [crdt](https://github.com/ponylang/crdt)
+
+Conflict-free replicated data types (CRDTs) for Pony, based on delta-state replication.
+
+The library provides twelve CRDT types covering counters (grow-only, positive-negative, and causal), sets (grow-only, two-phase, timestamp-based, add-wins and remove-wins observed-remove), registers (last-write-wins and multi-value), a timestamped log, and a composable keyed collection. All types use delta-state replication — mutator methods return a delta containing only the new information, which you send to other replicas instead of the full state. Convergence is commutative and idempotent, so deltas can arrive in any order and be applied more than once without harm. The library handles the data structures and serialization; you provide the transport and logical timestamps.
+
+### [fork_join](https://github.com/ponylang/fork_join)
+
+Pony parallel processing package.
+
+Fork_join handles the plumbing of distributing data processing across multiple actors. You supply four components: a `Generator` that produces work items on demand, a `Worker` that processes them, a `WorkerBuilder` that creates worker instances, and a `Collector` that aggregates results. The library creates one worker actor per scheduler thread (configurable), pulls items from the generator as workers become available, and delivers results to the collector. Work items must be independent — there is no inter-worker communication or ordering guarantee. The generator can pre-partition data in bulk or produce items one at a time for natural load balancing. Early termination is supported from both the job owner and the collector side.
+
+### [reactive_streams](https://github.com/ponylang/reactive_streams)
+
+Pony implementation of <http://www.reactive-streams.org/>.
+
+The package maps the Reactive Streams specification to Pony’s actor model. Publishers and subscribers are actor interfaces; the `Subscription` connecting them is passed as `iso` to enforce single-owner semantics at the type level. No data flows until the subscriber signals demand via `request(n)`, giving full subscriber-driven backpressure. The library includes `Broadcast` and `Unicast` subscriber managers that handle demand tracking and bounded queuing, so building a publisher is a matter of implementing `ManagedPublisher` and calling `publish()` when data is available.
+
+## Utilities
+
+### [appdirs](https://github.com/ponylang/appdirs)
+
+Package for getting platform-specific application directories e.g. directory for user-based config.
+
+Appdirs gives you the correct OS-specific directory paths for user data, config, cache, logs, and state. On Linux it follows the XDG Base Directory Specification, on macOS it uses `~/Library/...` paths (with an opt-in XDG mode for CLI tools that want consistent cross-platform behavior), and on Windows it calls the Known Folders API. All methods are partial — they can fail if the home directory is not set or the OS API call fails. The library computes paths but does not create directories.
+
+### [glob](https://github.com/ponylang/glob)
+
+Pony package that provides the ability to find all pathnames matching a given pattern based on Unix shell rules.
+
+Glob supports `*` (match within a directory), `**` (match across directories), `?` (single character), and `[seq]`/`[!seq]` (character classes). You can match patterns against strings with `fnmatch`, filter a list of names with `filter`, or walk the filesystem with `glob` and `iglob`. Unlike many glob implementations, this one exposes what each wildcard matched via capturing groups — the `filter` and `iglob` APIs return the matched substrings alongside each result. The library depends on [regex](https://github.com/ponylang/regex) and requires PCRE2 on the system.
+
+### [logger](https://github.com/ponylang/logger)
+
+A simple logging package for Pony.
+
+Logger provides four log levels (`Fine`, `Info`, `Warn`, `Error`) and a generic `Logger[A]` class that accepts any type with a conversion lambda. For string logging, use `StringLogger`. The idiomatic usage pattern is `logger(Warn) and logger.log("message")` — Pony’s short-circuit evaluation of `and` means the log message is never constructed when the level is suppressed. `Logger` is `val`, so a single instance can be shared across actors. Output goes to any `OutStream`; formatting is customizable via the `LogFormatter` interface, and the default formatter includes source file, line, and column from the call site.
+
+# Performance
+
+We advertise Pony as a high-performance language. And Pony can definitely be fast. We have personal experience with making Pony applications fast. We also have experience with people writing Pony code that is rather slow.
+
+Writing fast code isn’t easy. Some languages make it easier than others. Some languages make it harder than others. But, you can write slow code in any language. Trust us, we know. We’ve done it. All this it to let you know, you can write very fast code with Pony, but it will require some effort. There is no language that you can use that will make your code fast without effort.
+
+We’ve collected together some resources to help you write fast Pony code. In addition to these resources, we have a [#performance help](https://ponylang.zulipchat.com/#narrow/stream/190362-performance-help) channel on Zulip. If you have questions about performance, drop by and ping us.
+
+## Microbenchmarking
+
+The Pony standard library contains a microbenchmarking package called `pony_bench`. Microbenchmarking is the process of measuring the performance of small pieces of code. It’s a useful tool for understanding the performance characteristics of small sections code.
+
+It won’t help you make your entire application fast, but it can help you make small sections of your code fast. We recommend only spending time using Pony Bench on code that will be used in a “hot path”. That is, code that will executed many times. And by “many times”, we mean “millions” or “billions”.
+
+- [Pony Bench](https://stdlib.ponylang.io/pony_bench--index/)
+
+## Performance Cheat Sheet
+
+We’ve collected together a ton of information about making Pony programs fast. It covers a ton of topics. Some are related to how to design programs for speed. Some are related to how to maximize the performance of code you write. Some are related to optimizing the environment your Pony program runs in.
+
+- [Pony Performance Cheat Sheet](https://www.ponylang.io/use/performance/pony-performance-cheat-sheet/index.md)
+
+## Runtime Options
+
+Compiled Pony programs accept `--pony*` runtime flags for tuning scheduler threads, garbage collection, the cycle detector, and other runtime behavior. These flags are passed to the compiled binary at runtime, not to `ponyc`.
+
+- [Runtime Options](https://www.ponylang.io/use/compiler/runtime-options/index.md)
+
+## Performance Testing
+
+Performance testing is very hard to get right. Most people do it poorly. That’s just a fact. The environment you use to test is very important, we suggest you take a look at the documentation we’ve put together for [testing Pony runtime changes](https://www.ponylang.io/contribute/developer-resources/performance-testing-setup/index.md). It might give you some inspiration for doing better testing of your own programs.
+
+# Pony Language Server
+
+pony-lsp is the Pony Language Server. It communicates with editors via stdout/stdin using the [Language Server Protocol](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/). It is part of the [ponylang/ponyc](https://github.com/ponylang/ponyc) repository, built alongside the compiler.
+
+Your editor launches the `pony-lsp` binary as a subprocess. See the [editor configuration](https://www.ponylang.io/use/pony-lsp/#editor-configuration) section for setup instructions.
+
+## Getting pony-lsp
+
+`pony-lsp` is distributed via [ponyup](https://github.com/ponylang/ponyup) alongside `ponyc`. Installing a recent `ponyc` will also install `pony-lsp`. See the [ponyc installation instructions](https://github.com/ponylang/ponyc/blob/main/INSTALL.md) for details.
+
+## Feature Support
+
+| Feature          | Description                                                  |
+| ---------------- | ------------------------------------------------------------ |
+| Diagnostics      | Compiler errors and warnings published on file open and save |
+| Hover            | Type information and documentation on hover                  |
+| Go To Definition | Jump to the definition of a symbol                           |
+| Document Symbols | List of symbols in the current file                          |
+
+## Workspace Detection
+
+pony-lsp needs to know the root of your project so it can resolve packages correctly. It determines this by scanning parent directories for a workspace root marker. The following are recognised as markers:
+
+- `corral.json` (Pony’s dependency manager)
+- `bundle.json`
+- `.git`, `.hg`, `.bzr`, or `.svn` directories
+
+Most Pony projects will have at least one of these already. If yours doesn’t, create an empty `corral.json` in the project root or initialise a Git repository there.
+
+## Settings
+
+pony-lsp supports settings via [`workspace/configuration`](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#workspace_configuration) request and [`workspace/didChangeConfiguration`](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#workspace_didChangeConfiguration) notification.
+
+| Setting    | Type            | Example                     | Description                                                               |
+| ---------- | --------------- | --------------------------- | ------------------------------------------------------------------------- |
+| `defines`  | `Array[String]` | `["FOO", "BAR"]`            | Defines active during compilation, equivalent to the `-D` flag in `ponyc` |
+| `ponypath` | `Array[String]` | `["/path/to/pony/package"]` | Additional package search paths for pony-lsp                              |
+
+The standard library is discovered automatically from the pony-lsp installation path. You only need `ponypath` if your project depends on packages outside the standard search locations.
+
+Example settings:
+
+```
+{
+  "defines": ["FOO", "BAR"],
+  "ponypath": ["/path/to/pony/package", "/another/path"]
+}
+```
+
+How to pass these settings depends on your editor. See the editor configuration sections below.
+
+## Editor Configuration
+
+### Helix
+
+Getting Helix set up with pony-lsp is very easy. Add the following to your [`languages.toml`](https://docs.helix-editor.com/languages.html).
+
+```
+[[language]]
+name = "ponylang"
+language-servers = [ "pony-lsp" ]
+indent = { tab-width = 2, unit = "  " }
+
+[language-server.pony-lsp]
+command = "pony-lsp"
+args = [""]
+```
+
+#### Project-Specific Defines
+
+Defines are almost always project-specific. Rather than adding them to your global `languages.toml`, create a `.helix/languages.toml` in the project root:
+
+```
+[language-server.pony-lsp.config]
+defines = [
+  "MY_DEFINE_ONE",
+  "MY_DEFINE_TWO",
+]
+```
+
+Replace the example values with the actual defines your project needs.
+
+### Neovim
+
+Configuration details are coming. If you use Neovim with pony-lsp, consider contributing to this section.
+
+### Visual Studio Code
+
+To get `pony-lsp` working with Visual Studio Code, first install the [Pony VS Code extension](https://github.com/ponylang/vscode-extension). Ensure `pony-lsp` is on your `PATH` — the extension will show an error if it isn’t found.
+
+Open your VS Code settings to configure the extension (all options are optional):
+
+```
+{
+  "pony.lsp.executable": "/usr/local/bin/pony-lsp",
+  "pony.trace.server": "off",
+  "pony-lsp.defines": ["FOO", "BAR"],
+  "pony-lsp.ponypath": ["/path/to/pony/package1", "/path/to/pony/package2"]
+}
+```
+
+`pony.lsp.executable` sets the path to `pony-lsp` if it isn’t on your `PATH`. `pony.trace.server` traces communication between VS Code and the language server (`"off"`, `"messages"`, or `"verbose"`). `pony-lsp.defines` and `pony-lsp.ponypath` are passed directly to `pony-lsp`.
+
+For more details, see the [Pony VS Code extension project documentation](https://github.com/ponylang/vscode-extension).
+
+### Zed
+
+To get `pony-lsp` working with the [Zed](https://zed.dev/) editor, first install the Pony Zed extension:
+
+1. Open Zed
+1. Press cmd-shift-x (macOS) or ctrl-shift-x (Linux/Windows)
+1. Search for “Pony”
+1. Click Install
+
+Next, open your Zed settings to configure `pony-lsp` (all options are optional):
+
+```
+{
+  "lsp": {
+    "pony-lsp": {
+      "settings": {
+        "executable": "/pony/bin/pony-lsp",
+        "ponypath": [
+          "/path/to/project-a/packages",
+          "/path/to/project-b/packages"
+        ],
+        "defines": [
+          "MY_DEFINE_ONE",
+          "MY_DEFINE_TWO"
+        ]
+      }
+    }
+  }
+}
+```
+
+For more details, see the [Pony Zed extension project documentation](https://github.com/orien/pony-zed).
+
+# Testing
+
+Pony ships two testing packages in its standard library: PonyTest for unit testing and PonyCheck for property-based testing. Both run inside the same test harness.
+
+## Unit Testing
+
+[PonyTest](https://stdlib.ponylang.io/pony_test--index/) is Pony’s unit testing framework. Each test is a class that implements `UnitTest`. You provide a `name()` and an `apply(h: TestHelper)` function that contains your assertions.
+
+```
+use "pony_test"
+
+class iso _TestAdd is UnitTest
+  fun name(): String => "addition"
+
+  fun apply(h: TestHelper) =>
+    h.assert_eq[U32](4, 2 + 2)
+```
+
+`TestHelper` provides assertion functions like `assert_eq`, `assert_true`, `assert_error`, and others. By default, log messages only appear for failing tests.
+
+Tests can optionally define `set_up(h: TestHelper)?` and `tear_down(h: TestHelper)` for environment setup and cleanup. `set_up` runs before the test; `tear_down` runs after, regardless of pass or fail. See the [PonyTest stdlib docs](https://stdlib.ponylang.io/pony_test--index/) for the full API.
+
+## Property-Based Testing
+
+[PonyCheck](https://stdlib.ponylang.io/pony_check--index/) is Pony’s property-based testing library. Instead of specifying individual examples, you define a property that should hold for all inputs and let PonyCheck generate random test data. This is effective at finding edge cases you wouldn’t write by hand.
+
+A property test implements `Property1`. You provide a `name()`, a `gen()` that returns a `Generator` for your input type, and a `property()` function that asserts the property.
+
+```
+use "collections"
+use "pony_check"
+
+class iso _ListReverseProperty is Property1[List[USize]]
+  fun name(): String => "list/reverse"
+
+  fun gen(): Generator[List[USize]] =>
+    Generators.list_of[USize](Generators.usize())
+
+  fun property(arg1: List[USize], ph: PropertyHelper) =>
+    ph.assert_array_eq[USize](arg1, arg1.reverse().reverse())
+```
+
+When a property fails, PonyCheck shrinks the failing input to find the smallest counterexample, making failures easier to diagnose.
+
+You can also run properties inline within a `UnitTest` using `PonyCheck.for_all`:
+
+```
+use "collections"
+use "pony_check"
+use "pony_test"
+
+class iso _TestListReverse is UnitTest
+  fun name(): String => "list/reverse/inline"
+
+  fun apply(h: TestHelper) =>
+    let gen = recover val Generators.list_of[USize](Generators.usize()) end
+    PonyCheck.for_all[List[USize]](gen, h)(
+      {(sample, ph) =>
+        ph.assert_array_eq[USize](sample, sample.reverse().reverse())
+      })
+```
+
+See the [PonyCheck stdlib docs](https://stdlib.ponylang.io/pony_check--index/) for the full set of generators and configuration options.
+
+## Testing Async Code
+
+Pony tests run concurrently by default, but a simple test completes when `apply` returns. For tests that involve actors, you need the test to stay alive until async work finishes.
+
+Call `h.long_test(timeout)` to indicate the test should not complete when `apply` returns. The timeout (in nanoseconds) acts as a safety net for hung tests. When your async work finishes, call `h.complete(success)` to signal completion.
+
+For tests with multiple independent async operations, use actions. Call `h.expect_action("name")` for each operation you’re waiting on, then `h.complete_action("name")` as each one finishes. The test completes automatically when all expected actions are done.
+
+Tests that create TCP listeners, connections, timers, or other I/O resources must clean them up. Call `h.dispose_when_done(actor)` to register actors for disposal when the test finishes. Without this, the test program will hang after all tests pass because the runtime won’t exit while actors hold live I/O resources.
+
+## Test Project Structure
+
+Pony projects use a single top-level `_test.pony` whose `Main` actor orchestrates all tests. Each subpackage has its own `_test.pony` with a `Main is TestList` actor that provides two constructors:
+
+- `create(env: Env)` — for running the subpackage’s tests directly
+- `make()` — for aggregation into the top-level runner
+
+The top-level `_test.pony` imports subpackages via aliased `use` statements and delegates to their test lists:
+
+```
+use "pony_test"
+use foo = "foo"
+use bar = "bar"
+
+actor Main is TestList
+  new create(env: Env) =>
+    PonyTest(env, this)
+
+  new make() =>
+    None
+
+  fun tag tests(test: PonyTest) =>
+    foo.Main.make().tests(test)
+    bar.Main.make().tests(test)
+```
+
+Only the top-level package gets compiled and run. The `ponyc/packages/stdlib/` directory in the Pony compiler source is a good example of this pattern in practice.
+
+## Coverage Reports
+
+Pony supports generating test coverage reports through LLVM’s source-based code coverage tooling. See [Coverage Reports](https://www.ponylang.io/use/testing/coverage-reports/index.md) for setup instructions.
+
+# Custom ponyc Builds for Debugging
+
+ponyc supports several build-time options that instrument the compiler and runtime for debugging. These require building ponyc from source with specific flags. All options described here use the Unix/Makefile build system.
+
+## Build Workflow
+
+Every option follows the same pattern:
+
+1. Clone ponyc and build its dependencies (one-time):
+
+   ```
+   git clone https://github.com/ponylang/ponyc.git
+   cd ponyc
+   make libs
+   ```
+
+1. Configure with the desired option:
+
+   ```
+   make configure use=<option>
+   ```
+
+1. Build:
+
+   ```
+   make build
+   ```
+
+The resulting `ponyc` binary is in `build/release/`. Use it in place of your system `ponyc` to compile programs with the instrumentation enabled.
+
+To combine multiple options, separate them with commas:
+
+```
+make configure use=address_sanitizer,undefined_behavior_sanitizer
+```
+
+Not all combinations are valid — see the individual sections below for compatibility notes.
+
+For full source build instructions (including platform-specific prerequisites), see [Building ponyc from Source](https://www.ponylang.io/contribute/compiler/building-ponyc-from-source/index.md).
+
+## Valgrind
+
+Annotates the Pony runtime so [Valgrind](https://valgrind.org/) tools like Memcheck and Helgrind can understand Pony’s custom memory allocator.
+
+Valgrind development headers must be installed before building. On Debian/Ubuntu:
+
+```
+apt-get install valgrind
+```
+
+Build ponyc with Valgrind support:
+
+```
+make configure use=valgrind
+make build
+```
+
+Compile your program with the instrumented ponyc, then run it under Valgrind:
+
+```
+valgrind ./my-program
+```
+
+## Address Sanitizer
+
+[AddressSanitizer](https://clang.llvm.org/docs/AddressSanitizer.html) (ASan) detects memory errors at runtime: buffer overflows, use-after-free, double-free, and stack buffer overflows.
+
+```
+make configure use=address_sanitizer
+make build
+```
+
+Compile your program with the instrumented ponyc and run it normally. ASan reports errors to stderr as they occur.
+
+Cannot be combined with `thread_sanitizer`.
+
+## Thread Sanitizer
+
+[ThreadSanitizer](https://clang.llvm.org/docs/ThreadSanitizer.html) (TSan) detects data races at runtime.
+
+```
+make configure use=thread_sanitizer
+make build
+```
+
+Compile your program with the instrumented ponyc and run it normally. TSan reports data races to stderr.
+
+Cannot be combined with `address_sanitizer`.
+
+## Undefined Behavior Sanitizer
+
+[UndefinedBehaviorSanitizer](https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html) (UBSan) detects undefined behavior at runtime: signed integer overflow, null pointer dereference, misaligned memory access, and other categories.
+
+```
+make configure use=undefined_behavior_sanitizer
+make build
+```
+
+Compile your program with the instrumented ponyc and run it normally. UBSan reports violations to stderr.
+
+Can be combined with `address_sanitizer` or `thread_sanitizer`.
+
+## DTrace / SystemTap
+
+The Pony runtime includes [USDT](https://illumos.org/books/dtrace/chp-usdt.html) (Userland Statically Defined Tracing) probes that can be consumed by DTrace on BSD systems (not macOS — Apple removed DTrace support) or SystemTap on Linux.
+
+Building requires a `dtrace`-compatible tool on your `PATH`:
+
+```
+make configure use=dtrace
+make build
+```
+
+The probes are defined under the `pony` provider and cover:
+
+- **Actor lifecycle** — creation, scheduling, descheduling
+- **Message passing** — actor-to-actor and thread message send/receive/push/pop
+- **Backpressure** — overload, mute/unmute, pressure state changes
+- **Garbage collection** — GC start/end, send/receive phases, threshold changes
+- **Memory** — heap allocation
+- **Runtime lifecycle** — init, start, end
+- **Work stealing** — steal success/failure
+- **Thread state** — suspend, resume, nanosleep
+
+For the full list of probes with parameter types and descriptions, see [`src/common/dtrace_probes.d`](https://github.com/ponylang/ponyc/blob/main/src/common/dtrace_probes.d) in the ponyc source.
+
+## Runtime Statistics
+
+Runtime statistics tracking instruments the Pony runtime to report memory usage per actor and per scheduler thread. This is useful for understanding where memory is going in a running program.
+
+Two options are available:
+
+- `runtimestats` — enables basic runtime statistics
+- `runtimestats_messages` — adds per-message tracking on top of `runtimestats`
+
+For most debugging scenarios, enable both:
+
+```
+make configure use=runtimestats,runtimestats_messages
+make build
+```
+
+For details on the available tracking functions and how to call them from Pony code, see [Tracking Memory Usage at Runtime](https://www.ponylang.io/use/debugging/track-memory-usage/index.md).
+
+## Runtime Tracing
+
+Runtime tracing records events from the Pony scheduler, actor lifecycle, and message passing. Events can be written to a trace file in the background, or stored in in-memory circular buffers that dump to stderr on abnormal termination (SIGILL, SIGSEGV, SIGBUS). Trace files use Chromium JSON format and can be viewed with [Perfetto](https://perfetto.dev/).
+
+```
+make configure use=runtime_tracing
+make build
+```
+
+For details on tracing options and usage, see [Tracing Pony Programs](https://www.ponylang.io/use/debugging/tracing/index.md).
+
+## Systematic Testing
+
+Systematic testing replaces the Pony scheduler with a deterministic, single-threaded scheduler that explores different actor interleaving orders. This is useful for reproducing concurrency bugs that are otherwise non-deterministic.
+
+Systematic testing requires two options together:
+
+```
+make configure use=scheduler_scaling_pthreads,systematic_testing
+make build
+```
+
+The `scheduler_scaling_pthreads` option is required because systematic testing needs pthread-based scheduler scaling rather than the default implementation.
+
+### Seed-Based Replay
+
+When a systematic testing build runs, it uses a random seed to determine the interleaving order. If a run triggers a bug, the runtime prints the seed and a rerun command to stderr. You can replay the exact same interleaving:
+
+```
+./my-program --ponysystematictestingseed 12345
+```
+
+A typical workflow:
+
+1. Run the program repeatedly with different seeds until a bug manifests.
+1. Note the seed from the failing run.
+1. Replay with `--ponysystematictestingseed` to reproduce the bug deterministically.
+1. Fix the bug and verify with the same seed that the fix holds.
+
+# Runtime Options
+
+Compiled Pony programs accept `--pony*` command-line flags that control scheduler, garbage collection, cycle detector, and other runtime behavior. These flags are passed to the compiled binary, not to `ponyc`.
+
+Run any compiled Pony program with `--ponyhelp` to see the full list of available options.
+
+## Scheduler Options
+
+### `--ponymaxthreads`
+
+Use N scheduler threads. Defaults to the number of physical cores (not hyperthreads) available. This can’t be larger than the number of cores available.
+
+See the [thread count](https://www.ponylang.io/use/performance/pony-performance-cheat-sheet/#ponythreads) and [thread pinning](https://www.ponylang.io/use/performance/pony-performance-cheat-sheet/#pin-your-threads) sections of the Performance Cheat Sheet for guidance on tuning this value.
+
+### `--ponyminthreads`
+
+Minimum number of active scheduler threads allowed. Defaults to 0, meaning that all scheduler threads are allowed to be suspended when no work is available. This can’t be larger than `--ponymaxthreads` if provided, or the number of physical cores available.
+
+Can’t be used with `--ponynoscale`.
+
+### `--ponynoscale`
+
+Don’t scale down the scheduler threads. This disables scheduler thread suspension by making the minimum active scheduler threads equal to the total number of scheduler threads.
+
+Can’t be used with `--ponyminthreads`.
+
+### `--ponysuspendthreshold`
+
+Amount of idle time in milliseconds before a scheduler thread suspends itself to minimize resource consumption. Defaults to 1 ms. Min 1 ms, max 1000 ms.
+
+### `--ponynoyield`
+
+Do not yield the CPU when no work is available.
+
+## Garbage Collection Options
+
+### `--ponygcinitial`
+
+Defer garbage collection until an actor is using at least 2^N bytes. Defaults to 2^14 (16 KB).
+
+See the [garbage collector](https://www.ponylang.io/use/performance/pony-performance-cheat-sheet/#garbage-collector) section of the Performance Cheat Sheet for more on GC tuning.
+
+### `--ponygcfactor`
+
+After GC, an actor will next be GC’d at a heap memory usage N times its current value. This is a floating point value. Defaults to 2.0.
+
+## Cycle Detector Options
+
+### `--ponycdinterval`
+
+Run cycle detection every N milliseconds. Defaults to 100 ms. Min 10 ms, max 1000 ms.
+
+### `--ponynoblock`
+
+Do not send block messages to the cycle detector. Setting this to true disables the cycle detector entirely.
+
+See the [cycle detector](https://www.ponylang.io/use/performance/pony-performance-cheat-sheet/#the-dead-actor-collector-ie-cycle-detector) section of the Performance Cheat Sheet for when and why you might want to disable the cycle detector.
+
+## CPU Pinning Options
+
+See the [thread pinning](https://www.ponylang.io/use/performance/pony-performance-cheat-sheet/#pin-your-threads) section of the Performance Cheat Sheet for a detailed walkthrough of CPU pinning with `cset` and `numactl`.
+
+### `--ponypin`
+
+Pin scheduler threads to CPU cores. The ASIO thread can also be pinned if `--ponypinasio` is set.
+
+### `--ponypinasio`
+
+Pin the ASIO thread to a CPU the way scheduler threads are pinned to CPUs. Requires `--ponypin` to be set to have any effect.
+
+### `--ponypinpinnedactorthread`
+
+Pin the pinned actor thread to a CPU the way scheduler threads are pinned to CPUs. Requires `--ponypin` to be set to have any effect.
+
+## Stats and Diagnostics
+
+### `--ponyprintstatsinterval`
+
+Print actor stats before an actor is destroyed and print scheduler stats every X seconds. Defaults to -1 (never).
+
+## Runtime Information
+
+### `--ponyversion`
+
+Print the version of the compiler used to build the program and exit.
+
+### `--ponyhelp`
+
+Print the runtime usage options and exit.
+
+## Tracing Options
+
+When `ponyc` is built with runtime tracing enabled, additional `--ponytracing*` options become available for tracing actor, scheduler, and GC events. See [Trace Pony Programs](https://www.ponylang.io/use/debugging/tracing/index.md) for details.
+
+## Programmatic Overrides
+
+Runtime option defaults can be overridden programmatically by adding a `@runtime_override_defaults` function to your `Main` actor. This function receives a `RuntimeOptions` struct whose fields you can modify.
+
+Command-line arguments still override any values set via `@runtime_override_defaults`.
+
+```
+actor Main
+  new create(env: Env) =>
+    env.out.print("Hello, world.")
+
+  fun @runtime_override_defaults(rto: RuntimeOptions) =>
+    rto.ponymaxthreads = 4
+    rto.ponynoblock = true
+```
+
+# ARM Linux (Soft-Float)
+
+This guide covers cross-compiling Pony programs from an x86-64 Linux host to 32-bit ARM Linux (glibc, soft-float ABI). This targets ARMv7-A devices using software floating point. If your target uses hardware floating point, see [ARM Linux (Hard-Float)](https://www.ponylang.io/use/cross-compilation/armhf-linux/index.md) instead.
+
+## Install the Cross-Toolchain
+
+On Debian/Ubuntu, install the ARM cross-compiler and QEMU for testing:
+
+```
+sudo apt-get install gcc-arm-linux-gnueabi g++-arm-linux-gnueabi qemu-user
+```
+
+This provides the cross-compiler for building the Pony runtime. The sysroot location varies by distribution. On Debian/Ubuntu, it’s typically at `/usr/arm-linux-gnueabi/` or `/usr/local/arm-linux-gnueabi/libc/`. ponyc searches both locations automatically.
+
+## Build the Cross-Compiled Runtime
+
+The Pony runtime needs to be compiled for ARM. This requires the ponyc source tree with a full build environment. See the [cross-compilation overview](https://www.ponylang.io/use/cross-compilation/#building-the-cross-compiled-runtime) for the initial setup.
+
+From the ponyc source directory:
+
+```
+make cross-libponyrt config=release \
+  CC=arm-linux-gnueabi-gcc \
+  CXX=arm-linux-gnueabi-g++ \
+  arch=armv7-a \
+  cross_cflags="-march=armv7-a -mtune=cortex-a9" \
+  cross_lflags="-O3;-march=arm"
+```
+
+The output lands in `build/armv7-a/release/`.
+
+## Compile a Pony Program
+
+Create a simple test program:
+
+```
+mkdir hello && cat > hello/main.pony << 'EOF'
+actor Main
+  new create(env: Env) =>
+    env.out.print("Hello from ARM!")
+EOF
+```
+
+Compile it for ARM:
+
+```
+PONYPATH=build/armv7-a/release ponyc \
+  --triple=arm-unknown-linux-gnueabi \
+  --cpu=cortex-a9 \
+  --link-arch=armv7-a \
+  --sysroot=/usr/arm-linux-gnueabi \
+  hello
+```
+
+This produces a `hello` binary in the current directory.
+
+## Verify with QEMU
+
+Run the cross-compiled binary using QEMU user-mode emulation:
+
+```
+qemu-arm -cpu cortex-a9 -L /usr/arm-linux-gnueabi/ ./hello
+```
+
+You should see:
+
+```
+Hello from ARM!
+```
+
+The `-cpu` flag tells QEMU which CPU to emulate, and `-L` points to the target’s shared libraries. Adjust the `-L` path if your sysroot is in a different location (e.g., `/usr/local/arm-linux-gnueabi/libc`).
+
+# ARM Linux (Hard-Float)
+
+This guide covers cross-compiling Pony programs from an x86-64 Linux host to 32-bit ARM Linux (glibc, hard-float ABI). This targets ARMv7-A devices using hardware floating point. The hard-float ABI passes floating-point arguments in FPU registers, which is faster than the soft-float variant on hardware with an FPU. Most modern ARM boards (Raspberry Pi 2+, BeagleBone, etc.) support hard-float.
+
+If your target doesn’t have an FPU or uses software floating point, see [ARM Linux (Soft-Float)](https://www.ponylang.io/use/cross-compilation/arm-linux/index.md) instead.
+
+## Install the Cross-Toolchain
+
+On Debian/Ubuntu, install the ARM hard-float cross-compiler and QEMU for testing:
+
+```
+sudo apt-get install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf qemu-user
+```
+
+This provides the cross-compiler for building the Pony runtime. The sysroot location varies by distribution. On Debian/Ubuntu, it’s typically at `/usr/arm-linux-gnueabihf/` or `/usr/local/arm-linux-gnueabihf/libc/`. ponyc searches both locations automatically.
+
+## Build the Cross-Compiled Runtime
+
+The Pony runtime needs to be compiled for ARM hard-float. This requires the ponyc source tree with a full build environment. See the [cross-compilation overview](https://www.ponylang.io/use/cross-compilation/#building-the-cross-compiled-runtime) for the initial setup.
+
+From the ponyc source directory:
+
+```
+make cross-libponyrt config=release \
+  CC=arm-linux-gnueabihf-gcc \
+  CXX=arm-linux-gnueabihf-g++ \
+  arch=armv7-a \
+  cross_cflags="-march=armv7-a -mtune=cortex-a9" \
+  cross_lflags="-O3;-march=arm"
+```
+
+The output lands in `build/armv7-a/release/`.
+
+## Compile a Pony Program
+
+Create a simple test program:
+
+```
+mkdir hello && cat > hello/main.pony << 'EOF'
+actor Main
+  new create(env: Env) =>
+    env.out.print("Hello from ARM hard-float!")
+EOF
+```
+
+Compile it for ARM hard-float:
+
+```
+PONYPATH=build/armv7-a/release ponyc \
+  --triple=arm-unknown-linux-gnueabihf \
+  --cpu=cortex-a9 \
+  --link-arch=armv7-a \
+  --sysroot=/usr/arm-linux-gnueabihf \
+  hello
+```
+
+The triple ends in `gnueabihf` (rather than `gnueabi`) to select the hard-float ABI. This produces a `hello` binary in the current directory.
+
+## Verify with QEMU
+
+Run the cross-compiled binary using QEMU user-mode emulation:
+
+```
+qemu-arm -cpu cortex-a9 -L /usr/arm-linux-gnueabihf/ ./hello
+```
+
+You should see:
+
+```
+Hello from ARM hard-float!
+```
+
+The `-cpu` flag tells QEMU which CPU to emulate, and `-L` points to the target’s shared libraries. Adjust the `-L` path if your sysroot is in a different location (e.g., `/usr/local/arm-linux-gnueabihf/libc`).
+
+# RISC-V 64-bit Linux
+
+This guide covers cross-compiling Pony programs from an x86-64 Linux host to RISC-V 64-bit Linux (glibc). These are the same steps ponyc’s CI uses to test RISC-V support.
+
+## Install the Cross-Toolchain
+
+On Debian/Ubuntu, install the RISC-V cross-compiler and QEMU for testing:
+
+```
+sudo apt-get install gcc-10-riscv64-linux-gnu g++-10-riscv64-linux-gnu qemu-user
+```
+
+This provides the cross-compiler for building the Pony runtime and a sysroot at `/usr/riscv64-linux-gnu/` containing the target’s libc and system libraries.
+
+GCC version
+
+The package name includes the GCC major version (e.g., `gcc-10`). Your distribution may offer a different version. Adjust the `CC` and `CXX` values in the commands below to match what you install.
+
+## Build the Cross-Compiled Runtime
+
+The Pony runtime needs to be compiled for RISC-V. This requires the ponyc source tree with a full build environment. See the [cross-compilation overview](https://www.ponylang.io/use/cross-compilation/#building-the-cross-compiled-runtime) for the initial setup.
+
+From the ponyc source directory:
+
+```
+make cross-libponyrt config=release \
+  CC=riscv64-linux-gnu-gcc-10 \
+  CXX=riscv64-linux-gnu-g++-10 \
+  arch=rv64gc \
+  cross_cflags="-march=rv64gc -mtune=rocket" \
+  cross_lflags="-march=riscv64"
+```
+
+The output lands in `build/rv64gc/release/`.
+
+## Compile a Pony Program
+
+Create a simple test program:
+
+```
+mkdir hello && cat > hello/main.pony << 'EOF'
+actor Main
+  new create(env: Env) =>
+    env.out.print("Hello from RISC-V!")
+EOF
+```
+
+Compile it for RISC-V:
+
+```
+PONYPATH=build/rv64gc/release ponyc \
+  --triple=riscv64-unknown-linux-gnu \
+  --cpu=generic-rv64 \
+  --abi=lp64d \
+  --features=+m,+a,+f,+d,+c \
+  --link-arch=rv64gc \
+  --sysroot=/usr/riscv64-linux-gnu \
+  hello
+```
+
+This produces a `hello` binary in the current directory.
+
+## Verify with QEMU
+
+Run the cross-compiled binary using QEMU user-mode emulation:
+
+```
+qemu-riscv64 -L /usr/riscv64-linux-gnu/lib/ ./hello
+```
+
+You should see:
+
+```
+Hello from RISC-V!
+```
+
+The `-L` flag tells QEMU where to find the target’s shared libraries.
+
+# Pony LLDB Cheat Sheet
+
+## Setup
+
+### macOS Setup
+
+```
+% brew install llvm
+% sudo /usr/sbin/DevToolsSecurity --enable
+```
+
+## Basics
+
+### Official LLDB tutorial
+
+<http://lldb.llvm.org/tutorial.html>
+
+### GDB ↔ LLDB Rosetta Stone
+
+<http://lldb.llvm.org/lldb-gdb.html>
+
+### Building an Executable You Can Debug
+
+```
+% ponyc --debug
+```
+
+### Running an Executable
+
+```
+% lldb EXECUTABLE -- arg1 arg2 arg3 …
+% lldb -- EXECUTABLE arg1 arg2 arg3 ...
+(lldb) run
+```
+
+### Setting Breakpoints
+
+```
+(lldb) breakpoint set --file foo.c --line 12
+(lldb) breakpoint set --name foo
+(lldb) b foo.c:12
+(lldb) b Main_create
+(lldb) b map.pony:73
+```
+
+When using a file name/line combination to set the breakpoint, you can specify any file in the program without having to specify a path to that file, as long as the file name is unambiguous.
+
+### List Breakpoints
+
+```
+(lldb) breakpoint list
+(lldb) b
+```
+
+### Backtrace
+
+```
+(lldb) thread backtrace
+(lldb) bt
+```
+
+If you would like to limit the size of the backtrace (for example, when you are debugging a case of runaway recursion that blows out the stack and generates a very long backtrace), you can use the `--count` or `-c` option to specify the number of frames to print, starting with the most recent one.
+
+```
+(lldb) thread backtrace --count 5
+(lldb) bt 5
+```
+
+### Stepping
+
+```
+(lldb) thread step-in
+(lldb) s
+(lldb) sif funToStepInto
+(lldb) thread step-over
+(lldb) n
+(lldb) thread step-out
+(lldb) finish
+(lldb) thread until LINE
+```
+
+### Frame
+
+Select a frame:
+
+```
+(lldb) frame select NUMBER
+(lldb) f NUMBER
+```
+
+Show the variables in the current frame:
+
+```
+(lldb) frame variable
+```
+
+Show a specific variable from the current frame:
+
+```
+(lldb) frame variable VARIABLE
+(lldb) p VARIABLE
+```
+
+Pointer, array, structure, and cast operation from C can be applied to frame variables.
+
+&variable : address of a variable
+
+\*variable : dereference a pointer
+
+variable.field : access a field within a structure
+
+pointer_variable->field : access a field within a structure pointed to by a pointer
+
+array_pointer[index] : access an index within an array
+
+(type_t \*)variable : cast variable to a pointer to a type_t
+
+## Examples
+
+### Example: Examining an object
+
+```
+(lldb) frame variable
+(OscMessage *const) this = <variable not available>
+(Array_U8_val *) parts = 0x0000000108fcf4c0
+(OscString *) oscAddress = <variable not available>
+(OscString *) types = 0x00007fff5fbff878
+(lldb) frame variable *types
+(OscString) *types = {
+  _data = 0x0000000108fcf560
+}
+(lldb) frame variable *types->_data
+(String) *types->_data = (_size = 2, _alloc = 3, _ptr = ",f")
+
+(pony_test_TestHelper *) this = 0x0000000110ff5020
+(lldb) p this
+(pony_test_TestHelper *) $2 = 0x0000000110ff5020
+(lldb) p *$2
+(pony_test_TestHelper) $3 = {
+  _runner = 0x0000000110ff7200
+  env = 0x0000000108ffec00
+}
+(lldb) p $3.env
+(Env *) $4 = 0x0000000108ffec00
+(lldb) p *$4
+(Env) $5 = {
+  root = 0x000000010004f3e0
+  input = 0x0000000108fd6800
+  out = 0x0000000108fff500
+  err = 0x0000000108fff600
+  args = 0x0000000108fd6400
+  _envp = 0x00007fff5fbffa98
+  _vars = 0x000000010004f3b0
+}
+```
+
+Using `p` lets you work from the resulting lldb temporary variables, which can be very convenient when you want to examine an intermediate result.
+
+### Example: Printing A String
+
+Assume you have a Pony String called `x`. You can print the string like this:
+
+```
+(lldb) p (char *)(x->_ptr)
+(char *) $3 = 0x00000001000106f8 "abc"
+(lldb)
+```
+
+### Example: Printing The Values In An Array Of Numbers
+
+Assume you have an `Array[U64]` called `x` with 6 elements. You can print the values of the values of the elements like this:
+
+```
+(lldb) p *(long(*)[6])(x->_ptr)
+(long [6]) $3 = ([0] = 1, [1] = 2, [2] = 3, [3] = 4, [4] = 5, [5] = 6)
+```
+
+You can adjust the type (`long`) to appropriately print the types that correspond to the array values, and adjust the size (`6`) to print more or fewer of the elements.
+
+## Pony Stuff
+
+### Method Name Mangling
+
+Future breakage possible!
+
+While currently necessary for some debugging, you should know that name mangling might change in the future. Do not depend on this remaining static.
+
+Method names get mangled by the compiler. The general format for the mangling is:
+
+`<package_>type<_typearg1_typearg2>_rcap_methodname_mangling`
+
+In the above:
+
+`package` : the name of the package (for methods brought in through use expressions)
+
+`type` : the name of the type to which the method belongs
+
+`typearg1, typearg2` … : the type parameters of the method (for methods that use type parameters)
+
+`rcap` : the reference capability of the method
+
+`methodname` : the name of the method
+
+`mangling` : a mangling string where each character indicates the type of each method parameter and the method’s return type according to the following conversion:
+
+| Type     | Mangling |
+| -------- | -------- |
+| `object` | o        |
+| `Bool`   | b        |
+| `I8`     | c        |
+| `I16`    | s        |
+| `I32`    | i        |
+| `I64`    | w        |
+| `I128`   | q        |
+| `ILong`  | l        |
+| `ISize`  | z        |
+| `U8`     | C        |
+| `U16`    | S        |
+| `U32`    | I        |
+| `U64`    | W        |
+| `U128`   | Q        |
+| `ULong`  | L        |
+| `USize`  | Z        |
+| `F32`    | f        |
+| `F64`    | d        |
+
+These rules can be used to determine the name of function in order to specify that you would like to place a breakpoint on it. You can also type `b <characters><tab>` to see a tab-complete list of all the available functions that start with `<characters>`. To set a breakpoint on a function:
+
+```
+(lldb) breakpoint set --name Bar_foo
+(lldb) b Bar_foo
+```
+
+### Calling Methods
+
+As of April 5, 2017, [issue #1813](https://github.com/ponylang/ponyc/issues/1813) is preventing this from working.
+
+### Behaviors and Messages
+
+Each behavior has an associated send method (\_\_send) that is used to send a message to the receiver to trigger that behavior. Each actor has a dispatch method (\_Dispatch) that translates messages into calls to the appropriate functions in the receiver.
+
+# Tracing Pony Programs
+
+The Pony runtime can be built to be able to either write a trace to file in the background or work in a “flight recorder” mode where events are stored into in memory circular buffers and written to stderr in case of abnormal program behavior (SIGILL, SIGSEGV, SIGBUS, etc).
+
+Runtime tracing is helpful in understanding how the runtime works and for debugging issues with the runtime.
+
+Traces are written in chromium json format and trace files can be viewed with the perfetto trace viewer.
+
+## Usage
+
+A number of Pony runtime options are enabled when tracing is enabled. The details can be found by running `<pony program> --ponyhelp` (e.g.: `./helloworld --ponyhelp`) and looking at the options that begin with `--ponytracing*` for how to enable and configure tracing.
+
+Once a trace has been captured, it can be viewed with the [perfetto trace viewer](https://perfetto.dev/).
+
+## Building ponyc to enable tracing
+
+Tracing is not enabled by default. You need to build ponyc from source with the `runtime_tracing` option:
+
+```
+make configure use=runtime_tracing
+make build
+```
+
+The resulting `ponyc` binary is in `build/release/`. Use it in place of your system `ponyc` to compile programs with tracing enabled.
+
+For full source build instructions, see [Custom ponyc Builds for Debugging](https://www.ponylang.io/use/compiler/custom-ponyc-builds/index.md).
+
+# Tracking memory usage at runtime
+
+## Tracking memory consumed by an actor
+
+The Pony runtime can be built to track memory usage. This is helpful when trying to understand what components are using up memory.
+
+When configured, the following functions are exposed:
+
+- `ponyint_sched_static_mem_size`
+
+returns the static memory used by the scheduler subsystem.
+
+- `ponyint_sched_static_alloc_size`
+
+returns the static memory allocated by the scheduler subsystem.
+
+- `ponyint_sched_total_memory_size`
+
+returns the total memory used by a scheduler thread.
+
+- `ponyint_sched_total_alloc_size`
+
+returns the total memory allocated by a scheduler thread.
+
+- `ponyint_actor_mem_size`
+
+returns the size of the given actor.
+
+- `ponyint_actor_alloc_size`
+
+returns the size of the memory pool allocated to the given actor.
+
+- `ponyint_actor_total_mem_size`
+
+returns the memory that is actively used by the runtime for the given actor.
+
+- `ponyint_actor_total_alloc_size`
+
+returns the memory allocated by the given actor whether it is actively used or not.
+
+### Usage
+
+The above functions can be used like any other [c functions](https://tutorial.ponylang.io/c-ffi/calling-c.html). For example, in order to keep track of memory of any actor, we need to add the following in the beginning of a file.
+
+```
+use @ponyint_actor_total_mem_size[U64](a : Any tag)
+```
+
+Later, this function can be used to figure out the total memory used by an actor by using one of the following
+
+```
+    let size = @ponyint_actor_total_mem_size(this)
+    env.out.print("my size = " + size.string())
+```
+
+or,
+
+```
+    some_actor = SomeActor.create(x, y, z)
+    let size = @ponyint_actor_total_mem_size(some_actor)
+    env.out.print("size of some actor " + size.string())
+```
+
+### Building ponyc to track memory usage
+
+Memory tracking is not enabled by default. You need to build ponyc from source with the `runtimestats` and `runtimestats_messages` options:
+
+```
+make configure use=runtimestats,runtimestats_messages
+make build
+```
+
+The resulting `ponyc` binary is in `build/release/`. Use it in place of your system `ponyc` to compile programs with memory tracking enabled.
+
+For full source build instructions, see [Custom ponyc Builds for Debugging](https://www.ponylang.io/use/compiler/custom-ponyc-builds/index.md).
+
+# Rule Reference
+
+Each rule is listed with its default status, a description of what it checks, and examples of incorrect and correct code.
+
+## `style/acronym-casing`
+
+**Default:** on
+
+Known acronyms in type names must be fully uppercased. The recognized acronyms are: API, AST, CSS, DNS, FFI, FIFO, HTML, HTTP, IMAP, JSON, MIME, SMTP, SSH, SSL, TCP, TLS, UDP, URI, URL, UUID, XML.
+
+**Incorrect:**
+
+```
+class JsonParser
+
+primitive HttpMethod
+```
+
+**Correct:**
+
+```
+class JSONParser
+
+primitive HTTPMethod
+```
+
+## `style/array-literal-format`
+
+**Default:** on
+
+Checks formatting of multiline array literals. For array literals that span multiple lines:
+
+- The opening `[` must be the first non-whitespace on its line (no hanging indent after `=` or other expression context).
+- A space is required after `[` when there is content on the same line.
+
+Single-line array literals are not checked.
+
+**Incorrect:**
+
+```
+actor Main
+  new create(env: Env) =>
+    let ns = [as USize:
+      1
+      2
+    ]
+```
+
+**Correct:**
+
+```
+actor Main
+  new create(env: Env) =>
+    let ns =
+      [ as USize:
+        1
+        2 ]
+```
+
+The closing `]` may also be on its own line:
+
+```
+actor Main
+  new create(env: Env) =>
+    let ns =
+      [ as USize:
+        1
+        2
+      ]
+```
+
+## `style/assignment-indent`
+
+**Default:** on
+
+When an assignment’s right-hand side spans multiple lines, the RHS must start on the line after the `=`, not on the same line. Single-line assignments are not checked.
+
+**Incorrect:**
+
+```
+class Foo
+  fun apply(x: U32): U32 =>
+    var y: U32 = if x > 0 then
+      x
+    else
+      U32(0)
+    end
+    y
+```
+
+**Correct:**
+
+```
+class Foo
+  fun apply(x: U32): U32 =>
+    var y: U32 =
+      if x > 0 then
+        x
+      else
+        U32(0)
+      end
+    y
+```
+
+## `style/blank-lines`
+
+**Default:** on
+
+Blank line conventions within and between entities.
+
+Within entities:
+
+- No blank line between the entity declaration and the first body content (docstring or first member).
+- No blank lines between consecutive fields.
+- Exactly one blank line before each method. Exception: when both the preceding method and the current method are one-liners, zero blank lines are also allowed.
+
+Between entities:
+
+- Exactly one blank line between consecutive entities. Exception: when both entities are one-liners, zero blank lines are also allowed.
+
+**Incorrect:**
+
+```
+class Foo
+
+  let x: U32 = 0
+
+  let y: U32 = 1
+
+  fun apply(): U32 => x + y
+```
+
+**Correct:**
+
+```
+class Foo
+  let x: U32 = 0
+  let y: U32 = 1
+
+  fun apply(): U32 => x + y
+```
+
+## `style/call-argument-format`
+
+**Default:** on
+
+Checks formatting of multiline function call arguments. For calls with two or more positional arguments that span multiple lines:
+
+- No arguments start on the `(` line — arguments should begin on the next line.
+- Arguments are either all on one continuation line, or each on its own line.
+
+Single-line calls, single-argument calls, and named-argument-only calls are not checked. The `where` clause is allowed on its own line and is not subject to layout checks. These rules apply to both regular calls and FFI calls.
+
+**Incorrect:**
+
+```
+// Arguments start on the ( line
+foo.bar(U32(1),
+  U32(2), U32(3))
+```
+
+```
+// Mixed layout — some args share a line, others don't
+foo.bar(
+  U32(1), U32(2),
+  U32(3))
+```
+
+**Correct:**
+
+```
+// Single-line — not checked
+foo.bar(U32(1), U32(2), U32(3))
+```
+
+```
+// All on one continuation line
+foo.bar(
+  U32(1), U32(2), U32(3))
+```
+
+```
+// Each on its own line
+foo.bar(
+  U32(1),
+  U32(2),
+  U32(3))
+```
+
+```
+// Where clause on its own line
+foo.bar(
+  U32(1),
+  U32(2)
+  where y = U32(3))
+```
+
+```
+// FFI call — same rules
+@pony_os_errno(
+  U32(1),
+  U32(2))
+```
+
+## `style/comment-spacing`
+
+**Default:** on
+
+Line comments (`//`) must be followed by exactly one space. An empty comment (`//` with nothing after it) is also acceptable. This rule does not apply inside string literals, including triple-quoted strings.
+
+**Incorrect:**
+
+```
+//This comment has no space
+//  This comment has two spaces
+```
+
+**Correct:**
+
+```
+// This comment has one space
+//
+// Empty comment above is fine
+let url = "http://example.com" // inside strings is ignored
+```
+
+## `style/control-structure-alignment`
+
+**Default:** on
+
+Control structure keywords must be vertically aligned. Each keyword in a control structure must start at the same column as the opening keyword. Single-line structures are exempt. The `do` keyword is not checked because it always appears on the same line as its opening keyword.
+
+The following keyword groups are checked:
+
+- `if` / `elseif` / `else` / `end`
+- `ifdef` / `elseif` / `else` / `end`
+- `while` / `else` / `end`
+- `for` / `else` / `end`
+- `try` / `else` / `then` / `end`
+- `repeat` / `until` / `else` / `end`
+- `with` / `end`
+
+**Incorrect:**
+
+```
+if condition then
+  do_something()
+    else
+  do_other()
+      end
+```
+
+**Correct:**
+
+```
+if condition then
+  do_something()
+else
+  do_other()
+end
+```
+
+## `style/docstring-format`
+
+**Default:** on
+
+Docstring `"""` delimiters must each be on their own line. Single-line docstrings like `"""text"""` are flagged. Types and methods annotated with `\nodoc\` are exempt, as are methods inside `\nodoc\`-annotated entities.
+
+**Incorrect:**
+
+```
+class Foo
+  """Foo docstring."""
+
+  fun bar(): None =>
+    """Bar docstring."""
+    None
+```
+
+**Correct:**
+
+```
+class Foo
+  """
+  Foo docstring.
+  """
+
+  fun bar(): None =>
+    """
+    Bar docstring.
+    """
+    None
+```
+
+## `style/dot-spacing`
+
+**Default:** on
+
+`.` must have no spaces around it. `.>` must be spaced as an infix operator with spaces on both sides. Both operators skip the “before” check on continuation lines where the operator is the first non-whitespace character.
+
+**Incorrect:**
+
+```
+let x = foo .bar
+let y = foo. bar
+let z = foo.>bar
+```
+
+**Correct:**
+
+```
+let x = foo.bar
+let y = foo .> bar
+
+// Continuation lines are fine
+let z = foo
+  .bar
+  .> baz
+```
+
+## `style/file-naming`
+
+**Default:** on
+
+The file name must match the principal type defined in the file, converted to snake_case. The principal type is determined by a heuristic: if the file contains a single entity, that entity is principal. If a trait or interface is present alongside other types, the trait or interface is principal. Files with multiple unrelated types (no clear principal) are not checked. Private types preserve their leading underscore in the filename.
+
+Files named `_test.pony` that contain a `Main` actor are exempt (standard test runner convention).
+
+**Incorrect:**
+
+```
+// File: parser.pony
+class FooParser
+  // Error: expected file name foo_parser.pony
+```
+
+**Correct:**
+
+```
+// File: foo_parser.pony
+class FooParser
+
+// File: _private_helper.pony
+class _PrivateHelper
+
+// File: runnable.pony
+trait Runnable
+class Runner // trait is principal, so runnable.pony is correct
+```
+
+## `style/hard-tabs`
+
+**Default:** on
+
+Tab characters are not allowed anywhere in source files. Pony uses spaces for indentation.
+
+A violation is a literal tab character in the source. Since tabs are invisible in rendered text, a tab-indented line looks like a space-indented line but triggers this rule. Editors should be configured to insert spaces instead of tabs.
+
+**Correct:**
+
+```
+actor Main
+  new create(env: Env) =>
+    env.out.print("spaces, not tabs")
+```
+
+## `style/indentation-size`
+
+**Default:** on
+
+Leading-space indentation must be a multiple of 2. Lines inside triple-quoted strings, blank lines, lines with zero indentation, and tab-indented lines are not checked. Tab indentation is handled by `style/hard-tabs`.
+
+**Incorrect:**
+
+```
+class Foo
+  fun apply(): None =>
+   let x = 1
+     let y = 2
+       None
+```
+
+**Correct:**
+
+```
+class Foo
+  fun apply(): None =>
+    let x = 1
+    let y = 2
+    None
+```
+
+## `style/lambda-spacing`
+
+**Default:** on
+
+Checks whitespace inside lambda braces per the style guide. Lambda expressions must have no space after `{`; a space before `}` is required only on single-line lambdas. Lambda types must have no space on either side (`{` or `}`). Bare lambdas (`@{`) follow the same rules.
+
+**Incorrect:**
+
+```
+// Space after {
+{ (a: USize, b: USize): USize => a + b }
+
+// No space before } on single-line
+{(a: USize, b: USize): USize => a + b}
+
+// Space before } on multi-line
+{(a: USize, b: USize): USize =>
+  a + b }
+
+// Space inside lambda type braces
+type Foo is { (USize, USize): USize } box
+```
+
+**Correct:**
+
+```
+// Single-line: no space after {, space before }
+{(a: USize, b: USize): USize => a + b }
+
+// Multi-line: no space after {, } on its own line
+{(a: USize, b: USize): USize =>
+  a + b
+}
+
+// Lambda type: no space on either side
+type Foo is {(USize, USize): USize} box
+
+// Bare lambda: same rules
+@{(a: USize, b: USize): USize => a + b }
+```
+
+## `style/line-length`
+
+**Default:** on
+
+Lines must not exceed 80 codepoints. Multi-byte UTF-8 characters count as one codepoint each. A line of exactly 80 codepoints is acceptable; 81 or more triggers a violation.
+
+**Incorrect:**
+
+```
+// The following line is too long
+let description = "This string is far too long to fit within the eighty codepoint limit for lines"
+```
+
+**Correct:**
+
+```
+let description =
+  "This string has been split" +
+  " across multiple lines"
+```
+
+## `style/match-case-indent`
+
+**Default:** on
+
+The `|` introducing each match case must align with the `match` keyword’s column. This makes the match structure visually clear regardless of nesting depth. Inline continuation pipes (e.g., `| "a" | "b"`) are not checked since only the leading `|` on each line needs alignment.
+
+**Incorrect:**
+
+```
+match x
+  | let s: String => s
+  | let n: U32 => n.string()
+end
+```
+
+**Correct:**
+
+```
+match x
+| let s: String => s
+| let n: U32 => n.string()
+end
+```
+
+## `style/match-no-single-line`
+
+**Default:** on
+
+Match expressions must span multiple lines. A single-line match is harder to scan and usually indicates the expression would be clearer as an `if`/`else` chain.
+
+**Incorrect:**
+
+```
+let y = match x | let s: String => s else "" end
+```
+
+**Correct:**
+
+```
+let y =
+  match x
+  | let s: String => s
+  else
+    ""
+  end
+```
+
+## `style/member-naming`
+
+**Default:** on
+
+Fields, methods, parameters, and local variables must use snake_case. Names may start with a leading underscore for private visibility. The discard pattern `_` by itself is not checked. Trailing primes (e.g., `value'`) are permitted.
+
+**Incorrect:**
+
+```
+class Foo
+  let myField: U32 = 0
+  var someValue: String = ""
+
+  fun doSomething(): None =>
+    let myVar: U32 = 1
+    None
+```
+
+**Correct:**
+
+```
+class Foo
+  let my_field: U32 = 0
+  var _some_value: String = ""
+
+  fun do_something(): None =>
+    let my_var: U32 = 1
+    None
+```
+
+## `style/method-declaration-format`
+
+**Default:** on
+
+Checks formatting of multiline method declarations. When a method’s parameters span multiple lines, each parameter must be on its own line. When a method declaration spans multiple lines, the return type `:` must be indented one level (2 spaces) from the method keyword, and the `=>` must align with the method keyword. Single-line declarations are not checked.
+
+Applies to `fun`, `new`, and `be` declarations.
+
+**Incorrect:**
+
+```
+class Foo
+  fun find(
+    value: U32, offset: USize)
+    : USize
+  =>
+    offset
+```
+
+Two parameters share a line.
+
+```
+class Foo
+  fun find(
+    value: U32,
+    offset: USize)
+      : USize
+  =>
+    offset
+```
+
+The `:` is indented too far — it should be at the method keyword’s column + 2.
+
+```
+class Foo
+  fun find(
+    value: U32,
+    offset: USize)
+    : USize
+    =>
+    offset
+```
+
+The `=>` is indented too far — it should align with `fun`.
+
+**Correct:**
+
+```
+class Foo
+  fun find(
+    value: U32,
+    offset: USize)
+    : USize
+  =>
+    offset
+```
+
+```
+// Constructor
+class Foo
+  let _x: U32
+  let _y: U32
+
+  new create(
+    x: U32,
+    y: U32)
+  =>
+    _x = x
+    _y = y
+```
+
+```
+// Behavior
+actor Foo
+  be apply(
+    x: U32,
+    y: U32)
+  =>
+    None
+```
+
+## `style/operator-spacing`
+
+**Default:** on
+
+Checks whitespace around operators per the style guide. Binary operators require a space before and after. The `not` keyword requires a space after; before `not`, either a space or a non-alphanumeric character (e.g., `(`) is acceptable. Unary minus must NOT have a space after the `-`. The “before” check is skipped on continuation lines where the operator is the first non-whitespace character.
+
+**Incorrect:**
+
+```
+let x = 1+2
+let y = a ==b
+if not(x) then -a end
+let z = - a
+```
+
+**Correct:**
+
+```
+let x = 1 + 2
+let y = a == b
+if not x then -a end
+
+// Continuation lines are fine
+let z =
+  + a
+```
+
+## `style/package-naming`
+
+**Default:** off
+
+The package directory name must be snake_case, containing only lowercase letters, digits, and underscores. This rule is off by default because application packages often use hyphens to match CLI naming conventions.
+
+**Incorrect (if enabled):**
+
+```
+MyPackage/
+  main.pony
+
+my-package/
+  main.pony
+```
+
+**Correct:**
+
+```
+my_package/
+  main.pony
+```
+
+## `style/package-docstring`
+
+**Default:** on
+
+Each package should have a file named after the package (e.g., `my_package.pony` for a package in the `my_package/` directory) containing a package-level docstring as the first expression. Directory names with hyphens are normalized to underscores (e.g., `pony-lint/` expects `pony_lint.pony`).
+
+**Incorrect:**
+
+```
+my_package/
+  main.pony         # no my_package.pony file
+```
+
+```
+// File: my_package/my_package.pony
+use "collections"   # no docstring before the first use statement
+```
+
+**Correct:**
+
+```
+// File: my_package/my_package.pony
+"""
+Provides utilities for working with packages.
+"""
+
+use "collections"
+```
+
+## `style/partial-call-spacing`
+
+**Default:** on
+
+The `?` at partial call sites must immediately follow `)` with no space. This is the opposite convention from method declarations.
+
+**Incorrect:**
+
+```
+let x = foo() ?
+let y = bar(1, 2) ?
+```
+
+**Correct:**
+
+```
+let x = foo()?
+let y = bar(1, 2)?
+```
+
+## `style/partial-spacing`
+
+**Default:** on
+
+The `?` in partial method declarations must have surrounding spaces. A space is required before `?` and a space or end-of-line after it.
+
+**Incorrect:**
+
+```
+class Foo
+  fun bar()? => None
+```
+
+**Correct:**
+
+```
+class Foo
+  fun bar() ? => None
+```
+
+## `style/prefer-chaining`
+
+**Default:** on
+
+Flags patterns where a value is bound to a local variable and methods are called on it — when `.>` chaining would be cleaner. Triggers on both `let` and `var` bindings. Fires with 2 or more consecutive dot-calls (whether or not the variable is returned), or with a single call followed by a bare reference to return the variable.
+
+**Incorrect** — multiple calls with trailing reference:
+
+```
+class Foo
+  fun make_list(): Array[U32] =>
+    let r = Array[U32]
+    r.push(1)
+    r.push(2)
+    r.push(3)
+    r
+```
+
+**Correct:**
+
+```
+class Foo
+  fun make_list(): Array[U32] =>
+    Array[U32]
+      .> push(1)
+      .> push(2)
+      .> push(3)
+```
+
+**Incorrect** — single call with trailing reference:
+
+```
+class Foo
+  fun make_set(): Set[String] =>
+    let s = Set[String]
+    s.set("foo")
+    s
+```
+
+**Correct:**
+
+```
+class Foo
+  fun make_set(): Set[String] =>
+    Set[String] .> set("foo")
+```
+
+**Also incorrect** — multiple calls without trailing reference:
+
+```
+class Foo
+  fun apply(): None =>
+    let x = Bar
+    x.baz(1)
+    x.qux(2)
+```
+
+**Correct:**
+
+```
+class Foo
+  fun apply(): None =>
+    Bar .> baz(1) .> qux(2)
+```
+
+## `style/public-docstring`
+
+**Default:** on
+
+Public types and public methods must have a docstring. A type or method is public if its name does not start with `_`.
+
+Several exemptions apply. No docstring is required for:
+
+- Types or methods annotated with `\nodoc\`
+- Methods inside private types or `\nodoc\`-annotated types
+- `Main` actors
+- Well-known method names: `create`, `string`, `eq`, `ne`, `hash`, `hash64`, `compare`, `lt`, `le`, `ge`, `gt`, `dispose`, `has_next`, `next`, `values`, `size`
+- Type aliases (Pony does not support docstrings on type aliases)
+- Methods inside anonymous `object` literals
+- Concrete methods with 3 or fewer top-level expressions in the body (abstract methods are not exempt)
+
+**Incorrect:**
+
+```
+class Foo
+  fun my_method(a: U32, b: U32, c: U32, d: U32): U32 =>
+    let x = a + b
+    let y = c + d
+    let z = x * y
+    z + 1
+```
+
+**Correct:**
+
+```
+class Foo
+  """A class that does arithmetic."""
+
+  fun my_method(a: U32, b: U32, c: U32, d: U32): U32 =>
+    """Combine four values through addition and multiplication."""
+    let x = a + b
+    let y = c + d
+    let z = x * y
+    z + 1
+
+  fun apply(): U32 =>
+    // Exempt: 3 or fewer expressions
+    let x: U32 = 1
+    let y: U32 = 2
+    x + y
+```
+
+## `style/trailing-whitespace`
+
+**Default:** on
+
+Lines must not have trailing spaces or tabs. Completely empty lines (zero length) are not flagged.
+
+Because trailing whitespace is invisible in rendered text, violations are not visible in code examples. A violation is one or more space or tab characters between the last visible character on a line and the line ending.
+
+**Correct:**
+
+```
+class Foo
+  fun apply(): None =>
+    let x = 1
+    None
+```
+
+## `style/type-alias-format`
+
+**Default:** on
+
+Checks formatting of multiline type alias declarations. For type aliases with a multiline union or intersection type:
+
+- The opening `(` must be the first non-whitespace on its line (no hanging indent after `is`).
+- A space is required after `(`.
+- For each `|` or `&` that is the first non-whitespace on its line, a space is required after it.
+- A space is required before the closing `)`.
+
+Single-line type aliases and simple aliases (no union/intersection) are not checked. Only `|`/`&` at line starts (first non-whitespace) are checked — mid-line separators in nested types are not.
+
+**Incorrect:**
+
+```
+// Hanging indent — ( must be on its own line
+type Signed is (I8
+  | I16
+  | I32 )
+
+// Missing space after (
+type Signed is
+  (I8
+  | I16
+  | I32 )
+
+// Missing space after |
+type Signed is
+  ( I8
+  |I16
+  | I32 )
+
+// Missing space before )
+type Signed is
+  ( I8
+  | I16
+  | I32)
+```
+
+**Correct:**
+
+```
+// Single-line — not checked
+type Signed is (I8 | I16 | I32)
+
+// Multiline with ) inline
+type Signed is
+  ( I8
+  | I16
+  | I32 )
+
+// Multiline with ) on its own line
+type Signed is
+  ( I8
+  | I16
+  | I32
+  )
+
+// Intersection type
+type Both is
+  ( Hashable
+  & Stringable )
+```
+
+## `style/type-naming`
+
+**Default:** on
+
+Type names must use CamelCase. Names may start with a leading underscore for private visibility. After the optional leading underscore, the name must begin with an uppercase letter and contain only letters and digits. Underscores within the name are not allowed. Trailing primes are permitted.
+
+**Incorrect:**
+
+```
+class foo_parser
+
+primitive my_helper
+
+actor some_actor
+```
+
+**Correct:**
+
+```
+class FooParser
+
+primitive _MyHelper
+
+actor SomeActor
+```
+
+## `style/type-parameter-format`
+
+**Default:** on
+
+Checks formatting of multiline type parameter lists. The opening `[` must always be on the same line as the entity or method name. When type parameters span multiple lines, each type parameter must be on its own line. For entities with a provides clause (`is`), the `is` keyword must be indented one level (2 spaces) from the entity keyword when it appears on its own line. Single-line type parameter lists are not checked (except for the `[` same-line requirement, which always applies).
+
+Applies to entities (`class`, `actor`, `primitive`, `struct`, `trait`, `interface`, `type`) and methods (`fun`, `new`, `be`).
+
+**Incorrect:**
+
+```
+class Foo
+  [A, B]
+```
+
+The `[` is on a different line than the name.
+
+```
+class Foo[
+  A, B,
+  C]
+```
+
+Two type parameters share a line.
+
+```
+interface Hashable
+
+class Foo[
+  A,
+  B]
+    is Hashable
+```
+
+The `is` keyword is indented too far — it should be at the entity keyword’s column + 2.
+
+**Correct:**
+
+```
+// Single-line — not checked
+class Foo[A, B]
+```
+
+```
+// Multiline class
+class Foo[
+  A,
+  B]
+```
+
+```
+// Entity with provides clause
+interface Hashable
+
+trait Foo[
+  A,
+  B]
+  is Hashable
+```
+
+```
+// Method type parameters
+class Foo
+  fun bar[
+    A,
+    B](x: A)
+  =>
+    None
+```
+
+# Pony Performance Cheat Sheet
+
+## Performance, it’s a word in the dictionary
+
+If you know what you are doing, Pony can make it easy to write high-performance code. Pony isn’t, however, a performance panacea. There are plenty of things that you as a programmer can do to hurt performance.
+
+We’d categorize most of the information in this document as either “know how computers work” or “know how Pony works.” The former applies to any programming language. What you learn here is probably applicable in other languages that you use every day.
+
+Martin Thompson has an excellent talk [Designing for Performance](https://www.youtube.com/watch?v=03GsLxVdVzU) that talks about writing performance sensitive code in the large. We firmly advise you to watch it. Performance tuning can be a massive rabbit hole. If the topic excites you, put [“mechanical sympathy”](https://duckduckgo.com/?q=mechanical+sympathy) into your favorite search engine; you’ll come up for air in a few months knowing a ton.
+
+All of this is to say: performance is complicated. It’s more art than science. What we are presenting here is rules of thumb. Many are not always good or always bad. Like most things in engineering, there are trade-offs involved. Be mindful. Be empirical. Be sure to measure the performance of your code before and after you change anything based on this document.
+
+It’s our belief that the best way to get to awesome performance is [baby steps](https://www.youtube.com/watch?v=ncFCdCjBqcE). Don’t try to make a ton of changes at once. Make a small performance oriented change. Measure the impact. Repeat. Take one tiny step at a time towards better performance.
+
+And remember, invest your time where it’s valuable. Worrying about possible performance problems in code that gets executed once at startup won’t get you anything. You need to “mind the hot path.” Performance tune your code that gets executed all the time. For example, if you are writing an HTTP server and want to make it high-performance, you definitely should focus on the performance of your HTTP parser, it’s going to get executed on every single request.
+
+If you get stuck, fear not, we have a [welcoming community](https://www.ponylang.io/learn/#getting-help) that can assist you.
+
+## Pony performance tips
+
+### It’s probably your design
+
+A poor design can kill your performance before you ever write a line of code. One of the fastest ways to hurt your performance is by inserting bottlenecks. As an example, imagine a system where you have X number of “processing actors” and 1 “aggregating actor.” Work is farmed out to each of the processing actors to undertake which in turn send their results to the aggregating actor. Can you spot the possible bottleneck? Our performance is going to be bound by the performance of the single aggregating actor. We haven’t written a line of code yet, and we already have a performance problem.
+
+This pattern plays out over and over in our software systems. For a variety of well-intentioned reasons, we introduce bottlenecks into our designs. And you know what? That’s ok. It’s about trade-offs. Sometimes the performance loss is worth whatever we are gaining. However, we need to be aware of the trade-offs we are making. If we are going to consciously lower our performance, we need to get something at least as valuable in return.
+
+Fast code is highly concurrent. Fast code avoids coordination. Fast code relies on local knowledge instead of global knowledge. Fast code is willing to trade the illusion of consistency for availability and performance. Fast code does this **by design**.
+
+There’s a lot of material out there about writing high-performance, highly concurrent code. More than most people have time to absorb. Our advice? At least watch the Martin Thompson, and Peter Bailis talks below, then if you are hungry for more, ask the [community](https://www.ponylang.io/learn/#getting-help) what more you can learn.
+
+- [Designing for Performance](https://www.youtube.com/watch?v=03GsLxVdVzU)
+- [Silence is Golden: Coordination-Avoiding Systems Design](https://www.youtube.com/watch?v=EYJnWttrC9k)
+
+### Watch your allocations
+
+Comparatively, creating new objects is expensive. Each object requires some amount of memory to be allocated. Allocations are expensive. The Pony runtime uses a pool allocator so creating a bunch of `String`s is cheaper than if you had to `malloc` each one. Allocation is not, however, free. In hot paths, it can get quite expensive.
+
+If you want to write high-performance Pony code, you are going to have to look at where you are allocating objects. For example:
+
+```
+let output = file_name + ":" + file_linenum + ":" + file_linepos + ": " + msg
+```
+
+How many allocations does it take to create `output`? You need to know. We’ll give you a hint:
+
+```
+// String.add
+// commonly seen as "foo" + "bar"
+fun add(that: String box): String =>
+  """
+  Return a string that is a concatenation of this and that.
+  """
+  let len = _size + that._size
+  let s = recover String(len) end
+  (consume s)._append(this)._append(that)
+```
+
+The point of this isn’t that you need to know that `+` on `String` calls `add` which in turn creates a new object. The point is, you need to know how many allocations your code and the code you are calling is going to trigger. The following code has far fewer allocations involved:
+
+```
+let output = recover String(file_name.size()
+  + file_linenum.size()
+  + file_linepos.size()
+  + msg.size()
+  + 4) end
+
+output.append(file_name)
+output.append(":")
+output.append(file_linenum)
+output.append(":")
+output.append(file_linepos)
+output.append(": ")
+output.append(msg)
+output
+```
+
+It’s going to perform much better than the former. You might find yourself wondering about the first part of the code, what’s going on with:
+
+```
+let output = recover String(file_name.size()
+  + file_linenum.size()
+  + file_linepos.size()
+  + msg.size()
+  + 4) end
+```
+
+The answer once again is in the source. In this case in the source for `String.append` and `String.reserve`.
+
+```
+fun ref append(seq: ReadSeq[U8], offset: USize = 0, len: USize = -1) =>
+  """
+  Append the elements from a sequence, starting from the given offset.
+  """
+  if offset >= seq.size() then
+    return
+  end
+
+  let copy_len = len.min(seq.size() - offset)
+  reserve(_size + copy_len)
+
+  match seq
+  | let s: (String box | Array[U8] box) =>
+    s._copy_to(_ptr, copy_len, offset, _size)
+    _size = _size + copy_len
+    _set(_size, 0)
+  else
+    let cap = copy_len + offset
+    var i = offset
+
+    try
+      while i < cap do
+        push(seq(i)?)
+        i = i + 1
+      end
+    end
+  end
+
+fun ref reserve(len: USize) =>
+  """
+  Reserve space for len bytes. An additional byte will be reserved
+  for the null terminator.
+  """
+  if _alloc <= len then
+    let max = len.max_value() - 1
+    let min_alloc = len.min(max) + 1
+    if min_alloc <= (max / 2) then
+      _alloc = min_alloc.next_pow2()
+    else
+      _alloc = min_alloc.min(max)
+    end
+    _ptr = _ptr._realloc(_alloc)
+  end
+```
+
+`String.append` will make sure that it has enough room to copy the new data onto the string by calling `reserve`. `String.reserve` will result in a new allocation if you are trying to reserve more memory than you’ve already allocated. So…
+
+```
+let output = recover String(file_name.size()
+  + file_linenum.size()
+  + file_linepos.size()
+  + msg.size()
+  + 4) end
+```
+
+reserves enough memory for our string ahead of time and avoids allocations. The same principle can apply to a variety of collections. If you know you need to put 256 items in a collection, allocate space for 256 from the get go, otherwise, as you add items to the collection, allocations will be triggered.
+
+“Limit allocations” doesn’t only apply to knowing what happens in the code you are calling. You need to be aware of what your code is doing. You need to design your code to allocate as few objects as possible while triggering as few allocations from the pool allocator.
+
+You can slaughter your performance if your object is growing in size and needs additional space and has to be copied into a newer roomier chunk of memory.
+
+Just remember, if you want to maximise performance:
+
+- You need to know when code you call is allocating new objects.
+- You need to know when code you call results in memory copies
+
+Some of you probably looked at the `String` performance enhancement above and thought, “doesn’t the JVM do that for you?” You’d be right. That’s a standard optimization in many languages. It’s an optimization we are adding to Pony. However, the basic pattern applies. Be aware of triggering extra allocations that you don’t need to. Your compiler and runtime can add many optimizations to avoid allocations, but it’s not going to do everything for you. You still need to understand your allocations. They’re called “your allocations” because in the end, you end up owning them and they end up owning your performance.
+
+### Give in to your “primitive obsession”
+
+Many collections of programming “best practices” teach you to avoid [“primitive obsession”](https://refactoring.guru/smells/primitive-obsession). This is great advice, normally. It’s not such great advice if you are worried about performance. Let’s take two ways you can represent a short form American zip code:
+
+```
+// primitive obsession!
+let zip: U64
+
+// proper OO!
+class ZipCode
+  let _zip: U64
+
+  new create(zip: U64) =>
+    _zip = zip
+```
+
+The problem with our right and proper OO version that avoids primitive obsession are that you are going to end up creating a new object. Do that in a hot path, and it will add up. As we said earlier, [watch your allocations](https://www.ponylang.io/use/performance/pony-performance-cheat-sheet/#avoid-allocations)!
+
+Perhaps our zip code example feels a little contrived? Here’s another one. It’s a somewhat familiar pattern to avoid using floating point numbers to represent monetary values. That’s wise, floating point numbers are not good for accuracy, and most of us want our monetary calculations to be accurate. A standard solution to this problem might look like the `Money` class below:
+
+```
+class Money
+  let _dollars: U64
+  let _cents: U8
+
+  new create(dollars: U64, cents: U8) =>
+    _dollars = dollars
+    _cents = cents
+```
+
+That’s the beginning of a beautiful Money class. However, it’s also the start of a lot of potential allocations. If we give in to our primitive obsession, we can avoid the object allocation by using a tuple:
+
+```
+type Dollars is U64
+type Cents is U8
+type Money is (Dollars, Cents)
+```
+
+### Avoid boxing machine words
+
+Machine words like U8, U16, U32, U64, etc. are going to be better for performance than classes. Machine words have less overhead than classes. However, if we aren’t careful, we can end up “boxing” machine words and add cost. In hot path code, that boxing can have a large impact.
+
+The easiest way to end up boxing a machine word is by including it in a union type. Take a look at the following code:
+
+```
+class Example
+  let _array: Array[U64] = _array.create()
+
+  fun index_for(find: U64): (USize | None) =>
+    """
+    Return the index position for `find` or `None` if it isn't in `Example`
+    """
+    for (index, value) in _array.pairs() do
+      if value == find then
+        return index
+      end
+    end
+
+    None
+```
+
+This code is excellent and quite reasonable. The return type is very clear. We either get a `USize` or `None`. The problem here is that we need to box the `USize` that we return and it’s going to have a performance impact. For hot path code, you should give in to your inner C programmer and write the following:
+
+```
+class Example
+  let _array: Array[U64] = _array.create()
+
+  fun index_for(find: U64): USize =>
+    """
+    Return the index position for `find` or `-1` if it isn't in `Example`
+    """
+    for (index, value) in _array.pairs() do
+      if value == find then
+        return index
+      end
+    end
+
+    -1
+```
+
+You probably won’t be proud of that code, but you’ll be proud of the performance improvement you get. The `-1` idiom is one that should be quite familiar to folks with a C background. If you aren’t familiar with C, you might be thinking: “Wait, that’s a `USize`, an unsigned value. What on earth is `-1` there?” And that’s a good question to ask. The answer is numeric types wrap overflow and wrap around. So `-1` is equivalent to the max value of a `U64`. Keep that in mind because if you find your value in index `18,446,744,073,709,551,615`, you’ll be treating it as not-found. That might be a problem, but we doubt it.
+
+Another option is to put your return value in a tuple, alongside a `Bool` value, which will work as an indicator for your function’s success. This is useful when there is no “error value” available. Here is such an example:
+
+```
+primitive Divisor
+  fun divide_by(a: F64, b: F64): (F64, Bool) =>
+    if b == 0 then
+      (0, false)
+    else
+      (a / b, true)
+    end
+```
+
+You can see that our function returns `(0, false)` if it runs into an error case, and otherwise returns its result with a `true` indicator. When running this code, you will only have to check if the function succeeded:
+
+```
+use "debug"
+
+class Student
+  fun do_math_exercises() =>
+    let a = Divisor.divide_by(4, 2)
+    if a._2 then
+      Debug("4/2 makes " + a._1.string())
+    else
+      Debug("Couldn't calculate 4/2?!")
+    end
+
+    (let result, let success) = Divisor.divide_by(4, 0)
+    if success then
+      Debug("4/2 makes " + result.string() + "?!")
+    else
+      Debug("Couldn't calculate 4/0")
+    end
+```
+
+We avoided boxing machine word, thanks to tuples!
+
+### Avoid `error`
+
+Pony’s `error` is often confused with exceptions from languages like Java. `error` while having some similarities, isn’t the same. Amongst other differences, `error` carries no runtime information like exception type. It’s also cheaper to set up a Pony `error` than it is an exception in languages like Java. Many folks hear that and think, “I can use `error` without worrying about performance.” Sadly, that isn’t the case.
+
+`error` has a cost. It’s a good rule of thumb to avoid using `error` in hot path code. You should instead favor using union types where one value represents your “success” value, and the other represents your “error” value. Below you’ll see two versions of a contrived `zero_is_bad` function. The first utilizes `error`; the second is implemented using a union type.
+
+#### Error version
+
+```
+use "debug"
+
+class Foo
+  fun zero_is_bad(i: U64): U64 ? =>
+    if i == 0 then
+      error
+    end
+
+    i * 2
+
+class UsesFoo
+  let _foo: Foo = Foo
+
+  fun bar(i: U64) =>
+    try
+      let x = _foo.zero_is_bad(i)?
+      Debug("good things happened " + x.string())
+    else
+      Debug("error happened")
+    end
+```
+
+#### Union type version
+
+```
+use "debug"
+
+primitive ZeroIsBad
+
+class Foo
+  fun zero_is_bad(i: U64): (U64 | ZeroIsBad) =>
+    if i == 0 then
+      ZeroIsBad
+    else
+      i * 2
+    end
+
+class UsesFoo
+  let _foo: Foo = Foo
+
+  fun bar(i: U64) =>
+    match _foo.zero_is_bad(i)
+    | let x: U64 =>
+      Debug("good things happened " + x.string())
+    | ZeroIsBad =>
+      Debug("zero is bad")
+    end
+```
+
+Which is better for performance? Well, it depends. How often is the input to `zero_is_bad` going to be 0? The more often it is, the worse the error version will perform compared to the union type version. If the `i` parameter to `zero_is_bad` is rarely 0, then the error version will perform better than the union type version.
+
+Our union type version contains additional logic that will be executed on every single call. We have to match against the result of `zero_is_bad` to determine if you got a `U64` or `ZeroIsBad`. You are going to pay that cost *every single time*.
+
+How do you know which is the best version? Well, there is no best version. There is only a version that will work better based on the inputs you are expecting. Pick wisely. Here’s our general rule of thumb. If it’s in hot path code, and you are talking about `error` happening in terms that are less than 1 in millions, you probably want the union type. But again, the only way to know is to test.
+
+By the way, did you notice our union type version introduced a different problem? It’s [boxing the `U64` machine word](https://www.ponylang.io/use/performance/pony-performance-cheat-sheet/#boxing-machine-words). If `zero_is_bad` was returning a `(FooClass | None)` that wouldn’t be an issue. Here, however, it is. Be mindful that when you address one possible performance problem that you don’t introduce a different one. It’s ok to trade one potential performance problem for another; you just need to be mindful.
+
+### Watch the asynchrony!
+
+Actors are awesome. We love them. We wouldn’t be using Pony if we didn’t. However, we do see people getting a little too excited about them. Yes, actors are a unit of concurrency. However, you don’t need to make everything an actor.
+
+Sending a message from one actor to another is pretty fast; note the “pretty fast.” A message send isn’t free. The message has to be placed in the mailbox for the receiving actor which in turn needs to retrieve it. The multi-producer, single-consumer queue that powers actor mailboxes is highly tuned, but, it’s still a queue. Sometimes you don’t need another actor; you just need a class.
+
+In addition to the queue costs you pay with a message send, depending on the contents of your message, you might be incurring additional garbage collection costs as well.
+
+### Mind the garbage collector
+
+#### Things you should know about the Pony garbage collector
+
+- Each actor has its own heap
+- Actors might GC after each behavior call (never during one)
+- Effectively, Pony programs are constantly, concurrently collecting garbage
+- Garbage collection for an actor’s heap uses a mark and don’t sweep algorithm
+- There are no garbage collection generations
+- When an object is sent from one actor to another, additional messages related to garbage collection have to be sent
+- If you send an object allocated in actor 1 to actor 2 and from there to actor 3, garbage collection messages will flow between actors 1, 2, and 3
+
+#### Performance implications
+
+There are two ways that Pony’s garbage collection can impact your performance:
+
+1. Time spent garbage collecting
+1. Time spent sending garbage collection messages between actors
+
+To minimize the impact of garbage collection on your application, you’ll need to address anything that results in longer garbage collection times, and you’ll want to reduce the number of garbage collection messages generated.
+
+#### Advice
+
+- Watch your allocations!
+
+If you don’t allocate it, you don’t have to collect it. Yaya, we [mentioned this already](https://www.ponylang.io/use/performance/pony-performance-cheat-sheet/#avoid-allocations); but really, it’s an important component of your application’s performance profile.
+
+- Avoid sending objects between actors when you can
+
+Remember our earlier [primitive obsession](https://www.ponylang.io/use/performance/pony-performance-cheat-sheet/#primitive-obsession) conversation? Here’s another example of where primitive obsession can be your performance friend. Sending a “money tuple” like
+
+```
+// "money tuple"
+type Dollars is U64
+type Cents is U8
+type Money is (Dollars, Cents)
+```
+
+from one actor to another will have no garbage collection overhead. Sending a “money class” such as
+
+```
+class Money
+  let _dollars: U64
+  let _cents: U8
+
+  new create(dollars: U64, cents: U8) =>
+    _dollars = dollars
+    _cents = cents
+```
+
+will result in some garbage collection overhead. In the small, it won’t make much of a difference, but in a hot-path? Look out. It can make a big difference. If you can send machine words instead of classes, do it.
+
+- Avoid passing objects along long chains of actors
+
+Sending 2 objects from Actor A to Actor B results in fewer garbage collection messages being generated than sending 1 object from Actor A to Actor B to Actor C. The can lead to some counter-intuitive performance improvements. For some applications that send objects down a long line of actors, it might make sense to create a copy of the object along the way and send the copy. Eventually, the cost of the memory allocation and copying will be less than the overhead from garbage collection messages.
+
+Please note, this is not an issue that is going to impact most applications. It is, however, something you should be aware of.
+
+- Avoid holding on to objects that were allocated by another actor
+
+Pony’s garbage collector is a non-generational mark and don’t sweep collector. It will perform best when the number of objects in an actor’s heap is kept low. The more objects on the heap, the longer a garbage collection cycle will take. All mark and don’t sweep collectors share this trait. The complexity of generational garbage collection was added to address problems with long-lived objects.
+
+Issues with high object count heaps interact interestingly with certain types of Pony applications. Take, for example, a network server. Clients open connections to it over TCP and exchange data. On the server side, data received from clients is allocated in the incoming TCP actors and then sent to other actors as an object or objects of some sort.
+
+If our receiving actors hold onto the objects allocated in the TCP actors for an extended period, the number of objects in their heaps will grow. As the objects held grows, garbage collection times will increase.
+
+Some applications might benefit from having receiving actors copy data once they get it from an incoming TCP actor rather than holding on to the data allocated by the TCP actor. Odds are, your application won’t need to do this, but it’s something to keep in mind.
+
+### The dead actor collector (i.e cycle detector)
+
+#### Things you should know about the Pony cycle detector
+
+- The `cycle detector`s job is to identify and reap dead actors (including cycles of actors that are all dead)
+- The `cycle detector` will periodically ask actors if they are blocked
+- Every actor will respond with a `block` message to the `cycle detector` when it thinks it has no work left to do
+- Every actor will send `unblock` messages to the `cycle detector` when it receives new work after it has already sent a block message
+- The `cycle detector` will use the `block` and `unblock` messages along with actor dependencies tracked by the garbage collector to determine which actors or cycles of actors are dead and can never receive new work
+- Once the `cycle detector` identifies dead actors, it will finalize and reap them freeing any memory used by them to be reused for other purposes
+
+#### Performance implications
+
+There are two ways that Pony’s `cycle detector` can impact your performance:
+
+1. Normal actors have to respond to the `cycle detector` queries about whether they are blocked and send `block`/`unblock` messages and respond to `conf` messages from the `cycle detector` with `ack` messages.
+1. Time spent running the `cycle detector` to find cycles.
+
+#### Advice:
+
+If your application doesn’t create many actors that need to be reaped over its lifetime or if you aren’t worried about the extra memory wasted by dead actors, you can disable the `cycle detector`.
+
+This can be accomplished by passing `--ponynoblock` option to the application.
+
+Disabling the `cycle detector`:
+
+1. Disables running the `cycle detector` because it is never sent any messages.
+1. Disables sending of `block`/`unblock` messages from normal actors to the `cycle detector` because the `cycle detector` never queries actors to ask if they are blocked.
+
+### Maybe you have too many threads
+
+Let’s talk about the Pony scheduler for a moment. When you start up a Pony program, it will create one scheduler thread per available CPU. At least, that is what it does by default. These scheduler threads will not be locked to particular CPUs by default. The default of having different scheduler threads unlocked is not ideal for performance. We can tell Pony to instead lock scheduler threads to particular CPUs by passing the `--ponypin` argument. Additionally, the scheduler threads can be suspended if there isn’t enough work to do. Without going into a ton of detail, this is usually the right thing to do for performance and efficiency.
+
+Pony schedulers use a work-stealing algorithm that allows idle schedulers to take work from other schedulers. In a loaded system, the work stealing algorithm can keep all the CPUs busy. When CPUs are underutilized, unused scheduler threads are suspended until there is enough work for them. In most cases, scheduler thread suspend/resume will have minimal negative impact on performance but significant positive impact on resource efficiency.
+
+Depending on the workload and concurrency characteristics of a particular application, it might be worth tuning how things function. In some instances, where efficiency isn’t a concern, you can specify `--ponynoscale` in order to disable scheduler thread suspension by indicating that the minimum active scheduler threads required is the same as the total number of scheduler threads. This, however, can lead to work-stealing having a negative impact on performance due to CPU cache thrashing. In such cases, running with fewer threads might result in better performance. When you run your pony program, you can pass the `--ponymaxthreads=X` option to indicate the maximal number of scheduler threads the program will create.
+
+We suggest you rely on the default behavior where Pony scheduler threads automagically adjust to the workload. However, if you want to squeeze as much performance as possible, we suggest the following:
+
+- Run your program under your expected workload.
+- Run your program with `--ponypin` to lock scheduler threads to particular CPUs.
+- Start with 1 scheduler thread and work your way up to the number of CPUs you have available.
+- Measure your performance with each `ponythread` setting with scheduler thread suspension disabled.
+- Use the number of scheduler threads that gives you the best performance.
+
+### Isolate and pin your scheduler threads
+
+Multitasking operating systems are wondrous things. Without one, I wouldn’t be able to write up these tips while listening to obscure Beastie Boys remixes. For me, at this moment in time, having multiple programs running at once is an awesome thing. There are times though when multitasking operating systems can be annoying.
+
+Much like how the Pony scheduler schedules different actors, so they all get time to use a CPU, so your operating system does with various running programs. And this can be problematic for performance. If we want to get the best performance from Pony programs, we want them to have access to CPUs as much as possible. And, we want each scheduler thread to be assigned to a particular CPU and to have sole access to its particular CPU.
+
+Modern CPU architectures feature a hierarchical layering of caches. The caches are used to hold data that the CPU needs. The closer the cache is to the CPU, the faster it can execute operations on that data. In our ideal world, the data we need is always in the caches the closest to the CPU. We don’t live in an ideal world, but we can do things to bring us closer to our ideal world.
+
+One of those things is reserving CPUs for our programs. The benefits are two fold:
+
+- Our application never loses CPU time to some other process
+- Another process using the CPU doesn’t evict our data from CPU caches
+
+If your operating system supports process isolation and pinning, we suggest you use them. What you want to do is set your operating system and all “non-essential” programs to share 1, perhaps 2 CPUs; this frees up all your remaining CPUs for use by your Pony program.
+
+On Linux, you’ll want to use [cset](https://rt.wiki.kernel.org/index.php/Cpuset_Management_Utility/tutorial) to isolate your Pony programs and then use [numactl](https://linux.die.net/man/8/numactl) or [taskset](https://linux.die.net/man/1/taskset) to pin it to specific CPUs. Let’s have a look at an example:
+
+```
+sudo cset proc -s user -e numactl -- -C 1-4,17 chrt -f 80 \
+  ./my-pony-program --ponymaxthreads 4 --ponypin --ponypinasio
+```
+
+This isn’t a complete `cset` or `numactl` tutorial so I’m only going to focus on one option of each and I’ll leave the rest to your investigation. Note the `-s user` option to `cset`; this tells `cset` to use the `user` process isolation zone where no system processes are allowed to run. Similarly, note the `-C 1-4,17` option to `numactl`; this will make only CPUs 1 to 4 plus CPU 17 available to our program `my-pony-program`.
+
+```
+--ponymaxthreads 4 --ponypin --ponypinasio
+```
+
+And those three additional options to our program? We’ve seen `--ponymaxthreads` and `--ponypin` before. In this case, we are running with 4 scheduler threads. They will have exclusive access to CPUs 1 to 4 with each scheduler thread assigned to a particular CPU. What about `--ponypinasio` and CPU 17?
+
+In addition to scheduler threads, each Pony program also has an ASIO thread that handles asynchronous IO events. By supplying the `--ponypinasio` option, our ASIO thread will be pinned to a single CPU. Which CPU? Whichever available CPU is next after all scheduler threads have been assigned CPUs which in this case is CPU 17. To sum up:
+
+```
+// Use "user" process isolation space
+-s user
+// Set aside 5 CPUs for this program
+-C 1-4,17
+// Run 4 scheduler threads and pin the scheduler threads and the ASIO thread
+--ponymaxthreads 4 --ponypin --ponypinasio
+```
+
+### Hyper-threading
+
+For some workloads, hyper-threading improves performance, for others, it can not affect or can hurt performance. You should test your application with hyper-threading enabled and disabled. As a general rule of thumb, hyper-threading can often improve performance of your application if it’s memory-bound and harm performance if it’s CPU-bound. If you aren’t familiar with hyper-threading, the [hyper-threading Wikipedia entry](https://en.wikipedia.org/wiki/Hyper-threading) is a good place to start.
+
+If you are following our [“pin your scheduler threads”](https://www.ponylang.io/use/performance/pony-performance-cheat-sheet/#pin-your-threads) advice, you want to be especially aware of hyper-threading. If you have hyper-threading on, your operating system might be seeing logical cores from hyper-threading as real physical cores. Don’t be fooled. If you want to maximize performance by pinning threads to a CPU, you probably want to turn off hyperthreading. Be especially wary in environments like AWS that present “virtual CPUs” aka VCPUs. In the case of AWS, your 8 VCPUs are 4 real cores and 4 hyper-threads. You only want to be using the real cores, not the hyper-threads.
+
+### Tune your operating system
+
+Depending on what your program does, tuning your operating system might yield good results. Operating systems like Linux exposes a variety of options that you can use to optimize them. The internet is awash in various documents purporting to give you settings that will lower network latency, raise network throughput or improve application latency. Beware of every single one of those documents. Even if they were written by a knowledgeable person, they weren’t written with your specific hardware in mind, with your specific operating system in mind, with your particular application in mind.
+
+Now, warning aside, there’s plenty you can learn about tuning your operating system, and it can sometimes have a large impact on your application. Just remember, mindlessly turning knobs you don’t understand isn’t likely to make things better. Do your research. Understand what you are doing. Be empirical; measure and then measure again.
+
+### Build from source
+
+The pre-built Pony packages are quite conservative with the optimizations they apply. To get the best performance, you should [build your compiler from source](https://www.ponylang.io/contribute/compiler/building-ponyc-from-source/index.md). By default, Pony will then take advantage of any features of your CPU like AVX/AVX2. Additionally, you should try building the [runtime as an LLVM bitcode file](https://www.ponylang.io/contribute/compiler/building-ponyc-from-source/#runtime-bitcode). Finally, make sure you build a `release` version of the compiler and that your pony binary wasn’t compiled with `--debug`.
+
+### Profile it!
+
+Intuitions about program performance are often wrong. The only way to find out for sure is to measure. You are going to need to profile your code. It will help you find hot spots. You can use standard profiling tools like Instruments and VTune on your Pony application. At the moment, we don’t have a handy guide to help you interpret the results you are getting, but we have one in the works. In the meantime, if you need help, the [community is waiting to help](https://www.ponylang.io/learn/#getting-help).
+
+# Coverage Reports for Pony
+
+## Using kcov to create Coverage Reports
+
+Pony compiles to plain binaries. When compiled with `--debug` these contain `DWARF` debugging information about the location of each instruction etc.
+
+[kcov](https://github.com/SimonKagstrom/kcov) is a tool that uses this `DWARF` information to associate the executed parts of a binary with the source code they originated from.
+
+### Compiling the Pony Program
+
+In order to create coverage reports for a Pony program execution, the Pony program to run needs to be compiled with `--debug`.
+
+### Running kcov
+
+[kcov](https://github.com/SimonKagstrom/kcov) runs a given binary and takes a bunch of patterns for where to search for the connected source code and where not to.
+
+An example run could look like the following.
+
+This assumes you have your code inside the directory `my_proj`, your binary has been compiled to `bin/test`. The code you want to create coverage for is in `my_proj` but you have some test-files, that you want to exclude:
+
+```
+mkdir out
+kcov --include-pattern="$PWD/my_proj" --exclude-pattern="$PWD/my_proj/test,$PWD/my_proj/_test.pony" ./out bin/test
+```
+
+This command will generate an HTML coverage report in the `out` directory. It will report coverage for all source files in `$PWD/my_proj`, but not for `$PWD/my_proj/test` and `$PWD/my_proj/_test.pony`, as these are test files for which we do not need coverage.
+
+It is recommended to use absolute file paths for the include and exclude patterns as these match the file locations found in the `DWARF` debugging information.
+
+## Reading kcov Coverage Reports
+
+Lines covered are marked green, lines not covered are marked red.
+
+If lines of your code are not marked at all, it means that these parts were not part of the binary. Pony strips away parts of your code during compilation that are never reached. So in this case it might be a good idea to write tests that cover these parts of your code.
+# FAQ
+
+# FAQ
+
+We don’t answer every question in our FAQs. We probably don’t answer the question you have right now, but we do answer the questions that come up often in our [#beginner help](https://ponylang.zulipchat.com/#narrow/stream/189985-beginner-help) channel. It makes it easy for us to point people to the answer.
+
+If your question isn’t answered here, check out our [getting help guide](https://www.ponylang.io/learn/getting-help/).
+
+# About Pony
+
+## How’d Pony come to be?
+
+Check out [“An Early History of Pony”](https://www.ponylang.io/blog/2017/05/an-early-history-of-pony/index.md).
+
+## Why’s it called “Pony”?
+
+Interesting question. We hear that a lot. If you read enough of [“An Early History of Pony”](https://www.ponylang.io/blog/2017/05/an-early-history-of-pony/index.md), you’ll get your answer.
+
+## What makes Pony different?
+
+See [“What makes Pony different”](https://www.ponylang.io/discover/what-makes-pony-different/index.md).
+
+## How is Pony different than Erlang/Elixir?
+
+The answer is deep and complicated. Fortunately, Scott Fritchie went to a great deal of trouble answering it in his talk [The wide world of almost-actors: comparing the Pony to BEAM languages](https://www.youtube.com/watch?v=_0m0_qtfzLs).
+
+## Why would I use Pony instead of language X?
+
+That’s a hard question to answer. Language X is probably very compelling for some problems. It’s probably less compelling for others. Such is computers. In the end, the best we can do is tell you what Pony is good at and you can make the decision for yourself. To learn more about Pony, we suggest checking out the [“Why Pony”](https://www.ponylang.io/discover/why-pony/index.md) section of the website. Hopefully, it answers your question.
+
+## Where can I find the Pony roadmap?
+
+There is no official roadmap. Pony is a volunteer driven project. Unlike many programming languages, we don’t have corporate backing. Our users add features and fix issues based on their needs. Pony users solve the problems that matter to them, and we all benefit.
+
+Many of us who are regular contributors share some general goals as we move towards an official 1.0 release. We are working towards making Pony a stable, rock-solid platform for writing high-performance, concurrent applications.
+
+We invite you to join our small but growing community and help push Pony forward. We’re still at an early stage, and new community members can have a huge influence on the language. Join us!
+
+## Are there any examples of something complex built in Pony?
+
+Yes! Here’s a few projects we regularly point people towards:
+
+- [Jylis](https://github.com/jemc/jylis) - A distributed in-memory database for Conflict-free Replicated Data Types
+- [Novitiate](https://github.com/jtfmumm/novitiate) - A procedurally generated RPG inspired by Rogue and written in Pony.
+- [Wallaroo](https://github.com/seantallen/wallaroo) - Distributed Stream Processor written in Pony
+
+Note, we can’t promise that any of the projects have been updated recently or that they compile with the most recent versions of the Pony compiler.
+
+# Code
+
+## How can I turn a `ref` into a `val`?
+
+Generally, you can’t.
+
+A `ref` may have any number of untracked mutable aliases, so it can’t be declared immutable. If you start with `iso` or `trn` instead, you can guarantee that by consuming it you are destroying the only mutable reference, hence allowing it to become immutable. See [the capabilities section of the tutorial](https://tutorial.ponylang.io/reference-capabilities/reference-capabilities.html) for more information.
+
+Similarly, a `ref` may sometimes be “lifted” to a `val` capability if it was created in the isolated region formed by a `recover` block, from which the compiler guarantees that no mutable references can leak. See [the recover section of the tutorial](https://tutorial.ponylang.io/capabilities/recovering-capabilities.html) for more information.
+
+## What does `Foo()` do if my `Foo` class has both `create()` and `apply()` methods? Does it call both?
+
+Yes, it calls both. However perhaps not in the way you imagine.
+
+- `Foo` creates a new object instance using `create()`
+- `()` is the `apply` call on the newly created `Foo` instance
+
+This example program demonstrates what is going on:
+
+```
+use "debug"
+
+class Foo
+  new create() =>
+    Debug("create called")
+
+  fun apply() =>
+    Debug("apply called")
+
+actor Main
+  new create(env: Env) =>
+    Debug("call Foo()")
+    Foo()
+
+    Debug("call Foo")
+    let foo = Foo
+
+    Debug("call foo()")
+    foo()
+```
+
+Check out [the example program in the Pony Playground](https://playground.ponylang.io/?gist=0045ecb177ab3adf06b5477fc53bdfb7).
+
+For more information see the [Sugar](https://tutorial.ponylang.io/expressions/sugar.html) section of the the tutorial.
+
+## How can I write code that works for every kind of Number in Pony?
+
+If you want to support all kinds of numeric types for which Pony supports there are three ways to approach this problem:
+
+- **Via Inheritance:**
+
+You pick the trait or interface that satisfies the operations you need from those numbers (e.g. support for `sub` is defined in `trait val Real[A: Real[A] val]`) and use this as a type or type parameter in Generics. This works fine for a lot of cases. But e.g. literal inference will not work here, as this example shows:
+
+```
+// does not compile
+primitive OneForAllInheritance
+  fun do_generic_stuff[T: Real[T] val](t: T): T ? =>
+    if t == T.min_value() then
+      error
+    else
+      t.divmod(1) // can be fixed by: t.sub(T.from[U8](1))
+    end
+```
+
+. Why is that? Literal inference only works for the built-in primitive types, but `Integer[T] val` could be extended by further not yet known classes.
+
+- **Via Type Expressions:**
+
+There are plenty of predefined union types for all classes of numbers in Pony. E.g. `type Signed is (I8 | I16 | I32 | I64 | I128 | ILong | ISize)`. There is also `Unsigned`, `Int`, `Float` and `Number`. Just pick what you need as your type.
+
+```
+// does not compile
+primitive OneForAllTypeExpressions
+  fun do_generic_stuff[T: Int](t: T): T ? =>
+    if t == T.min_value() then
+      error
+    else
+      t.sub(1)
+    end
+```
+
+But there is a problem with this approach. Not only do we state that `T` could be any element of `Int`. It could even be a combination of them. e.g. `( U8 | I16 )` and how you use `t` and `T` here must work for all possible instantiations of `Int`, that is every possible combination.
+
+- **Via Type Expressions AND Inheritance:**
+
+To get rid of the literal inference problem and to make sure only single numeric types are accepted, not unions of them, in order to use the methods on the different integer types for our generic problem, we need to combine both the type unions and inheritance to get to a safe solution: `(Int & Integer[T] val)`. The reason why this works is that `Integer[T] val` can only be instantiated by a single concrete `Int` element, so we get rid of the combinations and at the same time make the literal inference work as we lock our generic `T` down to single concrete types being part of `Int`:
+
+```
+primitive OneForAllCombined
+  fun do_generic_stuff[T: (Int & Integer[T] val)](t: T): T ? =>
+    if t == T.min_value() then
+      error
+    else
+      t.sub(1)
+    end
+```
+
+**Nice!**
+
+## How do I create global constants or singletons?
+
+Use primitives. A primitive in Pony is a singleton with no fields. It’s always `val`, so it’s globally readable and immutable. That makes it a natural fit for constants.
+
+```
+primitive Pi
+  fun apply(): F64 => 3.14159265358979323846
+
+primitive Colours
+  fun red(): (U8, U8, U8) => (255, 0, 0)
+  fun green(): (U8, U8, U8) => (0, 255, 0)
+  fun blue(): (U8, U8, U8) => (0, 0, 255)
+```
+
+Primitives can’t have fields, so they can’t hold mutable state. That’s intentional. Mutable global state is ambient authority, and Pony’s capability-secure design doesn’t allow ambient authority.
+
+If you need shared read-only data that’s expensive to construct, a large lookup table say, create it once and pass it to whatever needs it via constructors.
+
+For more on primitives, see the [Primitives](https://tutorial.ponylang.io/types/primitives.html) section of the tutorial and the [Global Function](https://patterns.ponylang.io/code-sharing/global-function.html) pattern.
+
+## How do I debug Pony programs?
+
+Most people start with printf-style debugging, and the standard library’s `Debug` primitive makes that easy. `Debug` output only appears when you compile with `ponyc --debug`. In a release build, `Debug` calls compile out entirely. Zero cost.
+
+When you need a step debugger, Pony compiles to native code with standard DWARF symbols, so LLDB and GDB work directly. We have a [Pony LLDB Cheat Sheet](https://www.ponylang.io/use/debugging/pony-lldb-cheat-sheet/index.md) to get you started and a set of [Pony LLDB Extensions](https://github.com/ponylang/pony-lldb-extensions) that make inspecting Pony values easier.
+
+There’s more in the [Debugging](https://www.ponylang.io/use/debugging/index.md) section of this website.
+
+## How do I wait for an actor to finish?
+
+You don’t. Pony is asynchronous. There is no way to block one actor while waiting for another.
+
+This question usually comes from people accustomed to synchronous calls in other languages. In Pony, you flip it around. Instead of “wait for the result,” you define what happens when the result arrives. Pass a reference to the calling actor to the worker. When the worker is done, it sends a message back.
+
+The [`counter`](https://github.com/ponylang/ponyc/tree/main/examples/counter) example in `ponylang/ponyc` shows this pattern. `Main` passes `this` to a `Counter` actor, and `Counter` calls `main.display()` with the result.
+
+If you need to coordinate across many actors, the [`ponylang/fork_join`](https://github.com/ponylang/fork_join) library provides a fork-join coordination pattern. For more on asynchronous coordination patterns in general, see the [Actor Promise](https://patterns.ponylang.io/async/actorpromise.html) section of the Pony Patterns book.
+
+## How do I read console input?
+
+There’s no blocking `readLine()` call in Pony. All IO is asynchronous. You set up a notifier that gets called when input arrives rather than blocking a thread to wait for it.
+
+The standard library’s `term` package provides `Readline` and `ReadlineNotify` for interactive line-oriented input, complete with tab completion and history. The [`readline`](https://github.com/ponylang/ponyc/tree/main/examples/readline) example in `ponylang/ponyc` shows the full pattern.
+
+It’s more code than a blocking read in most languages. That’s the tradeoff for non-blocking IO.
+
+## Does Pony have reflection?
+
+No. There is no runtime reflection in Pony. You can’t inspect an object’s fields or methods at runtime the way you would in Java or C#.
+
+If you need to serialize objects, build string representations, or do anything else that reflection typically handles, you write it by hand. There is an [open RFC issue](https://github.com/ponylang/rfcs/issues/57) for adding reflection, but designing reflection that doesn’t violate Pony’s safety guarantees is hard. No one has taken it on yet.
+
+## Why can’t I use `env` outside of `Main`?
+
+Because that would be ambient authority. Pony is a capability-secure language. Access to the network, the filesystem, `stdout` — these are capabilities that have to be explicitly passed to whoever needs them. Nothing gets them for free.
+
+If an actor or class needs to print, pass it an `OutStream`. If it needs file access, pass it a `FileAuth`. You decide exactly who gets what authority. That’s the point.
+
+For more on this design, see the [Object Capabilities](https://tutorial.ponylang.io/object-capabilities/object-capabilities.html) section of the tutorial.
+
+## What’s the difference between `_final()` and `dispose()`?
+
+Timing.
+
+`dispose()` is deterministic. You call it when you decide you’re done with a resource, typically via a `with` block. You control when it runs.
+
+`_final()` is non-deterministic. The garbage collector calls it when it collects the object. You don’t control when that happens, and on some code paths it might not run at all before the program exits.
+
+Use `dispose()` when you need timely cleanup — closing file handles, releasing locks, shutting down connections. Use `_final()` as a safety net for resources that must eventually be released even if someone forgets to call `dispose()`.
+
+## Why is `this` a `tag` in a constructor?
+
+Because the object isn’t fully initialized yet. If you could pass `this` as a `ref` during construction, you’d hand out a reference to an object whose fields aren’t all set. That’s a safety hole.
+
+The compiler tracks field initialization. Before all fields are set, `this` is `tag` when used as a value. You can read and write fields on it, but you can’t pass it to something that expects a `ref`. Once every field has been initialized, `this` becomes `ref` for the rest of the constructor body.
+
+## Is there something like `sleep` or delayed execution?
+
+There’s no `sleep` in Pony. Blocking a scheduler thread would prevent other actors from running.
+
+Instead, use `Timer` and `Timers` from the standard library’s `time` package. You create a timer with a notifier, an initial delay, and an optional repeat interval. When the timer fires, it calls your notifier’s `apply` method. The [`timers`](https://github.com/ponylang/ponyc/tree/main/examples/timers) example in `ponylang/ponyc` shows the setup, and the [Waiting](https://patterns.ponylang.io/async/waiting.html) pattern in the Pony Patterns book walks through the approach in detail.
+
+## Why doesn’t Pony have typed errors?
+
+This question usually means “typed exceptions,” and the first thing to understand is that Pony doesn’t have exceptions at all. Pony’s `error` is not an exception. It doesn’t carry a value and there’s no hierarchy of error types to match against. A partial function either produces a value or it errors. That’s it.
+
+If you need to communicate what went wrong, use a union return type. A function that returns `(MyResult | ParseError | ValidationError)` gives the caller exhaustive match coverage over every failure mode. That’s the same affordance that typed exceptions provide in other languages, but it’s handled through the type system rather than a separate exception mechanism.
+
+For more on how Pony’s error model works, see the [Errors](https://tutorial.ponylang.io/expressions/errors.html) section of the tutorial.
+
+# Compiling
+
+## What are Pony’s supported CPU platforms?
+
+See [supported platforms](https://github.com/ponylang/ponyc?tab=readme-ov-file#supported-platforms) in the [ponyc](https://github.com/ponylang/ponyc) [README](https://github.com/ponylang/ponyc?tab=readme-ov-file).
+
+## I get a “requires dynamic” error when compiling, how do I solve it?
+
+```
+/usr/bin/ld.gold: error: ./fb.o: requires dynamic R_X86_64_32
+  reloc against 'Array_String_val_Trace' which may
+  overflow at runtime; recompile with -fPIC
+```
+
+try running `ponyc` with the `--pic` flag.
+
+For example:
+
+```
+ponyc --pic examples/helloworld
+```
+
+As of Pony 0.17.0, if you are building `ponyc` from source, you can have `--pic` automatically set for you. When building `ponyc`, run the following `make` command and your generated `ponyc` binary will always supply `--pic` without you having to set it.
+
+```
+make default_pic=true
+```
+
+## On Windows I get `fatal error LNK1112: module machine type 'x86' conflicts with target machine type 'x64'`
+
+Only 64-bit Windows is supported.
+
+Make sure you’re running a `cmd.exe`/`powershell.exe` that does not include 32-bit VS environment variables.
+
+This error occurs when ponyc is compiled in a 32-bit Visual Studio Developer Command Prompt.
+
+## How can I supply custom linker parameters?
+
+So, you need to link your program to a custom library or otherwise pass a particular linker option? You can accomplish your goal using the `ponyc` `--linker` option.
+
+You’ll need to know what your current linker is. To get it, compile a pony program and pass `--verbose 3`.
+
+### On Linux, MacOS or other Unix-like
+
+Then examine the output. You should see something like:
+
+```
+ld -execute -no_pie -dead_strip -arch x86_64 -macosx_version_min 10.8
+  -o ./timer ./timer.o -L"/usr/local/lib/pony/0.9.0-e64bff88c/bin/"
+  -L"/usr/local/lib/pony/0.9.0-e64bff88c/bin/../lib"
+  -L"/usr/local/lib/pony/0.9.0-e64bff88c/bin/../packages"
+  -L"/usr/local/lib" -lponyrt -lSystem
+```
+
+The `ld` is the linker command that is usually used on MacOS or Linux. If I wanted to link in the library `Foo` and needed to pass `-lFoo` then I would compile my program as:
+
+`ponyc --linker="ld -lFoo"`
+
+That would change the linker command that `ponyc` runs to:
+
+```
+ld -lFoo -execute -no_pie -dead_strip -arch x86_64 -macosx_version_min 10.8
+  -o ./timer ./timer.o -L"/usr/local/lib/pony/0.9.0-e64bff88c/bin/"
+  -L"/usr/local/lib/pony/0.9.0-e64bff88c/bin/../lib"
+  -L"/usr/local/lib/pony/0.9.0-e64bff88c/bin/../packages"
+  -L"/usr/local/lib" -lponyrt -lSystem
+```
+
+### On Windows
+
+Compiling a pony program with `--verbose 3` will produce something like:
+
+```
+cmd /C ""C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Tools\MSVC\14.11.25503\bin\HostX64\x64\link.exe"
+  /DEBUG /NOLOGO /MACHINE:X64 /OUT:.\helloworld.exe .\helloworld.obj
+  /LIBPATH:"C:\Program Files (x86)\Windows Kits\10\Lib\10.0.15063.0\ucrt\x64"
+  /LIBPATH:"C:\Program Files (x86)\Windows Kits\10\Lib\10.0.15063.0\um\x64"
+  /LIBPATH:"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Tools\MSVC\14.11.25503\lib\x64"
+  /LIBPATH:"C:\pony\ponyc\build\release-llvm-3.9.1"
+  /LIBPATH:"C:\pony\ponyc\build\release-llvm-3.9.1\..\..\packages"
+  kernel32.lib msvcrt.lib Ws2_32.lib advapi32.lib vcruntime.lib legacy_stdio_definitions.lib dbghelp.lib ucrt.lib libponyrt.lib "
+```
+
+The path ending in `link.exe` is the linker that the pony compiler is currently using.
+
+To add options to the link command, I would compile my program as something like:
+
+`ponyc --linker="C:\OtherPath\link.exe /LIBPATH:C:\Foo"`
+
+## Does Pony support WebAssembly?
+
+Not in any practical sense. Very simple programs have been compiled to WASM via emscripten, but no one is actively working on full support. Significant blockers remain around the runtime’s IO subsystem, memory allocation, and browser interaction.
+
+If you’re interested in pushing this forward, come talk to us on the [Zulip](https://ponylang.zulipchat.com). We’d welcome the help.
+
+## Does Pony do incremental compilation?
+
+No. Pony does whole-program compilation. The compiler analyzes your entire program together, which is what allows it to guarantee data-race freedom and other safety properties. The tradeoff is that compile times grow with program size.
+
+# Ecosystem
+
+## Does Pony have a package manager?
+
+That would be yes and no. Package manager means different things to different people. What we have is a simple dependency manager called [corral](https://github.com/ponylang/corral) that we are working on growing into a full featured tool. Whether that is a more full featured “dependency manager” or more full featured “package manager” depends on how you define the two terms.
+
+## Does Pony have a formatter?
+
+At this time, no. There is no formatter for Pony code. The lack of a formatter doesn’t indicate that the Pony core team is opposed to code formatters. There is strong interest in having a code formatter for Pony.
+
+An easy to maintain code formatter would share parsing code with the compiler. At this time, sharing said code is difficult. We are working towards making maintaining a code formatter and other parsing related tooling easier. We plan to introduce a code formatter in the future.
+
+## Is there SSL support?
+
+Yes! There used to be SSL support in the Pony standard library, but it’s been moved out [into its own library](https://github.com/ponylang/ssl).
+
+# Runtime
+
+## Does Pony have green threads?
+
+The short answer is no. Pony doesn’t have green threads. By default, the Pony scheduler starts 1 “actor thread” per available CPU. These threads are used to schedule actors. Each of these threads is a kernel thread.
+
+The longer answer is “it depends”. Actors are Pony’s unit of concurrency and many people when asking if Pony has green threads really are asking about how concurrency is modeled. You, as a Pony programmer, never interact with scheduler threads directly, you never interact with any sort of thread. You worry about actors and sending messages between them.
+
+## Are pony actors lightweight like Elixir/Erlang’s actors, or Go’s goroutines?
+
+Yes! In Pony, the overhead of an empty actor on a 64-bit system is roughly 240 bytes – depending on your system’s `size_t` and alignment. Complete actor overhead includes a message queue, per-actor heap, and GC bookkeeping; therefore, memory use increases as an actor accumulates messages and grows its heap. Actors do not have individual stacks, rather they use the stack of the OS thread they are scheduled on.
+
+Relatively, Elixir/Erlang actors use ~5x more memory and goroutines use ~8x more memory, but critically Elixir/Erlang and Go handle memory far differently than Pony. The memory management approach that is “best” is project-dependent – Pony offers one more option you can consider for your particular needs.
+
+## Does Pony really prevent data races?
+
+So, this question usually comes in many different forms. And the question usually arises from a misunderstanding of the difference between a “data race” and a “race condition”.
+
+Pony prevents data races. It can’t stop you from writing race conditions into your program.
+
+To learn more about the differences between race conditions and data races, check out [“Race Condition vs. Data Race”](https://blog.regehr.org/archives/490) by John Regehr.
+
+## What is causal messaging?
+
+When we say that Pony has causal **messaging**, we mean that the Pony runtime provides certain guarantees about message delivery order. Given two actors, actor A and actor B. All messages sent from actor A will arrive at actor B in the order they were sent by Actor A and will be processed by Actor B in the same order. The causal ordering between messages will be preserved as an invariant by the runtime.
+
+Causal ordering of messages applies to a chain of message sends as well. If actor A sends M1 to B, and after that, sends M2 to C, then the messages at B and C can run in any order and in parallel. However, if C sends a message to B, even through another chain of actors, then it will always arrive after M1. You can think of a message inbox at B, where the first events added are processed first. In this case, A ensures that M1 is added to B’s inbox before it goes on to send other messages.
+
+It’s essential to note that this ordering was created directly between A and M1 in B. If we had another actor, say if both M1 in B, and M2 in C happened to include a message send to D, then there’s no relationship between those messages in D.
+
+More formally, causal messaging can be broken down into a few rules:
+
+- A message is executed some time after it is sent.
+- Executions within one actor are sequential: earlier sends happen before later sends.
+- Messages received earlier are executed earlier: If M1 is sent to B before M2 is, then M1 executes before M2.
+- Causal ordering is transitive: if an event X happens before Y, and Y before Z, then X happens before Z.
+
+## When do programs exit?
+
+Programs exit when they reach *quiescence*.
+
+Quiescence is perhaps a term you are unfamiliar with unless you have worked with actor systems previously. In short, quiescence is the state of being calm or otherwise inactive. In Pony, individual actors as well as the program can be quiescent. Because of this there is no need to explicitly exit your program, once no more work is being performed and no more work can be produced then the program will exit.
+
+An individual actor is quiescent when:
+
+- it has an empty message queue
+- it has no aliases remaining to it so cannot be sent new messages
+- it is not registered for events from the runtime via the ASIO subsystem
+
+Once all actors are quiescent, the program will terminate.
+
+## Is Pony’s file IO blocking or non-blocking?
+
+Both, depending on what kind of IO you mean.
+
+Network IO is fully asynchronous. It uses epoll on Linux and kqueue on macOS and BSDs. Your actors get notified when data arrives. No threads block waiting for packets.
+
+File IO and DNS resolution are blocking. When you read from or write to a file, that operation blocks the scheduler thread running your actor. This is a pragmatic choice. Cross-platform async file IO support is poor. POSIX async IO APIs are unreliable and the alternatives are platform-specific.
+
+In practice, short file operations are fine. If you need to do heavy file IO without tying up a scheduler thread, break the work into smaller chunks across multiple behavior calls.
+
+## Is recursion within a behavior asynchronous?
+
+Yes. Behaviors are always asynchronous. When a behavior calls itself, it sends a new message to the actor’s own queue. The current behavior finishes, and the recursive call runs later when the actor picks that message up.
+
+This is actually useful. A behavior that loops with `while` or `for` can’t be interrupted — it holds the scheduler thread until it returns. A behavior that “loops” by calling itself gives other messages a chance to be processed between iterations. The [`yield`](https://github.com/ponylang/ponyc/tree/main/examples/yield) example in `ponylang/ponyc` demonstrates this pattern.
+
+If you need synchronous recursion inside an actor, use a private function instead. Functions are always synchronous.
+
+## Why does Pony only use physical cores, not hyperthreaded cores?
+
+Cache lines. Hyperthreaded cores share cache with their physical sibling. The Pony runtime optimizes for cache-line locality, and hyperthreading actively defeats that. Testing with real-world Pony applications showed measurable performance drops with hyperthreading enabled.
+
+By default, Pony starts one scheduler thread per physical core and pins each thread to its core (on Linux; macOS doesn’t support thread pinning). If you notice “only half your CPU being used”, that’s expected. Those aren’t all real CPUs. Hyperthreads as CPUs is a beautiful lie.
+
+For more, see the [Performance Cheat Sheet](https://www.ponylang.io/use/performance/pony-performance-cheat-sheet/index.md).
+# Discover
+
+# What is Pony?
+
+Pony is an open-source, object-oriented, [actor-model](https://en.wikipedia.org/wiki/Actor_model), [capabilities-secure](https://en.wikipedia.org/wiki/Capability-based_security), high-performance programming language.
+
+If you are looking to jump in and get started with Pony *right now*, you can try it in your browser using the [Pony Playground](http://playground.ponylang.io). Keep reading if you are interested in what makes Pony different and why you should consider using it.
+
+If you are interested in the early history of Pony and how it came into existence, you’re in luck: [“An Early History of Pony”](https://www.ponylang.io/blog/2017/05/an-early-history-of-pony/index.md).
+
+# Guiding Principles
+
+Throughout the design and development of the language, the following principles should be adhered to.
+
+- Use the get-stuff-done approach.
+- Simple grammar. Language must be trivial to parse for both humans and computers.
+- No loadable code. Everything is known to the compiler.
+- Fully type safe. There is no “trust me, I know what I’m doing” coercion.
+- Fully memory safe. There is no “this random number is really a pointer, honest.”
+- No crashes. A program that compiles should never crash (although it may hang or do something unintended).
+- Sensible error messages. Where possible use simple error messages for specific error cases. It is fine to assume the programmer knows the definitions of words in our lexicon, but avoid compiler or other computer science jargon.
+- Inherent build system. No separate applications required to configure or build.
+- Aim to reduce common programming bugs through the use of restrictive syntax.
+- Provide a single, clean and clear way to do things rather than catering to every programmer’s preferred prejudices.
+- Make upgrades clean. Do not try to merge new features with the ones they are replacing, if something is broken remove it and replace it in one go. Where possible provide rewrite utilities to upgrade source between language versions.
+- Reasonable build time. Keeping down build time is important, but less important than runtime performance and correctness.
+- Allowing the programmer to omit some things from the code (default arguments, type inference, etc) is fine, but fully specifying should always be allowed.
+- No ambiguity. The programmer should never have to guess what the compiler will do, or vice-versa.
+- Document required complexity. Not all language features have to be trivial to understand, but complex features must have full explanations in the docs to be allowed in the language.
+- Language features should be minimally intrusive when not used.
+- Fully defined semantics. The semantics of all language features must be available in the standard language docs. It is not acceptable to leave behavior undefined or “implementation dependent”.
+- Efficient hardware access must be available, but this does not have to pervade the whole language.
+- The standard library should be implemented in Pony.
+- Interoperability. Must be interoperable with other languages, but this may require a shim layer if non-primitive types are used.
+- Avoid library pain. Use of 3rd party Pony libraries should be as easy as possible, with no surprises. This includes writing and distributing libraries and using multiple versions of a library in a single program.
+
+# The Pony Philosophy
+
+In the spirit of [Richard Gabriel](http://www.jwz.org/doc/worse-is-better.html), the Pony philosophy is neither “the-right-thing” nor “worse-is-better”. It is “get-stuff-done”.
+
+## Correctness
+
+Incorrectness is simply not allowed. *It’s pointless to try to get stuff done if you can’t guarantee the result is correct.*
+
+## Performance
+
+Runtime speed is more important than everything except correctness. If performance must be sacrificed for correctness, try to come up with a new way to do things. *The faster the program can get stuff done, the better. This is more important than anything except a correct result.*
+
+## Simplicity
+
+Simplicity can be sacrificed for performance. It is more important for the interface to be simple than the implementation. *The faster the programmer can get stuff done, the better. It’s ok to make things a bit harder on the programmer to improve performance, but it’s more important to make things easier on the programmer than it is to make things easier on the language/runtime.*
+
+## Consistency
+
+Consistency can be sacrificed for simplicity or performance. *Don’t let excessive consistency get in the way of getting stuff done.*
+
+## Completeness
+
+It’s nice to cover as many things as possible, but completeness can be sacrificed for anything else. *It’s better to get some stuff done now than wait until everything can get done later.*
+
+The “get-stuff-done” approach has the same attitude towards correctness and simplicity as “the-right-thing”, but the same attitude towards consistency and completeness as “worse-is-better”. It also adds performance as a new principle, treating it as the second most important thing (after correctness).
+
+# What makes Pony different?
+
+## Pony is type safe
+
+*Really type safe*. There’s a mathematical [proof](https://www.ponylang.io/media/papers/fast-cheap-with-proof.pdf) and everything.
+
+## Pony is memory safe
+
+There are no dangling pointers and no buffer overruns. The language doesn’t even have the concept of null!
+
+## Exception-Safe
+
+There are no runtime exceptions. All exceptions have defined semantics, and they are *always* caught.
+
+## Data-race Free
+
+Pony doesn’t have locks nor atomic operations or anything like that. Instead, the type system ensures at compile time that your concurrent program can never have data races. So you can write highly concurrent code and never get it wrong.
+
+## Deadlock-Free
+
+This one is easy because Pony has no locks at all! So they definitely don’t deadlock, because they don’t exist!
+
+## Native Code
+
+Pony is an ahead-of-time (AOT) compiled language. There is no interpreter nor virtual machine.
+
+## Compatible with C
+
+Pony programs can natively call C libraries using the foreign function interface.
+
+# Why not Pony?
+
+There are many valid reasons to not use Pony. Amongst these are:
+
+- Lack of API stability
+- Lack of high-quality 3rd party libraries
+- Limited native tooling
+
+## API stability
+
+Pony hasn’t yet reached version 1.0. We regularly have releases that involve breaking changes. This lack of stability is plenty of reason for many projects to avoid using Pony.
+
+## Batteries required
+
+If your project is going to succeed or fail based on the size of community around the tools you are using, Pony is not a good choice for you. While it’s possible to write stable, high-performance applications using Pony, you will have to do a decent amount of work. The pool of open source, ready to use Pony libraries is very small. If it’s not in the standard library then odds are you are going to have to add it yourself, either by writing it from scratch in Pony or by wrapping an existing C library using Pony’s excellent [C-FFI](https://tutorial.ponylang.io/c-ffi/) functionality.
+
+## Tooling
+
+There’s a wide swath of tooling that some people have come to expect that isn’t currently available for Pony. We don’t have an IDE. You can use standard debuggers like GDB or LLDB but the experience still has some rough edges. If you are comfortable working with a basic text editor and using LLDB, VTune and other tools, you’ll probably be ok. Just don’t expect a full, robust ecosystem. We aren’t there yet.
+
+If your project isn’t going to get a great deal of benefit from any of Pony’s strengths, then you shouldn’t use Pony. If you are writing a single threaded application without any overriding performance concerns, and you need access to a large community and wealth of libraries then you’re much better off selecting another language. However, we hope that you see enough potential in Pony to start playing around with it even if it isn’t right for your current project.
+
+# Why Pony?
+
+There’s plenty to love about Pony, but more than anything else, what we love most is that Pony makes it easy to write fast, safe, efficient, highly concurrent programs. How? The Pony type system introduces a novel concept: “reference capabilities”. [Reference capabilities](https://tutorial.ponylang.io/capabilities/reference-capabilities.html) allow you to label different bits of data based on how that data can be shared. The Pony compiler will then verify that you are in fact correctly using the data based on the labels you provide. Reference capabilities combined with Pony’s actor model of concurrency makes for a powerful pairing. Let’s dig in and take a quick look:
+
+## Mutable state is hard
+
+The problem with concurrency is shared mutable data. If two different threads have access to the same piece of data then they might try to update it at the same time. At best this can lead to those two threads having different versions of the data. At worst the updates can interact badly resulting in the data being overwritten with garbage. The standard way to avoid these problems is to use locks to prevent data updates from happening at the same time. This causes big performance hits and is very difficult to get right, so it causes lots of bugs.
+
+## Immutable data can be safely shared
+
+Any data that is immutable (i.e. it cannot be changed) is safe to use concurrently. Since it is immutable it is never updated and it’s the updates that cause concurrency problems.
+
+## Isolated data is safe
+
+If a block of data has only one reference to it then we call it *isolated*. Since there is only one reference to it, isolated data cannot be *shared* by multiple threads, so there are no concurrency problems. Isolated data can be passed between multiple threads. As long as only one of them has a reference to it at a time then the data is still safe from concurrency problems.
+
+## Every actor is single threaded
+
+The code within a single actor is never run concurrently. This means that, within a single actor, data updates cannot cause problems. It’s only when we want to share data between actors that we have problems.
+
+## Reference capabilities enforce safe data handling
+
+By sharing only immutable data and exchanging only isolated data we can have safe concurrent programs without locks. The problem is that it’s very difficult to do that correctly. If you accidentally hang on to a reference to some isolated data you’ve handed over or change something you’ve shared as immutable then everything goes wrong. What you need is for the compiler to force you to live up to your promises. Pony reference capabilities allow the compiler to do just that.
+
+If you ask us, that’s pretty damn cool and a hell of a reason to give Pony a try.

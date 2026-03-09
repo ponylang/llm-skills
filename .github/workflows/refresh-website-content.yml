@@ -1,0 +1,39 @@
+name: Refresh Website Content
+
+on:
+  schedule:
+    - cron: '15 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.1.1
+      - name: Fetch latest website content
+        run: .ci-scripts/refresh-website-content.sh
+      - name: Commit if changed
+        run: |
+          git config user.name "ponylang-main"
+          git config user.email "main@ponylang.io"
+          git add pony-ref/references/*-llms*.txt
+          if git diff --cached --quiet; then
+            echo "No changes to website content."
+          else
+            git commit -m "Update website content snapshots"
+            git push
+          fi
+      - name: Send alert on failure
+        if: ${{ failure() }}
+        uses: zulip/github-actions-zulip/send-message@e4c8f27c732ba9bd98ac6be0583096dea82feea5
+        with:
+          api-key: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_API_KEY }}
+          email: ${{ secrets.ZULIP_SCHEDULED_JOB_FAILURE_EMAIL }}
+          organization-url: 'https://ponylang.zulipchat.com/'
+          to: notifications
+          type: stream
+          topic: ${{ github.repository }} scheduled job failure
+          content: ${{ github.server_url}}/${{ github.repository }}/actions/runs/${{ github.run_id }} failed.

@@ -1,0 +1,4121 @@
+# Pony Patterns
+
+> A cookbook of patterns for writing idiomatic Pony code.
+
+# Asynchronous Patterns
+
+# Asynchronous Patterns
+
+Patterns for dealing with the asynchronous nature of Pony. Unlike most languages, Pony has *zero* blocking operations. This can make simple everyday problems difficult until you know how to deal with them. If your problem has you wanting blocking operations, this is the chapter for you.
+
+[Accessing an Actor with Arbitrary Transactions](https://patterns.ponylang.io/async/access.html) lets callers define custom multi-step transactions that execute atomically inside an actor. Instead of bloating the actor’s API with every possible combination of operations, you pass in a lambda that gets synchronous access to the actor’s state.
+
+[Batch and Yield](https://patterns.ponylang.io/async/batch-and-yield.html) prevents an actor from monopolizing a scheduler thread when processing large collections. By breaking work into batches and sending yourself a message between each batch, you create natural yield points where the scheduler can run other actors.
+
+[Interrogating Actors with Promises](https://patterns.ponylang.io/async/actorpromise.html) shows how to query an actor’s internal state when you can’t just call a method on a `tag` reference. Promises give you a way to request a value and respond to it asynchronously, and `Promises.join` lets you collect results from many actors at once.
+
+[Waiting](https://patterns.ponylang.io/async/waiting.html) addresses the question of how to delay work when there’s no `sleep`. Pony’s `Timer` and `Timers` types let you schedule actions at fixed intervals, covering use cases from rate limiting to periodic flushing to timeouts.
+
+# Accessing an Actor with Arbitrary Transactions
+
+## Problem
+
+With asynchronous APIs on actors, we have the problem of not being able to combine multiple asynchronous calls to form an atomic operation, as messages to an actor may be interleaved. This means that any operation that isn’t exposed as a single behaviour on the actor cannot be done in an atomic way, which puts a pressure on our API to provide “ancillary” behaviours that are just combinations and compositions of the “fundamental” behaviours. We’d prefer to solve this problem in a way that alleviated that pressure without creating a larger API surface to maintain, and without having to do the constant guesswork of imagining which combinations and compositions will be needed.
+
+Let’s say we want to create a simple set of named registers which can each hold an integer value, and that we want to be able to share read/write access to these registers among multiple actors in our application. So, we declare an actor type named `SharedRegisters` which holds a map of string register names to integer values and provides access to this register data via `read` and `write` behaviours.
+
+```
+use collections = "collections"
+
+actor SharedRegisters
+  let _data: collections.Map[String, I64] = _data.create()
+
+  be write(name: String, value: I64) =>
+    """
+    Write to the named register, setting its value to the given value.
+    """
+    _data(name) = value
+
+  be read(name: String, fn: {(I64)} val) =>
+    """
+    Read the value of the named register and pass it to the given function.
+    A register which has never been written to will have a value of zero.
+    """
+    fn(try _data(name)? else 0 end)
+```
+
+We can then write a basic program that writes to a few registers and reads from them.
+
+```
+actor Main
+  new create(env: Env) =>
+    let reg = SharedRegisters
+    let out = env.out
+
+    reg.write("x", 99)
+    reg.write("y", 100)
+
+    reg.read("x", {(value: I64)(out) =>
+      out.print("The value of x is " + value.string())
+    } val)
+
+    reg.read("y", {(value: I64)(out) =>
+      out.print("The value of y is " + value.string())
+    } val)
+```
+
+Because of Pony’s causal messaging, we can expect this program to perform those operations in the written order, printing the following:
+
+```
+The value of x is 99
+The value of y is 100
+```
+
+Now, let’s say we want to do some higher-level operations on these registers, and we want to do them from multiple independent actors. To demonstrate a basic example, we’ll declare a `Mathematician` actor with an `increment` behaviour that does a read operation followed by a write operation.
+
+```
+actor Mathematician
+  let _reg: SharedRegisters
+  let _out: OutStream
+  new create(reg: SharedRegisters, out: OutStream) =>
+    _reg = reg
+    _out = out
+
+  be increment(name: String) =>
+    """
+    Read the value of the named register, then write the incremented value.
+    """
+    let reg = _reg
+    let out = _out
+
+    reg.read(name, {(value: I64)(reg, out, name) =>
+      let new_value = value + 1
+      reg.write(name, new_value)
+      out.print("Incremented " + name + " to " + new_value.string())
+    } val)
+```
+
+However, there’s a problem with this in the context of concurrent access to the same `SharedRegisters`. What if some other write operation changed the value of the register between the read operation and write operation that make up our `increment`? We can try to experiment with this situation by creating many `Mathematician`s and having them concurrently `increment` the same register.
+
+```
+use collections = "collections"
+
+actor Main
+  new create(env: Env) =>
+    let reg = SharedRegisters
+    let out = env.out
+
+    reg.write("x", 99)
+
+    for i in collections.Range(0, 10) do
+      Mathematician(reg, out).increment("x")
+    end
+```
+
+Sure enough, when we run this program, we see that our `increment` will only sometimes increase the observed value, with the results varying based on how the concurrent operations happen to line up in any given execution.
+
+```
+Incremented x to 100
+Incremented x to 101
+Incremented x to 101
+Incremented x to 102
+Incremented x to 103
+Incremented x to 103
+Incremented x to 104
+Incremented x to 104
+Incremented x to 104
+Incremented x to 104
+```
+
+In Pony, an actor’s behaviour acts like a single atomic transaction over the actor’s internal state - it cannot be interrupted with other behaviours. However, when a conceptual operation spans multiple behaviours (like a `read` followed by a `write`, we can get into trouble because those transactions can be interleaved with others.
+
+We could try defining `increment` as a behaviour of the `SharedRegisters` actor, such that it would be one atomic transaction. However, we’d soon find ourselves wanting to do other multi-operation transactions, and we might find our `SharedRegisters` actor to be getting a bit bloated if we added all of them as behaviours.
+
+Furthermore, if the `SharedRegisters` were part of a library package maintained separately from the applications using it, the maintainer would be hard-pressed to imagine all of the multi-operation transactions that might be useful to the application developers. A more general solution that doesn’t require the library developer to worry about this kind of guesswork would be desirable.
+
+## Solution
+
+Essentially, we want to provide a way for the caller to define a custom transaction, then execute it atomically within a single behaviour of the actor. This part is simple enough - the caller can pass a lambda, and the actor can execute it directly, just as we did before with the `read` behaviour when we passed the value to the caller’s function.
+
+However, unlike in the `read` behaviour, we also need the transaction lambda passed to the `access` behaviour to have exclusive synchronous access to perform arbitrary combinations of operations on the actor’s state. In other words, we need the lambda to see the actor *as the actor sees itself*, instead of how it is seen from the outside.
+
+Luckily, Pony has exactly the concepts we need to implement this idea. An actor is always seen from the outside as a `tag` (an opaque reference that you can only send messages to), but an actor is seen from the inside as a `ref` (by default, behaviours have read and write access to the actor’s state). Because the transaction lambda will be executed inside the actor, we can pass the non-sendable `ref` reference to the actor itself as the argument, giving the transaction exclusive synchronous read/write access through that reference.
+
+Let’s take a look at a reworked implementation of `SharedRegisters` that includes an `access` behaviour as well as some synchronous versions of the `read` and `write` behaviours for use in the custom transactions.
+
+```
+actor SharedRegisters
+  let _data: collections.Map[String, I64] = _data.create()
+
+  be access(fn: {(SharedRegisters ref)} val) =>
+    fn(this)
+
+  be write(name: String, value: I64) =>
+    write_now(name, value)
+
+  be read(name: String, fn: {(I64)} val) =>
+    fn(read_now(name))
+
+  fun ref write_now(name: String, value: I64) =>
+    _data(name) = value
+
+  fun ref read_now(name: String): I64 =>
+    try _data(name)? else 0 end
+```
+
+Note that the safety of access to the synchronous methods is guaranteed and protected by the Pony type system - any non-exclusive use of the synchronous methods is prevented, simply by keeping the `ref` from leaking outside of the actor. Note also that in this paradigm, the `read` and `write` behaviours are just asynchronous wrappers for their synchronous counterparts, `read_now` and `write_now`.
+
+Now let’s take a look at a revised implementation of `Mathematician` that uses the `access` behaviour to combine these synchronous operations into one atomic `increment` transaction:
+
+```
+actor Mathematician
+  let _reg: SharedRegisters
+  let _out: OutStream
+  new create(reg: SharedRegisters, out: OutStream) =>
+    _reg = reg
+    _out = out
+
+  be increment(name: String) =>
+    """
+    Read the value of the named register, then write the incremented value.
+    """
+    let reg = _reg
+    let out = _out
+
+    reg.access({(reg: SharedRegisters ref)(out, name) =>
+      let new_value = reg.read_now(name) + 1
+      reg.write_now(name, new_value)
+      out.print("Incremented " + name + " to " + new_value.string())
+    } val)
+```
+
+Sure enough, our example program using 10 concurrent `Mathematician`s to increment the same register will now give the expected output, with each `increment` transaction guaranteed to be atomic.
+
+```
+Incremented x to 100
+Incremented x to 101
+Incremented x to 102
+Incremented x to 103
+Incremented x to 104
+Incremented x to 105
+Incremented x to 106
+Incremented x to 107
+Incremented x to 108
+Incremented x to 109
+```
+
+## Discussion
+
+Using the “access pattern” in Pony, we can create actors that provide not only asynchronous APIs but also synchronous APIs, which can be used together in transactions that are defined and passed in by the caller. This dramatically enhances the realm of possible interactions with a service actor, whose synchronous API can provide the fundamental building blocks from which the caller can build arbitrarily complex atomic transactions.
+
+The accessed actor can control the scope of what is possible in a transaction by controlling the reference capability of the reference that is passed to the transaction lambda. For example, we could choose to pass `box` instead of a `ref` if we wanted to provide read-only access to the transaction.
+
+Even though we said that the transaction lambda is seeing the actor “as it sees itself”, the accessed actor can still hide implementation details in the same way as any other class - by making those fields and methods private. The private fields and methods will not be accessible from within the transaction, so the implementation details can remain protected and hidden from the API surface.
+
+The [Batch and Yield](https://patterns.ponylang.io/async/batch-and-yield.html) pattern solves the opposite problem. Where Access ensures that multi-step operations execute atomically without interleaving, Batch and Yield deliberately introduces interleaving so that an actor processing a large collection doesn’t monopolize a scheduler thread.
+
+# Interrogating Actors with Promises
+
+## Problem
+
+Pony gives us an excellent abstraction for actors. We can define fields within those actors to maintain state and rely on the single-threaded nature of inbound message processing to ensure safe access to those fields. A problem arises when one actor wants to access the internal *state* of another actor.
+
+Let’s say that you want to collect values obtained from multiple actors without having to create a giant state machine. To illustrate this problem, we’ll use an actor called `AccountAggregate` that is maintaining an *internal* balance.
+
+This actor might look something like this:
+
+```
+actor AccountAggregate
+  let _account: String
+  var _balance: U64
+
+  new create(account: String, starting_balance: U64) =>
+    _account = account
+    _balance = starting_balance
+
+  be handle_tx_event(tx: TransactionEvent val) =>
+    // imagine lots of complex processing here
+    _balance = _balance + tx.amount()
+```
+
+In our sample problem, the system might be holding onto hundreds of instances of the `AccountAggregate` actor, each with its own balance. What if we want to make a quick tour through all of these actors and ask them for their balances for display on a dashboard of some kind? We can’t access the individual fields of the actor.
+
+We can try to write a method like this that returns the internal state:
+
+```
+    fun balance(): U64 =>
+      _balance
+```
+
+Adding this method compiles. But what happens if we attempt to use this method?
+
+```
+let bal = savings.balance()
+```
+
+This line of code doesn’t compile. This is because the receiver (*savings*) is a **tag** (an opaque reference that allows neither read nor write, only *send*). Our options are getting more and more limited, it seems.
+
+## Solution
+
+Unlike some other languages with native actor patterns, we don’t have primitives to ask for values or await responses from actors in Pony. As mentioned in the [access](https://patterns.ponylang.io/async/access.html) pattern, we can send a lambda value to the actor which allows for internal state to be captured as a parameter, but there might be a cleaner way to deal with this one problem: *Promises*.
+
+A *promise* lets us declare that we realize that some value will either be fulfilled or rejected sometime in the future by whatever has been tasked with that promise. Since a `Promise` is an actor, we can send a promise to an actor as a `tag` without breaking any of the safety rules of actors and messaging.
+
+In the simplest case, we can have the `AccountAggregate` actor fulfill the promise inside a behavior:
+
+```
+ be balance(p: Promise[U64]) =>
+    p(_balance)
+```
+
+We can then send the promise to the aggregate with the following code:
+
+```
+let p = Promise[U64]
+agg.balance(p)
+```
+
+This is somewhat useful, but the value of the promise is lost. We still want to be able to respond to the value used to fulfill the promise somehow. We can do this with *promise chaining*:
+
+```
+let p = Promise[U64]
+p.next[None](Outputter~output(env))
+agg.balance(p)
+```
+
+This gets us a little closer to what we want. Now, when the aggregate actor fulfills the promise, the result of that fulfillment will be sent as a parameter to the partially-applied `output` function on the `Outputter` primitive.
+
+Getting better, but not good enough. What we *really* want to be able to do is query multiple actors to get the account summary data and then send *all* of that data (preferably bundled up in a nice array) to a destination actor that can then display and/or process the information. For this we’re going to need an intermediary - something that awaits promise fulfillment and adds to a collection when fulfilled. Once this intermediary has received every expected fulfillment, it can then fulfill a single promise of the collection. This intermediary promise can be created using the `Promises.join` function.
+
+Now we can create multiple promises to send to multiple bank accounts:
+
+```
+let accounts = ["0001"; "0002"; "0003"; "0004"]
+
+let create_summary_promise =
+  {(account: String): Promise[AccountSummary] =>
+    let aggregate = AccountAggregate(account, 6000)
+    // just to illustrate mutable balance
+    aggregate.handle_tx_event(recover TransactionEvent(351) end)
+    aggregate.handle_tx_event(recover TransactionEvent(224) end)
+
+    let p = Promise[AccountSummary]
+    aggregate.summarize(p)
+    p
+  } iso
+
+Promises[AccountSummary].join(
+  Iter[String](accounts.values())
+    .map[Promise[AccountSummary]](consume create_summary_promise))
+  .next[None](recover this~receive_collection() end)
+```
+
+Our bank account aggregate can be modified to include an account summary with the **summarize** method:
+
+```
+be summarize(p: Promise[AccountSummary]) =>
+  p(recover AccountSummary(_balance, _account) end)
+```
+
+Finally, we add the behavior to our Main actor that will respond to the list of account summaries:
+
+```
+be receive_collection(coll: Array[AccountSummary] val) =>
+  _env.out.print("received account summaries:")
+  for summary in coll.values() do
+    _env.out.print("Account " + summary.accountnumber() + ": $" +
+      summary.currentbalance().string())
+  end
+```
+
+Putting it all together, we can now write code like the following that creates multiple actors and queries their internal state in a completely asynchronous fashion:
+
+```
+use "itertools"
+use "promises"
+
+class val TransactionEvent
+  let _amount : U64
+
+  new create(amount: U64) =>
+    _amount = amount
+
+  fun transaction_amount() : U64 =>
+    _amount
+
+class val AccountSummary
+  let _balance : U64
+  let _account : String
+
+  new create(balance: U64, account: String) =>
+    _balance = balance
+    _account = account
+
+  fun currentbalance() : U64 =>
+    _balance
+
+  fun accountnumber() : String =>
+    _account
+
+actor AccountAggregate
+  let _account: String
+  var _balance: U64
+
+  new create(account: String, starting_balance: U64) =>
+    _account = account
+    _balance = starting_balance
+
+  be handle_tx_event(tx: TransactionEvent val) =>
+    // imagine lots of complex processing here
+    _balance = _balance + tx.transaction_amount()
+
+  be summarize(p: Promise[AccountSummary]) =>
+    p(recover AccountSummary(_balance, _account) end)
+
+actor Main
+  let _env: Env
+
+  new create(env: Env) =>
+    _env = env
+
+    let accounts = ["0001"; "0002"; "0003"; "0004"]
+
+    let create_summary_promise =
+      {(account: String): Promise[AccountSummary] =>
+        let aggregate = AccountAggregate(account, 6000)
+        // just to illustrate mutable balance
+        aggregate.handle_tx_event(recover TransactionEvent(351) end)
+        aggregate.handle_tx_event(recover TransactionEvent(224) end)
+
+        let p = Promise[AccountSummary]
+        aggregate.summarize(p)
+        p
+      } iso
+
+    Promises[AccountSummary].join(
+      Iter[String](accounts.values())
+        .map[Promise[AccountSummary]](consume create_summary_promise))
+      .next[None](recover this~receive_collection() end)
+
+  be receive_collection(coll: Array[AccountSummary] val) =>
+    _env.out.print("received account summaries:")
+    for summary in coll.values() do
+      _env.out.print("Account " + summary.accountnumber() + ": $" +
+        summary.currentbalance().string())
+    end
+```
+
+## Discussion
+
+Actor systems have been around for quite some time now, but most developers don’t default to modeling their problems as actor patterns. Most of us want to solve this problem with synchronous code that looks like this:
+
+```
+for acct in _accounts.values() do
+  _summaries.push(acct.summarize())
+end
+```
+
+The problem with this is that as our real-world problems get more complex, simple loops like this are just not powerful enough. In bigger, more complex models, there is often a *cost* to asking an actor for its internal state. It might not be a precalculated field. Instead, invoking `summarize` might make calls to external systems, databases, or microservices.
+
+Naively running through the summarization method in a for loop could cause a consumer to wait an indeterminate amount of time. By sending out a flood of promises, we can let each of the actors fulfill the promise on their own time and we’ll get the results back far sooner than if we’d done the requests synchronously. This also gives us an added degree of reliability - by sending out these promises, we can also set a timeout in the collector so that we can build in things like a “circuit breaker” and return data indicating that we couldn’t summarize all of the accounts.
+
+In conclusion, Pony’s actor system is incredibly powerful and some of that power comes from its deliberate restrictions. Learning how to embrace the actor model in combination with promises can provide an elegant solution to complex problems.
+
+# Batch and Yield
+
+## Problem
+
+You have an actor that needs to process a large collection. The straightforward approach is to loop through everything inside a single behavior:
+
+```
+actor Processor
+  let _out: OutStream
+
+  new create(out: OutStream) =>
+    _out = out
+
+  be process(data: Array[U64] val) =>
+    for value in data.values() do
+      // imagine expensive per-item work here
+      _out.print(value.string())
+    end
+```
+
+This works, but it has a hidden cost. In Pony, a behavior runs to completion before the scheduler will give the actor’s thread to someone else. While `Processor` is grinding through a million items, it’s tying up a scheduler thread. Other scheduler threads can steal work, so the system doesn’t freeze, but it becomes a fairness issue. One actor is monopolizing a scheduler thread. The situation is worse if you’re running with only one scheduler thread — no other work will happen until the behavior finishes.
+
+The problem gets worse as the data grows. A batch of a hundred items is fine. A batch of a million items monopolizes a scheduler thread for the entire duration of the loop. If enough actors do this at the same time, the runtime’s ability to schedule work fairly degrades significantly.
+
+## Solution
+
+The fix is to break the work into chunks and give the scheduler a chance to breathe between them. Instead of processing everything in one shot, handle a batch of items, then send yourself a message to continue where you left off. That self-message goes to the back of the actor’s queue, creating a point where the scheduler can run other actors.
+
+Here’s a first attempt at the batching behavior:
+
+```
+use "collections"
+
+actor Processor
+  let _out: OutStream
+  let _batch_size: USize
+
+  new create(out: OutStream, batch_size: USize = 100) =>
+    _out = out
+    _batch_size = batch_size
+
+  be process(data: Array[U64] val, from: USize = 0) =>
+    let until = from + _batch_size
+    try
+      for i in Range(from, until.min(data.size())) do
+        _out.print(data(i)?.string())
+      end
+    end
+
+    if until < data.size() then
+      process(data, until)
+    end
+
+actor Main
+  new create(env: Env) =>
+    let data = recover val
+      let arr = Array[U64](1000)
+      for i in Range[U64](0, 1000) do
+        arr.push(i)
+      end
+      arr
+    end
+
+    Processor(env.out).process(data)
+```
+
+The behavior takes an offset (`from`) that defaults to zero so the initial call looks clean. It processes up to `_batch_size` items starting at that offset, then checks whether there’s more work to do. If so, it calls `process` on itself with the new offset. That call doesn’t execute immediately. It becomes a message in this actor’s queue, behind any messages that arrived while the current batch was running.
+
+This works, but there’s a problem. The `process` behavior is public, and its `from` parameter is an internal detail of the batching mechanism. Any actor with a reference to `Processor` can call `process(data, 500)`, skipping the first 500 items or passing an arbitrary offset.
+
+The fix is to split the work into a public behavior for the entry point, a private behavior for the batch-and-yield loop, and a shared function that does the actual processing:
+
+```
+use "collections"
+
+actor Processor
+  let _out: OutStream
+  let _batch_size: USize
+
+  new create(out: OutStream, batch_size: USize = 100) =>
+    _out = out
+    _batch_size = batch_size
+
+  be process(data: Array[U64] val) =>
+    _process_batch(data, 0)
+
+  be _process_again(data: Array[U64] val, from: USize) =>
+    _process_batch(data, from)
+
+  fun ref _process_batch(data: Array[U64] val, from: USize) =>
+    let until = from + _batch_size
+    try
+      for i in Range(from, until.min(data.size())) do
+        _out.print(data(i)?.string())
+      end
+    end
+
+    if until < data.size() then
+      _process_again(data, until)
+    end
+
+actor Main
+  new create(env: Env) =>
+    let data = recover val
+      let arr = Array[U64](1000)
+      for i in Range[U64](0, 1000) do
+        arr.push(i)
+      end
+      arr
+    end
+
+    Processor(env.out).process(data)
+```
+
+Now `process` is the only public entry point. The `_process_again` behavior and `_process_batch` function are private — external actors can’t call them. The public `process` behavior and the private `_process_again` behavior both delegate to `_process_batch`, which contains the batching logic and the self-message to continue.
+
+## Discussion
+
+The reason this works comes down to how Pony schedules actors. Each scheduler thread picks an actor and runs behaviors from its queue up to a batch size that’s set when the runtime is compiled. The scheduler won’t interrupt a behavior mid-execution. By splitting work across multiple behavior calls, you’re cooperating with the scheduler, giving it natural points to interleave other actors’ work.
+
+Batch size is a tradeoff. Smaller batches mean the actor yields more often, which improves fairness for other actors but adds overhead from the repeated message sends and behavior dispatches. Larger batches are more efficient and more cache-friendly, but hold the scheduler thread longer. There’s no single right answer. A batch of 100 items is a reasonable starting point, but the right size depends on how expensive each item is to process. Cheap items (incrementing a counter) can use larger batches; expensive items (serializing complex structures, doing I/O) should use smaller ones.
+
+One thing to be aware of: between batches, other messages sent to this actor will be processed. If another actor sends a second `process` call while the first is still working through its chunks, the two will interleave. Depending on your application, that might be perfectly fine or it might be a problem. If you need multi-step processing to be atomic (no interleaving), the [Access](https://patterns.ponylang.io/async/access.html) pattern addresses exactly that concern. Batch and Yield and Access solve opposite problems: Access prevents interleaving when you don’t want it; Batch and Yield deliberately introduces interleaving so the scheduler can share time fairly.
+
+You’ll see this same structure in Pony’s networking layer. `TCPConnection` delivers incoming data to a `received` method that returns a `Bool`. Returning `true` tells the enclosing behavior to continue delivering data. Returning `false` causes the behavior to exit — it’s literally Batch and Yield. The next read will come from a new behavior call, giving the scheduler a chance to run other actors in between.
+
+The [Waiting](https://patterns.ponylang.io/async/waiting.html) pattern tackles a related scheduling concern from the opposite direction. Waiting is about how to delay work when you can’t block (using timers to schedule future actions). Batch and Yield is about yielding during work that’s happening now. Both are about cooperating with Pony’s non-blocking scheduler, just from different angles.
+
+# Waiting
+
+## Problem
+
+Here’s the problem: you’re writing an application that needs to execute an action every few seconds. In a language with blocking operations, I could just call sleep and be done with it. It might not be the most elegant solution but it would work. In Pony, no such obvious solution exists. One of Pony’s key features is there are no blocking operations. It’s a bit of a riddle: how do you wait when you can’t wait?
+
+## Solution
+
+You want to use the [Time package](https://stdlib.ponylang.io/time--index). In particular, the [Timer](https://stdlib.ponylang.io/time-Timer/) and [Timers](https://stdlib.ponylang.io/time-Timers/) types.
+
+A timer allows you to execute code at set intervals. Let’s walk through using a timer. Below is a simple application that prints out a number to the console every 5 seconds until someone terminates the program:
+
+```
+use "time"
+
+actor Main
+  new create(env: Env) =>
+    let timers = Timers
+    let timer = Timer(NumberGenerator(env), 0, 5_000_000_000)
+    timers(consume timer)
+
+class NumberGenerator is TimerNotify
+  let _env: Env
+  var _counter: U64
+
+  new iso create(env: Env) =>
+    _counter = 0
+    _env = env
+
+  fun ref _next(): String =>
+    _counter = _counter + 1
+    _counter.string()
+
+  fun ref apply(timer: Timer, count: U64): Bool =>
+    _env.out.print(_next())
+    true
+```
+
+Zooming in on the key bits, we first set up our timers, create one and add it to our set of timers:
+
+```
+    let timers = Timers
+    let timer = Timer(NumberGenerator(env), 0, 5_000_000_000)
+    timers(consume timer)
+```
+
+The Timer constructor takes 3 arguments, the class to notify, how long until our timer expires and how often to fire. In our example code, an instance of `NumberGenerator` will be called every 5 billion nanoseconds i.e. every 5 seconds until the program is killed.
+
+Here’s our method in `NumberGenerator` that gets executed:
+
+```
+  fun ref apply(timer: Timer, count: U64): Bool =>
+    _env.out.print(_next())
+    true
+```
+
+If we were to compile and run our application, we’d end up with some output like:
+
+```
+$ ./timer
+1
+2
+3
+4
+5
+6
+```
+
+## Discussion
+
+It’s not the most exciting output in the world but, it’s a pattern that can be adapted to many different scenarios. `Timer` can be put to use for rate limiting outgoing network connections, creating buffers that flush at a set interval, implementing timeouts and variety of other time based *blocking* operations.
+
+The [Batch and Yield](https://patterns.ponylang.io/async/batch-and-yield.html) pattern tackles a related scheduling concern from the opposite direction. Waiting is about delaying work until a future point in time; Batch and Yield is about yielding during work that’s happening now so other actors can make progress.
+
+______________________________________________________________________
+
+This pattern is based on a [blog post](http://www.monkeysnatchbanana.com/2016/01/16/pony-patterns-waiting/) previously published by Sean T. Allen.
+# Behavioral Patterns
+
+# Behavioral Patterns
+
+How should you organize your actor when its behavior depends on its current state? You could track the state with a flag and check it in every behavior, but that gets old fast. The patterns in this chapter offer better approaches, using Pony’s type system to make the structure of your actor’s behavior explicit and compiler-checked.
+
+# State Machine
+
+## Problem
+
+Your actor has distinct lifecycle phases, and the set of valid operations changes between them. A common first approach is to track the phase with a flag and check it in every behavior.
+
+Consider an actor that accepts data while open and should stop accepting writes after being closed. Our first pass might look like:
+
+```
+actor Writer
+  var _out: (OutStream | None)
+  var _open: Bool = true
+
+  new create(out: OutStream) =>
+    _out = out
+
+  be write(data: String) =>
+    if _open then
+      match _out
+      | let o: OutStream => o.print(data)
+      end
+    end
+
+  be close() =>
+    _open = false
+    _out = None
+```
+
+This works, but there are a couple of problems lurking.
+
+The `_out` field is declared as `(OutStream | None)` so we can release it on close. That means every behavior that touches `_out` has to match on it, even though we know it’s always a valid `OutStream` when the writer is open. The compiler doesn’t know that — as far as it’s concerned, `_out` could be `None` at any time.
+
+Every behavior also needs the `if _open` guard. With two behaviors that’s manageable. With five or ten, the same check is scattered everywhere. The flag and the optional type are related — `_open` being `true` implies `_out` is an `OutStream` — but nothing in the type system connects them. Forget a guard in one behavior and you’ve got a bug that the compiler won’t catch.
+
+## Solution
+
+Rather than track the phase with a flag, represent each phase as its own type. Define an interface (or trait) for the operations the actor supports, and have each phase implement the behavior that’s valid for it.
+
+```
+interface _WriterState
+  fun write(w: Writer ref, data: String)
+  fun close(w: Writer ref)
+
+class _OpenWriter is _WriterState
+  let _out: OutStream
+
+  new create(out: OutStream) =>
+    _out = out
+
+  fun write(w: Writer ref, data: String) =>
+    _out.print(data)
+
+  fun close(w: Writer ref) =>
+    w.state = _ClosedWriter
+
+class _ClosedWriter is _WriterState
+  fun write(w: Writer ref, data: String) =>
+    None
+
+  fun close(w: Writer ref) =>
+    None
+
+actor Writer
+  var state: _WriterState
+
+  new create(out: OutStream) =>
+    state = _OpenWriter(out)
+
+  be write(data: String) =>
+    state.write(this, data)
+
+  be close() =>
+    state.close(this)
+
+actor Main
+  new create(env: Env) =>
+    let w = Writer(env.out)
+    w.write("hello")
+    w.write("world")
+    w.close()
+    w.write("this will be silently dropped")
+```
+
+Let’s walk through what changed.
+
+```
+interface _WriterState
+  fun write(w: Writer ref, data: String)
+  fun close(w: Writer ref)
+```
+
+We define an interface with every operation the actor supports. Each method takes the actor as a `ref` so that the state object can modify the actor’s fields — including replacing itself with a different state.
+
+```
+class _OpenWriter is _WriterState
+  let _out: OutStream
+```
+
+The open state holds `let _out: OutStream`. No `None`, no matching. If we’re in this state, we have a valid output stream. That’s what it means to be open.
+
+```
+class _ClosedWriter is _WriterState
+  fun write(w: Writer ref, data: String) =>
+    None
+```
+
+The closed state holds nothing. It doesn’t need an output stream — it has nothing to write to. Writes are silently dropped.
+
+```
+  fun close(w: Writer ref) =>
+    w.state = _ClosedWriter
+```
+
+State transitions happen by assigning a new state object to `w.state`. When `_OpenWriter.close` fires, it replaces itself with a `_ClosedWriter`. The output stream goes out of scope along with the old state — no need to manually set anything to `None`.
+
+```
+actor Writer
+  var state: _WriterState
+
+  be write(data: String) =>
+    state.write(this, data)
+```
+
+The actor itself becomes a thin shell. Each behavior delegates to the current state, passing `this` so the state can trigger transitions. No flags, no matching on optional types.
+
+## Discussion
+
+This pattern is driven by two ideas.
+
+Each phase is a distinct type carrying exactly the data it needs. `_OpenWriter` holds the output stream; `_ClosedWriter` doesn’t. There’s no `(OutStream | None)` — the data that exists in a phase is defined by the type that represents that phase.
+
+Invalid operations get isolated implementations. When you `write` to a closed writer, you hit `_ClosedWriter.write` — a no-op. You could just as easily have it log a warning, notify the caller, or panic. The point is that each operation’s behavior in each phase lives in its own method on its own type, not tangled up with flag checks.
+
+With just two states, this might feel like a lot of ceremony. The payoff comes when states multiply. Each new state is a new class implementing the interface — you don’t touch existing states or add branches to existing methods. When the number of states grows, you can introduce traits with default implementations for groups of operations, so new states only need to override the methods that are meaningful for them.
+
+This pattern also nests naturally. A state can hold its own sub-state machine for finer-grained lifecycle management within a single phase.
+
+For a real-world example of this pattern at scale, see the [ponylang/postgres](https://github.com/ponylang/postgres) driver. Its `Session` actor uses a `_SessionState` interface with six concrete states spanning the full connection lifecycle, from unopened through SSL negotiation, authentication, and query processing. The logged-in state contains a nested `_QueryState` machine tracking query lifecycle. A trait hierarchy provides default implementations for invalid transitions, so each state class only needs to implement what’s actually valid for it.
+
+The [Typed Step Builder](https://patterns.ponylang.io/creation/typed-step-builder.html) pattern applies the same type-per-phase idea to a different problem: enforcing construction order at compile time. Where State Machine uses separate objects to dispatch behavior differently at runtime, Typed Step Builder uses a single object behind multiple interface views so the compiler prevents calling construction steps out of order.
+# Code Sharing Patterns
+
+# Code Sharing Patterns
+
+Pony is an object-oriented language. Data and behavior are co-located in classes and actors. However, Pony’s object-orientation is different than the object-orientation you might be used to. Pony favors composition over inheritance.
+
+What does it mean to favor composition over inheritance? Well, for starters, Pony has no inheritance. When you favor composition over inheritance, you favor “has-a” relationships over “is-a” relationships.
+
+“is-a” relationships are the common starting point for teaching object-orientation. If you are reading this after writing some Pony, you know that Pony makes expressing such relationships more difficult. We’ll leave the discussion of why to another time.
+
+In this chapter, we are going to explore ways to “share” and “reuse” code in Pony. We are also going to look at patterns you can follow to implement reuse and code organization methods that you’ve used in other languages.
+
+Some of those patterns are ones that you commonly see to allow code reuse via “is-a” relationships. Just because Pony favor composition, doesn’t mean that some of those inheritance tricks that you might know and love are unavailable to you. You will, however, need to keep an open mind and approach them a little differently than you are used to.
+
+In this chapter we’ll cover…
+
+## Notifier
+
+A callback based approach that allows you to create mini-frameworks allowing for specialization of your code. The notifier pattern is used throughout the Pony standard library.
+
+## Inheritance
+
+Pony doesn’t do inheritance, but with default implementations for traits and interfaces you can get pretty close.
+
+## Mixin
+
+The mixin pattern is like the inheritance pattern but “even more so”. If you are looking for a full-on Java-style “class A extends class B” type experience, then the mixin pattern is what you are looking for.
+
+## Embed and Delegate
+
+When a mixin’s logic grows too large for trait default methods, move it into a dedicated class. The actor becomes a thin behavior-dispatching shell; the class holds all the state and logic. This is the pattern behind Pony’s I/O libraries.
+
+## Global Function
+
+Does your favorite language have bare functions of some sort? Do you wish Pony had bare functions or perhaps… global functions? If so, the global function pattern is for you.
+
+## Object Algebra
+
+Need to extend a system with both new data variants and new operations without modifying existing code? The object algebra pattern uses Pony’s interfaces with default implementations and structural typing to solve the Expression Problem.
+
+# Embed and Delegate
+
+## Problem
+
+You’re building a library that manages something with complex, stateful protocol logic. Think connection management: tracking connection state, accumulating incoming data, notifying callers of events. You need actors for concurrency, so you put the logic directly in the actor:
+
+```
+actor EchoServer
+  let _env: Env
+  var _connected: Bool = false
+  var _bytes_received: USize = 0
+
+  new create(env: Env) =>
+    _env = env
+
+  be connected() =>
+    _connected = true
+    _env.out.print("Connected")
+
+  be received(data: Array[U8] val) =>
+    if _connected then
+      _bytes_received = _bytes_received + data.size()
+      _env.out.print("Echoing " + data.size().string() + " bytes")
+      // ... echo data back to client
+    end
+
+  be closed() =>
+    _env.out.print(
+      "Disconnected after " + _bytes_received.string() + " bytes")
+    _connected = false
+    _bytes_received = 0
+```
+
+For a small example like this, inline logic is fine. But real connection handlers run to hundreds or even thousands of lines of buffering, flow control, and error handling. At that scale, two problems emerge. First, the logic can’t be reused. If you want a chat server that manages connections the same way but processes messages differently, you have to duplicate all the connection management code into a second actor. Second, the logic can’t be tested independently. Actor behaviors are asynchronous, so testing internal state transitions means wrestling with the actor runtime instead of writing straightforward synchronous assertions.
+
+The [Mixin](https://patterns.ponylang.io/code-sharing/mixin.html) pattern gets you partway there. You can share stateful logic through trait default methods that access state via abstract getters and setters. But when the logic is large, the ceremony of abstract getters and setters for every piece of state becomes unwieldy. What you really want is to put the logic in its own class.
+
+## Solution
+
+The idea is to separate protocol logic into a `class ref` that lives inside the actor. The actor becomes a thin shell that receives behavior calls and forwards them to the class. The class holds all the state, does all the work, and calls back to the actor when something noteworthy happens. This gives you reuse (multiple actors can embed the same class with different callback implementations) and testability (the class can be instantiated and tested synchronously without the actor runtime).
+
+Getting there takes a few steps because of how Pony handles object construction.
+
+### The `this` wrinkle
+
+The intuitive first attempt is to pull the logic into a class and pass `this` to its constructor so the class has a reference back to the actor:
+
+```
+class Connection
+  var _owner: EchoServer ref
+
+  new create(owner: EchoServer ref) =>
+    _owner = owner
+    // ... connection management logic
+
+actor EchoServer
+  let _conn: Connection
+
+  new create(env: Env) =>
+    _conn = Connection(this)  // won't compile
+```
+
+This doesn’t compile. In Pony, `this` isn’t `ref` until all fields are initialized, but `_conn` is one of those fields. We’re stuck in a chicken-and-egg loop: we need `this` to create the `Connection`, but `this` isn’t ready until the `Connection` is created.
+
+### The `none()` constructor
+
+The way out is a placeholder constructor. Give the class a lightweight `none()` constructor that produces a minimal instance, and use it as the field’s default value:
+
+```
+class Connection
+  var _owner: (EchoServer ref | None)
+
+  new none() =>
+    _owner = None
+
+  new create(owner: EchoServer ref) =>
+    _owner = owner
+
+actor EchoServer
+  var _conn: Connection = Connection.none()
+  let _env: Env
+
+  new create(env: Env) =>
+    _env = env
+    _conn = Connection(this)  // this is ref now
+```
+
+With `Connection.none()` as the default, all fields have values before the constructor body runs. Now `this` is `ref`, and we can pass it to `Connection.create` to build the real instance. The field has to be `var` instead of `let` because we’re reassigning it in the constructor body.
+
+The `_owner` field becomes a union type `(EchoServer ref | None)` because the placeholder instance has no actor to reference. In practice, the `none()` instance is never used for real processing. It exists only to satisfy field initialization.
+
+### The delegation trait
+
+The actor still manually forwards each behavior to the class. If multiple actor types want to use the same protocol logic, each one has to write the same forwarding code. A trait with default behavior implementations handles that:
+
+```
+trait ConnectionActor
+  fun ref _connection(): Connection
+
+  be connected() =>
+    _connection().connected()
+
+  be received(data: Array[U8] val) =>
+    _connection().received(data)
+
+  be closed() =>
+    _connection().closed()
+```
+
+Any actor that implements `ConnectionActor` just needs to provide `_connection()` returning its stored `Connection` instance, and it gets all the behaviors for free. This is the [Mixin](https://patterns.ponylang.io/code-sharing/mixin.html) pattern applied to the forwarding layer: the trait provides default behavior implementations, and the actor provides the state they operate on through an abstract accessor.
+
+### The callback direction
+
+The delegation trait handles messages flowing into the class, but the class also needs to talk back to the actor. When the class detects something noteworthy (a state change, a threshold crossed), it needs to notify the actor so the actor can take application-specific action. Right now the class stores a concrete `EchoServer ref`, which ties it to a single actor type.
+
+A callback trait fixes both problems. It defines the notifications the class can send, and any actor can implement it:
+
+```
+trait ConnectionNotify
+  fun ref on_connected()
+  fun ref on_received(data: Array[U8] val)
+  fun ref on_closed(bytes_received: USize)
+```
+
+The class stores a `ConnectionNotify ref` instead of a concrete actor type. The concrete actor implements `ConnectionNotify` to handle the callbacks. By having `ConnectionActor` extend `ConnectionNotify`, a single `is ConnectionActor` on the actor declaration pulls in both the inbound behaviors and the outbound callback obligations.
+
+Here’s how the pieces fit together. A caller sends a behavior to `EchoServer`, the `ConnectionActor` trait forwards it to the `Connection` class, and `Connection` calls back to the actor through `ConnectionNotify`:
+
+```
+sequenceDiagram
+  autonumber
+  Caller->>EchoServer: connected()
+  EchoServer->>Connection: connected()
+  Connection->>EchoServer: on_connected()
+```
+
+### Complete program
+
+Here’s everything together. `Connection` holds the protocol state and logic, `ConnectionNotify` defines how the class talks back to the actor, `ConnectionActor` provides the behavior forwarding, and `EchoServer` ties them together:
+
+```
+trait ConnectionNotify
+  fun ref on_connected()
+  fun ref on_received(data: Array[U8] val)
+  fun ref on_closed(bytes_received: USize)
+
+class Connection
+  var _connected: Bool = false
+  var _bytes_received: USize = 0
+  var _notify: (ConnectionNotify ref | None)
+
+  new none() =>
+    _notify = None
+
+  new create(notify: ConnectionNotify ref) =>
+    _notify = notify
+
+  fun ref connected() =>
+    _connected = true
+    match _notify
+    | let n: ConnectionNotify ref => n.on_connected()
+    end
+
+  fun ref received(data: Array[U8] val) =>
+    if _connected then
+      _bytes_received = _bytes_received + data.size()
+      match _notify
+      | let n: ConnectionNotify ref => n.on_received(data)
+      end
+    end
+
+  fun ref closed() =>
+    let bytes = _bytes_received
+    _connected = false
+    _bytes_received = 0
+    match _notify
+    | let n: ConnectionNotify ref => n.on_closed(bytes)
+    end
+
+trait ConnectionActor is ConnectionNotify
+  fun ref _connection(): Connection
+
+  be connected() =>
+    _connection().connected()
+
+  be received(data: Array[U8] val) =>
+    _connection().received(data)
+
+  be closed() =>
+    _connection().closed()
+
+actor EchoServer is ConnectionActor
+  var _conn: Connection = Connection.none()
+  let _env: Env
+
+  new create(env: Env) =>
+    _env = env
+    _conn = Connection(this)
+
+  fun ref _connection(): Connection =>
+    _conn
+
+  fun ref on_connected() =>
+    _env.out.print("Client connected")
+
+  fun ref on_received(data: Array[U8] val) =>
+    _env.out.print("Echoing " + data.size().string() + " bytes")
+
+  fun ref on_closed(bytes_received: USize) =>
+    _env.out.print(
+      "Disconnected after " + bytes_received.string() + " bytes")
+
+actor Main
+  new create(env: Env) =>
+    let server = EchoServer(env)
+    server.connected()
+    server.received(recover [as U8: 1; 2; 3; 4; 5] end)
+    server.received(recover [as U8: 6; 7; 8] end)
+    server.closed()
+```
+
+Look at how little `EchoServer` actually does. It stores the connection, provides access to it, and implements three callback methods. All the protocol logic (tracking state, counting bytes, deciding when to notify) lives in `Connection`. A `ChatServer` or `ProxyServer` would look almost identical: same `Connection` class, same `ConnectionActor` trait, different callback implementations.
+
+## Discussion
+
+This pattern sits between the [Notifier](https://patterns.ponylang.io/code-sharing/notifier.html) and [Mixin](https://patterns.ponylang.io/code-sharing/mixin.html) patterns in weight. The Notifier pattern is lighter: a callback object is passed into a class or actor, and the framework calls its methods at key points. But a notifier can only be called by its owner; it can’t receive messages from other actors. The Mixin pattern shares stateful logic through trait default methods, which works well for moderate amounts of state but becomes cumbersome when the logic grows large. Embed and Delegate takes the Mixin idea to its logical conclusion: instead of spreading logic across trait default methods with abstract getters and setters for every field, consolidate everything into a dedicated class. The delegation trait is still a mixin in spirit, but it’s a thin one that just forwards calls to the class where the real work happens.
+
+Despite the pattern’s name, Pony’s `embed` keyword can’t be used here. An `embed` field is inlined into the containing object and can’t be reassigned. The `none()` trick requires a `var` field because we assign the placeholder first and then the real instance in the constructor body. The “embed” in the name refers to the conceptual idea (the class lives inside the actor and is never exposed to the outside), not the Pony keyword.
+
+You might have noticed the `match _notify` in every callback within `Connection`. That’s the cost of the `none()` constructor: the notify field is a union type because the placeholder instance has no actor to reference. In practice, the `none()` instance is never used for real processing, so the `None` branch never fires at runtime. The match is a type-system ceremony, not a meaningful code path.
+
+The real payoff shows up in production libraries. [Lori](https://github.com/ponylang/lori), the Pony networking library, uses exactly this pattern. Its `TCPConnection` class runs to roughly 1300 lines of connection management logic: socket setup, read/write buffering, backpressure, error handling. The `TCPConnectionActor` trait is about 40 lines of behavior forwarding. A concrete echo server actor built on top of lori is around 17 lines. All the complexity lives in the class; the actor just plugs in its application-specific callbacks. [Stallion](https://github.com/ponylang/stallion), a Pony HTTP server, layers on top of lori: its `HTTPServer` wraps lori’s TCP connection class, demonstrating that the pattern composes across library boundaries.
+
+Because the logic lives in a `class ref` rather than an actor, it can be instantiated and tested synchronously. You don’t need the actor runtime to verify that your protocol handler correctly tracks state transitions or counts bytes. Create the class, call its methods, check the results. Different actors can embed the same class and provide different callback implementations, giving you reuse without duplication. That combination of testability and reuse is what makes this pattern foundational for anyone building I/O libraries in Pony.
+
+# Global Function
+
+## Problem
+
+Your design calls for a global function, but Pony doesn’t have them.
+
+## Solution
+
+Use a `primitive`.
+
+```
+primitive Doubler
+  fun apply(num: U64): U64 =>
+    num * 2
+```
+
+## Discussion
+
+Primitives serve a couple of different purposes in Pony. Here, we are using a primitive like a global function. Any place in our codebase, we can use `Doubler` like so:
+
+```
+Doubler(U64(1))
+```
+
+Regular Pony package rules still apply, so the package that `Doubler` is a part of needs to be imported, but otherwise, you can use a primitive with an `apply` method much as you would global functions in a language like `C`.
+
+Further, you can use a `primitive` to namespace several “globally accessible functions.” Here’s an example from the Pony standard library:
+
+```
+primitive Nanos
+  """
+  Collection of utility functions for converting various durations of time
+  to nanoseconds, for passing to other functions in the time package.
+  """
+  fun from_seconds(t: U64): U64 =>
+    t * 1_000_000_000
+
+  fun from_millis(t: U64): U64 =>
+    t * 1_000_000
+
+  fun from_micros(t: U64): U64 =>
+    t * 1_000
+
+  fun from_seconds_f(t: F64): U64 =>
+    (t * 1_000_000_000).trunc().u64()
+
+  fun from_millis_f(t: F64): U64 =>
+    (t * 1_000_000).trunc().u64()
+
+  fun from_micros_f(t: F64): U64 =>
+    (t * 1_000).trunc().u64()
+
+  fun from_wall_clock(wall: (I64, I64)): U64 =>
+    ((wall._1 * 1000000000) + wall._2).u64()
+```
+
+In general, if you are looking to do anything that might be classified as a static function or a utility function in another language, you probably want to use a Primitive in Pony.
+
+# Inheritance
+
+## Problem
+
+You want to share code between classes (or actors), but Pony doesn’t allow you to inherit from other classes. What’s an enterprising programmer to do? Pony is object-oriented and object-orientation means inheritance via classes, right?
+
+Pony believes in “composition over inheritance” so, inheritance as you might be familiar with it isn’t available. However, this doesn’t mean that you can’t share implementation across differing types. Enter [default implementations on traits and interfaces](https://tutorial.ponylang.io/types/traits-and-interfaces.html).
+
+## Solution
+
+Pony interfaces and traits can provide default implementations for their defined methods. For example, here’s the definition of `TimerNotify` from the standard library:
+
+```
+interface TimerNotify
+  """
+  Notifications for timer.
+  """
+  fun ref apply(timer: Timer, count: U64): Bool =>
+    """
+    Called with the the number of times the timer has fired since this was last
+    called. Usually, the value of `count` will be 1. If it is not 1, it means
+    that the timer isn't firing on schedule.
+
+    For example, if your timer is set to fire every 10 milliseconds, and
+    `count` is 2, that means it has been between 20-29 milliseconds since the
+    last time your timer fired. Non 1 values for a timer are rare and indicate
+    a system under heavy load.
+
+    Return true to reschedule the timer (if it has an interval), or
+    false to cancel the timer (even if it has an interval).
+    """
+    true
+
+  fun ref cancel(timer: Timer) =>
+    """
+    Called if the timer is cancelled. This is also called if the notifier
+    returns false from its `apply` method.
+    """
+    None
+```
+
+Note that each of the methods defines a default implementation. In the case of `apply`, that default implementation is to return `true`.
+
+```
+  fun ref apply(timer: Timer, count: U64): Bool =>
+    true
+```
+
+Not the most exciting of logic, we grant you that, however, it can be very useful. By defining standard interfaces for shared functionality, you can share default implementations across implementers. It’s not quite inheritance, but it can still take you a long way.
+
+## Discussion
+
+There are a couple of important points to note about using default implementations as a means of code sharing.
+
+### All default implementations must be stateless
+
+Traits and interfaces can’t have fields, so, your implementation will be limited to processing incoming data and returning a value.
+
+### The user must opt-in to using default implementations
+
+Default implementations are limited to nominally typed objects. What this means is that, any time a class implements a `trait` all default implementations will be picked up. If you are using an `interface` instead of a `trait`, then the default type won’t be picked up unless a class is specifically declared as implementing the interface.
+
+For example:
+
+```
+interface CandyMachine
+  fun do_you_want_free_candy(): Bool =>
+    "Who doesn't want free candy? Not me! Gimme, Gimme, Gimme!"
+    true
+
+class ChocolateMachine is CandyMachine
+
+class CookieMachine
+  fun do_you_want_free_candy(): Bool =>
+    false
+```
+
+In our above example, `ChocolateMachine` declares that it is a `CandyMachine` by using `is CandyMachine`. By nominally typing itself as a `CandyMachine`, it picks up the default implementation of `do_you_want_free_candy`. `CookieMachine`, on the other hand, is not nominally typed as a `CandyMachine` and therefore doesn’t pick up the default implementation.
+
+Default implementations can be great way to share implementations across classes. However, the limitations that requires them to be stateless can at times be very constricting. If you need “stateful default implementations”, check out the [Mixin pattern](https://patterns.ponylang.io/code-sharing/mixin.html).
+
+# Mixin
+
+## Problem
+
+You have some common logic that you want to share between classes (or actors). You could use the [“inheritance pattern”](https://patterns.ponylang.io/code-sharing/inheritance.html), however, if your logic is stateful and needs to access fields, it won’t work. What you probably want is something akin to “mixins”. Pony doesn’t directly support mixins, however, you can emulate them fairly easily.
+
+## Solution
+
+Creating a “mixin like” thing in Pony is pretty straightforward. If you checked out the [inheritance pattern](https://patterns.ponylang.io/code-sharing/inheritance.html), then you’ve already seen most of the mixin pattern in action.
+
+Let’s start by recapping the inheritance pattern and then add in our mixin twist.
+
+Pony interfaces and traits can provide default implementations for their defined methods. You can use default implementations to provide the “behavior inheritance” aspect of a mixin. All that we need to get a full-on mixin is the ability to manipulate our enclosing objects state.
+
+Ideally we want something like
+
+```
+trait MixinLike
+  fun double_field(): U64 =>
+    _a_field * 2
+```
+
+The above code won’t compile. `_a_field` isn’t defined on `MixinLike` so it won’t compile. And, traits and interfaces can’t have fields so we can’t define it. What we can do is this…
+
+```
+trait MixinLike
+  fun _a_field(): U64
+
+  fun double_field(): U64 =>
+    _a_field() * 2
+```
+
+Did you catch what we did there? We defined a new, unimplemented function `_a_field` that returns a `U64`. Any actor or class that implements `MixinLike` is required to implement `_a_field`, something like this:
+
+```
+class Foo is MixinLike
+  var _counter: U64
+
+  new create() =>
+    _counter = 1
+
+  fun _a_field(): U64 =>
+    _counter
+```
+
+See what is going on? `Foo` has to define *something* that can supply the value that `_a_field` returns which is in turn used by `double_field`. We can expand this further to allow both reading and writing of values “within” our mixin. Let’s take a look at what that looks like with some naming that is a bit more realistic:
+
+```
+trait CounterIncrementer
+  fun _current_counter_value(): U64
+  fun ref _set_counter_value(v: U64)
+
+  fun _increment_counter() =>
+    let v = _current_counter_value() + 1
+    _set_counter_value(v)
+
+class Counter is CounterIncrementer
+  var _counter: U64
+
+  new create() =>
+    _counter = 1
+
+  fun _current_counter_value(): U64 =>
+    _counter
+
+  fun ref _set_counter_value(v: U64) =>
+    _counter = v
+```
+
+## Discussion
+
+Our `Counter` example is a little contrived, but it demonstrates everything we need to implement a mixin like usage pattern in Pony. There’s more ceremony than you have in languages that support mixins natively, but unlike many of them you also have more control over how “foreign” code access the internal state of your objects.
+
+When the logic you want to share grows to hundreds of lines with many fields, the abstract getter and setter ceremony can become unwieldy. The [Embed and Delegate](https://patterns.ponylang.io/code-sharing/embed-and-delegate.html) pattern takes this idea further: instead of spreading logic across trait default methods, it consolidates everything into a dedicated class that lives inside the actor.
+
+# Notifier
+
+## Problem
+
+You need to specialize an actor so that at certain times during its life-cycle, you can take an appropriate action. For example, all TCP connections are fundamentally the same but, what they do at certain points like:
+
+- when opened
+- sending data
+- receiving data
+- when closing
+
+will need to change based on “the type” of TCP connection in question.
+
+Actor specialization arises often when you want to create reusable Pony code. There’s a pattern in the standard library that is one of the more common ways to address. Let’s have a look at the “Notifier pattern”.
+
+Note that our example is based on the `Timers` actor from the standard library. `Timers` is an actor but it has an intermediate class that it uses as part of its design; that class `Timer` is what we will be looking at. It demonstrates the notifier pattern quite well. It’s just important to remember that everything that happens in the `Timer` class is reusable logic that calls into logic to specialize a `Timers` actor.
+
+## Solution
+
+```
+interface TimerNotify
+  """
+  Notifications for timer.
+  """
+  fun ref apply(timer: Timer, count: U64): Bool =>
+    """
+    Called with the the number of times the timer has fired since this was last
+    called. Usually, the value of `count` will be 1. If it is not 1, it means
+    that the timer isn't firing on schedule.
+
+    For example, if your timer is set to fire every 10 milliseconds, and
+    `count` is 2, that means it has been between 20-29 milliseconds since the
+    last time your timer fired. Non 1 values for a timer are rare and indicate
+    a system under heavy load.
+
+    Return true to reschedule the timer (if it has an interval), or
+    false to cancel the timer (even if it has an interval).
+    """
+    true
+
+  fun ref cancel(timer: Timer) =>
+    """
+    Called if the timer is cancelled. This is also called if the notifier
+    returns false from its `apply` method.
+    """
+    None
+```
+
+And our corresponding object to specialise:
+
+```
+use "collections"
+
+class Timer
+  """
+  The `Timer` class represents a timer that fires after an expiration
+  time, and then fires at an interval. When a `Timer` fires, it calls
+  the `apply` method of the `TimerNotify` object that was passed to it
+  when it was created.
+  """
+
+  var _expiration: U64
+  var _interval: U64
+  let _notify: TimerNotify
+  embed _node: ListNode[Timer]
+
+  new iso create(
+    notify: TimerNotify iso,
+    expiration: U64,
+    interval: U64 = 0)
+  =>
+    """
+    Create a new timer. The expiration time should be a nanosecond count
+    until the first expiration. The interval should also be in nanoseconds.
+    """
+    _expiration = expiration + Time.nanos()
+    _interval = interval
+    _notify = consume notify
+    _node = ListNode[Timer]
+    try _node()? = this end
+
+  fun ref _cancel() =>
+    """
+    Remove the timer from any list.
+    """
+    _node.remove()
+    _notify.cancel(this)
+
+  fun ref _fire(current: U64): Bool =>
+    """
+    A timer is fired if its expiration time is in the past. The notifier is
+    called with a count based on the elapsed time since expiration and the
+    timer interval. The expiration time is set to the next expiration. Returns
+    true if the timer should be rescheduled, false otherwise.
+    """
+    let elapsed = current - _expiration
+
+    if elapsed < (1 << 63) then
+      let count = (elapsed / _interval) + 1
+      _expiration = _expiration + (count * _interval)
+
+      if not _notify(this, count) then
+        _notify.cancel(this)
+        return false
+      end
+    end
+
+    (_interval > 0) or ((_expiration - current) < (1 << 63))
+```
+
+## Discussion
+
+It’s important to note that the notifier pattern is fundamentally one that involves callbacks. And that in particular, it is about specializing actors.
+
+As seen in the `Timer` example from the standard library, all “reusable” logic is part of an actor `Timers`. The points where a user would want to specialize what happens, involve calling methods on the supplied “notify” object.
+
+For example, from our example above:
+
+```
+      if not _notify(this, count) then
+```
+
+Each time the `Timer` fires, we call the `apply` method of the `_notify` object allowing situation-specific code to be executed. In the case of the `TimerNotify` API, a boolean is returned. If the return value is `false`, the timer isn’t rearmed and our other callback is called:
+
+```
+        _notify.cancel(this)
+```
+
+What does this look like to a user? Here’s an example:
+
+```
+use "time"
+
+actor Main
+  new create(env: Env) =>
+    let timers = Timers
+    let timer = Timer(Notify(env), 5_000_000_000, 2_000_000_000)
+    timers(consume timer)
+
+class Notify is TimerNotify
+  let _env: Env
+  var _counter: U32 = 0
+
+  new iso create(env: Env) =>
+    _env = env
+
+  fun ref apply(timer: Timer, count: U64): Bool =>
+    _env.out.print(_counter.string())
+    _counter = _counter + 1
+    true
+```
+
+There’s a couple of key points that our example highlights about our implementation that weren’t clear before.
+
+First, a notifier should always be an `iso`. Why? Because the notify object will probably need to keep and update state. If we were to supply the same notify to multiple actors, the state would become shared and be unsafe across actors. In the `Timer` implementation you will see this in create taking a `TimerNotify iso`
+
+```
+  new iso create(
+    notify: TimerNotify iso,
+    expiration: U64,
+    interval: U64 = 0)
+```
+
+And in our concrete `Notify` implementation where we default the reference type when creating a new `Notify` to `iso`:
+
+```
+  new iso create(env: Env) =>
+    _env = env
+```
+
+The notifier pattern is incredibly powerful. It makes it very easy for programmers to easily plug-in to existing functionality and get up and running. In the majority of specialization cases, the notifier pattern is probably what you want. However, there is one drawback that you need to be aware of for more advanced cases.
+
+Notifiers cannot receive messages. They can send messages to actors they hold references to, but they have no way to receive arbitrary messages. Access to the notifier is completely controlled by the encompassing actor. As limitations go, this usually isn’t a problem. However, it can be problematic for some more advanced use-cases. If you find yourself needing to send messages to a notifier, we suggest you take a look at [the Mixin pattern](https://patterns.ponylang.io/code-sharing/mixin.html). For complex, stateful protocol logic where the mixin approach becomes unwieldy, the [Embed and Delegate](https://patterns.ponylang.io/code-sharing/embed-and-delegate.html) pattern consolidates the logic into a dedicated class inside the actor.
+
+# Object Algebra
+
+## Problem
+
+There’s a real problem inherent in most data modeling we tend to do with our programming languages. It’s so common that Philip Wadler gave it a name, “[the Expression Problem](https://homepages.inf.ed.ac.uk/wadler/papers/expression/expression.txt)”. A full discussion is out of scope for this pattern — refer to the linked original formulation for the details. Here’s the short version:
+
+### Expression Problem in Object-Oriented Languages
+
+Object-oriented data abstraction makes it easy to add new data variants via the class mechanism, but adding new operations to existing variants is difficult. It requires changing the interface for all classes, and the source code might not even be available to us.
+
+### Expression Problem in Functional Languages
+
+Functional data abstraction makes it easy to extend our data types with new operations, but adding new data types is difficult. When we define our operations as functions, adding a new function is trivial. However, those functions typically have to know about all the data types they operate on, and if we want to add a new data type, we have to modify their source code — which again might not be available to us.
+
+### Solutions to the Expression Problem
+
+There are a variety of solutions to the Expression Problem in various languages, all with various levels of success. One such solution is “[Object Algebras](/assets/extensibility-for-the-masses.pdf)”. This pattern shows how you can use Object Algebras in Pony to solve the Expression Problem. The website “[Solutions to the Expression Problem Using Object Algebras](https://i.cs.hku.hk/~bruno/oa/)” has an excellent overview of the Expression Problem and its constraints. In short, for any data type we should be able to add new operations and new data types of the same family while:
+
+- Maintaining strong static type safety
+- Not having to modify or duplicate existing code
+- Having compile time (not runtime) safety checks
+- Being able to combine independently developed extensions
+
+## Solution
+
+The [Solutions to the Expression Problem Using Object Algebras](https://i.cs.hku.hk/~bruno/oa/) site presents solutions in a variety of languages. What follows is a Pony version modeled on the [Java version](https://i.cs.hku.hk/~bruno/oa/OA_J.zip).
+
+The problem presented is the need to create a simple expression interpreter that starts with two operations, `lit` and `add`, which we need to be able to evaluate. We then need to extend our data types by adding a new operation `sub` and a new interpretation that pretty-prints the expression.
+
+```
+interface ExpAlg[E]
+  fun lit(x: I32): E
+  fun add(e1: E, e2: E): E
+
+interface Eval
+  fun eval(): I32
+
+interface EvalExpAlg
+  fun lit(x: I32): Eval val =>
+    recover
+      object
+        let x: I32 = x
+        fun eval(): I32 => x
+      end
+    end
+
+  fun add(e1: Eval val, e2: Eval val): Eval val =>
+    recover
+      object
+        let e1: Eval val = e1
+        let e2: Eval val = e2
+        fun eval(): I32 => e1.eval() + e2.eval()
+      end
+    end
+
+interface SubExpAlg[E] is ExpAlg[E]
+  fun sub(e1: E, e2: E): E
+
+interface EvalSubExpAlg
+  fun sub(e1: Eval val, e2: Eval val): Eval val =>
+    recover
+      object
+        let e1: Eval val = e1
+        let e2: Eval val = e2
+        fun eval(): I32 => e1.eval() - e2.eval()
+      end
+    end
+
+interface PrintExpAlg
+  fun lit(x: I32): String =>
+    x.string()
+
+  fun add(e1: String, e2: String): String =>
+    e1 + " + " + e2
+
+  fun sub(e1: String, e2: String): String =>
+    e1 + " - " + e2
+
+actor Main
+  new create(env: Env) =>
+    let eval_alg = object is (EvalSubExpAlg & EvalExpAlg) end
+    let print_alg = object is PrintExpAlg end
+
+    env.out.print(exp1[Eval val](eval_alg).eval().string())
+    env.out.print(exp1[String](print_alg))
+    env.out.print(exp2[String](print_alg))
+
+  fun exp1[E: Any #read](alg: ExpAlg[E] box): E =>
+    alg.add(alg.lit(3), alg.lit(4))
+
+  fun exp2[E: Any #read](alg: SubExpAlg[E] box): E =>
+    alg.sub(exp1[E](alg), alg.lit(4))
+```
+
+The output of this program is:
+
+```
+7
+3 + 4
+3 + 4 - 4
+```
+
+Let’s walk through how this works. The core idea is that instead of representing expressions as a data structure like an AST, we define them through a factory interface that’s generic in its result type.
+
+```
+interface ExpAlg[E]
+  fun lit(x: I32): E
+  fun add(e1: E, e2: E): E
+```
+
+`ExpAlg[E]` is our object algebra interface. It describes how to construct expressions, but the result type `E` is abstract. We don’t know what an expression “is” — we only know how to build one from a literal and how to combine two of them with addition.
+
+```
+interface EvalExpAlg
+  fun lit(x: I32): Eval val =>
+    recover
+      object
+        let x: I32 = x
+        fun eval(): I32 => x
+      end
+    end
+
+  fun add(e1: Eval val, e2: Eval val): Eval val =>
+    recover
+      object
+        let e1: Eval val = e1
+        let e2: Eval val = e2
+        fun eval(): I32 => e1.eval() + e2.eval()
+      end
+    end
+```
+
+`EvalExpAlg` provides a concrete interpretation where `E` becomes `Eval val`. Each factory method returns an anonymous object that knows how to evaluate itself. Pony’s interfaces with default implementations are doing the heavy lifting here — we define the algebra as an interface with defaults, then create an instance with `object is EvalExpAlg end`.
+
+Now suppose we need to add subtraction. In a traditional OOP approach, we’d have to modify our expression class hierarchy. With Object Algebras, we just extend the algebra interface:
+
+```
+interface SubExpAlg[E] is ExpAlg[E]
+  fun sub(e1: E, e2: E): E
+```
+
+`SubExpAlg` extends `ExpAlg` with a new `sub` operation. No existing code is modified. We provide its evaluation the same way:
+
+```
+interface EvalSubExpAlg
+  fun sub(e1: Eval val, e2: Eval val): Eval val =>
+    ...
+```
+
+And when we need an algebra that can do both, we compose them:
+
+```
+let eval_alg = object is (EvalSubExpAlg & EvalExpAlg) end
+```
+
+Pony’s structural typing makes this natural — we intersect the two interfaces and get an object that can evaluate addition and subtraction.
+
+Adding a completely new interpretation — pretty printing — is equally straightforward:
+
+```
+interface PrintExpAlg
+  fun lit(x: I32): String =>
+    x.string()
+
+  fun add(e1: String, e2: String): String =>
+    e1 + " + " + e2
+
+  fun sub(e1: String, e2: String): String =>
+    e1 + " - " + e2
+```
+
+Here `E` becomes `String`. Same expression structure, different interpretation. Again, no existing code is modified.
+
+Expressions themselves are built using generic functions that take the algebra as a parameter:
+
+```
+  fun exp1[E: Any #read](alg: ExpAlg[E] box): E =>
+    alg.add(alg.lit(3), alg.lit(4))
+```
+
+The same expression `exp1` can be evaluated or printed depending on which algebra you pass in. That’s the payoff — expressions are written once and interpreted many ways.
+
+## Discussion
+
+Object Algebras work particularly well in Pony because of two language features: interfaces with default method implementations and structural typing.
+
+Interfaces with defaults let us define each algebra as an interface rather than a class. This means we can compose algebras with intersection types like `(EvalSubExpAlg & EvalExpAlg)` without needing class hierarchies. Structural typing means we don’t need an explicit relationship between `EvalExpAlg` and `ExpAlg[Eval val]` — if it satisfies the interface, it works.
+
+The pattern satisfies all four constraints of the Expression Problem:
+
+- **New data variants** like `sub` are added by extending the algebra interface. Existing algebras are untouched.
+- **New interpretations** like pretty printing are added by creating a new algebra with a different result type. Existing interpretations are untouched.
+- **Type safety** is maintained — the generic type parameter `E` ensures that all parts of an expression agree on their result type.
+- **Separate compilation** — each algebra can be compiled independently.
+
+If you’re building something that needs to be extended in both dimensions — new data variants and new operations over them — this pattern is worth considering. Interpreters, compilers, serialization formats, and document processors are all natural fits.
+
+The [Solutions to the Expression Problem Using Object Algebras](https://i.cs.hku.hk/~bruno/oa/) site presents solutions in several languages beyond Java. We modeled our Pony version on the Java solution because it’s the closest to what most Object Oriented programmers would be familiar with, but the other solutions could also be implemented in Pony.
+
+For a deeper treatment, see the original “[Extensibility for the Masses](https://www.cs.utexas.edu/~wcook/Drafts/2012/ecoop2012.pdf)” paper by Bruno Oliveira and William Cook.
+# Creation Patterns
+
+# Creation Patterns
+
+Pony constructors always return an initialized instance of their type. There’s no `null`, no uninitialized state, and actor constructors can’t be partial. These constraints push you toward patterns that might be unfamiliar if you’re coming from languages where constructors can fail freely or return null.
+
+[FFI Global Initializer](https://patterns.ponylang.io/creation/ffi-global-initializer.html) uses a primitive’s `_init` method to run C library initialization exactly once, taking advantage of the fact that primitives are singletons.
+
+[Static Constructor](https://patterns.ponylang.io/creation/static-constructor.html) wraps object construction in a primitive’s `apply` method so it can return either the constructed object or a meaningful error, something Pony constructors can’t do on their own.
+
+[Supply Chain](https://patterns.ponylang.io/creation/supply-chain.html) solves the problem of actor constructors that depend on things that can fail. Rather than juggling `(File | None)` unions inside the actor, you initialize dependencies before constructing the actor and pass them in fully built.
+
+[Typed Step Builder](https://patterns.ponylang.io/creation/typed-step-builder.html) enforces construction order at compile time. Each build step returns a different interface type, so the compiler prevents calling steps out of order or skipping required fields.
+
+# FFI Global Initializer
+
+## Problem
+
+You are working with a library via [Pony’s C-FFI](https://tutorial.ponylang.io/c-ffi/) and need to initialize the library before you can use it. And you’d like to do this initialization once and only once.
+
+## Solution
+
+Pony’s primitives can serve a variety of design purposes. Here we will use a primitive to initialize our imaginary C library.
+
+```
+use @magic_global_initialization[None]()
+
+primitive LibraryInitializer
+  fun _init() =>
+    @magic_global_initialization()
+```
+
+## Discussion
+
+Only a single instance of a Pony `primitive` will exist in our binary. User defined primitives are singletons. We can combine this with the fact that primitives have an `_init` function that is called when the primitive is created.
+
+Wrapping our “should only be done once” initialization code in a primitive’s `_init` method is a good way to ensure that the initialization code is only run once. It is important to note that this approach doesn’t protect you from someone mistakenly calling the initializer via C-FFI directly again,
+
+If we need to teardown the library, we can add a `_final` method to `LibraryInitializer` which will be executed on program shutdown.
+
+```
+use @magic_global_initialization[None]()
+use @magic_global_shutdown[None]()
+
+primitive LibraryInitializer
+  fun _init() =>
+    @magic_global_initialization()
+
+  fun _final() =>
+    @magic_global_shutdown()
+```
+
+For managing per-instance FFI resource handles that need cleanup when you’re done with them, see the [FFI Resource Lifecycle](https://patterns.ponylang.io/resource-management/ffi-resource-lifecycle.html) pattern.
+
+# Static Constructor
+
+## Problem
+
+You want to construct an object or return a meaningful error message if the object can’t be constructed. For example, if a parameter is supposed to be in the range of 1 to 10, but 12 was passed. You’d like to return an error that “12 is out of range” instead of constructing the object. Unfortunately, in Pony there’s no way to do that. Pony constructors always return an initialized instance of their class unless the constructor is partial in which case nothing is returned as we jump to the nearest error handler.
+
+```
+class Foo
+  // Always returns a foo
+  new create() => None
+
+  // Sometimes returns a foo
+  new perhaps(a: Bool) ? =>
+    if not a then
+      error
+    end
+```
+
+What you would like to do instead is:
+
+```
+class Error
+  let msg: String
+
+  new create(m: String) =>
+    msg = m
+
+class Foo
+  // return a Foo or Error message
+  new create(a: Bool): (Foo | Error) =>
+    if not a then
+      Error("Can't build Foo that way")
+    else
+      this
+    end
+```
+
+## Solution
+
+Use a `primitive`.
+
+```
+class Error
+  let msg: String
+
+  new create(m: String) =>
+    msg = m
+
+class Foo
+  new create() => None
+
+primitive FooConstructor
+  fun apply(a: Bool): (Foo | Error) =>
+    if not a then
+      Error("Can't build a Foo that way")
+    else
+      Foo
+    end
+```
+
+## Discussion
+
+Static constructor is the [Global Function](https://patterns.ponylang.io/code-sharing/global-function.html) pattern applied to object construction. As we discussed in Global Function, Pony’s primitives are a great way to group together stateless “like functions”. If you are looking to do anything that might be classified as a static function or a utility function in another language, you probably want to use a primitive in Pony.
+
+If you have an background in [ML](<https://en.wikipedia.org/wiki/ML_(programming_language)>) type languages, you can think of primitives as similar to modules in [OCaml](https://ocaml.org/) and [F#](https://fsharp.org/).
+
+Finally, here’s our static constructor in action:
+
+```
+actor Main
+  new create(env: Env) =>
+    match FooConstructor(true)
+    | let f: Foo =>
+      // ToDo: do something with Foo
+      None
+    | let e: Error =>
+      env.err.print(e.msg)
+    end
+```
+
+If you find yourself reaching for this pattern to enforce domain constraints on `val` types — for example, ensuring a `String` meets length or character requirements — consider the standard library’s `constrained_types` package instead. It provides a `Validator` interface, a `Constrained` wrapper that makes the validation guarantee visible in the type, and a `MakeConstrained` builder that returns either the validated type or a `ValidationFailure` with error messages. Where a static constructor is a one-off solution, `constrained_types` provides reusable infrastructure for the same idea. See the [Constrained Types](https://patterns.ponylang.io/domain-modeling/constrained-types.html) pattern for details.
+
+# Supply Chain
+
+## Problem
+
+The Pony type system is very demanding when it comes to handling errors. The lack of `null` means that you are forced to initialize every variable and explicitly handle every possible source of initialization error. In return, you get freedom from `Null Pointer Exceptions` and their equivalents. However, a naive use of Pony’s `None` type when initializing dependencies can lead to poor programmer ergonomics and frustration. This is particularly true when constructing actors. In Pony, an actor’s constructor runs asynchronously so, unlike a class, it can’t be a partial function.
+
+Take, as an example, a Pony actor that receives messages and writes them to a file within a temporary directory. Our first naive pass might look something like:
+
+```
+use "files"
+
+actor TempWriter
+  let _file: File
+
+  new create(auth: FileAuth, file_name: String) =>
+    let dir = FilePath.mkdtemp(auth)?
+    let log = FilePath.from(dir, file_name)?
+    _file = File(log)
+
+  be record(it: String) =>
+    _file.write(it)
+```
+
+We’ve already hit our first problem. Our above code won’t compile. Why? Well, it doesn’t handle errors. For starters, `FilePath.mkdtemp(auth)?` and `FilePath.from(dir, file_name)?` can both fail. We might not be able to create the directory. If we were to address that, we would also need to address that our `File` object might not be able to be initialized. In order to deal with our errors, we’ll need to make `_file` be of type `(File | None)`. This union type states that we can have a file or nothing. An iteration to address this gets us almost all the way to being able to compile but not quite:
+
+```
+use "files"
+
+actor TempWriter
+  var _file: (File | None) = None
+
+  new create(auth: FileAuth, file_name: String) =>
+    try
+      let dir = FilePath.mkdtemp(auth)?
+      let log = FilePath.from(dir, file_name)?
+      _file = File(log)
+    end
+
+  be record(it: String) =>
+    _file.write(it)
+```
+
+We’re now left with one more compiler error to address.
+
+```
+x.pony:14:10: couldn't find write in None val
+    _file.write(it)
+         ^
+```
+
+One more change addresses that `_file` could be uninitialized:
+
+```
+use "files"
+
+actor TempWriter
+  var _file: (File | None) = None
+
+  new create(auth: FileAuth, file_name: String) =>
+    try
+      let dir = FilePath.mkdtemp(auth)?
+      let log = FilePath.from(dir, file_name)?
+      _file = File(log)
+    end
+
+  be record(it: String) =>
+    match _file
+    | let f: File => f.write(it)
+    end
+```
+
+With this change, in our `record` behavior, we match on `_file` and only attempt to write if it is of type `File`. Awesome. We have working code. Except, ugh. There are actually a couple problems still lurking.
+
+First, while `File` doesn’t return an error, it can fail. The `File` constructor docs state:
+
+> Attempt to open for read/write, creating if it doesn’t exist, preserving the contents if it does exist. Set `errno` according to result.
+
+To correctly use `File`, we have to check the `errno()` method to see if there was a failure. Oof. We can address this hidden issue by using the `CreateFile` primitive that will return a `(File | FileErrNo)`. If we get a `FileErrNo`, we can leave `_file` as `None`.
+
+```
+use "files"
+
+actor TempWriter
+  var _file: (File | None) = None
+
+  new create(auth: FileAuth, file_name: String) =>
+    try
+      let dir = FilePath.mkdtemp(auth)?
+      let log = FilePath.from(dir, file_name)?
+      match CreateFile(log)
+      | let f: File => _file = f
+      end
+    end
+
+  be record(it: String) =>
+    match _file
+    | let f: File => f.write(it)
+    end
+```
+
+Phew! Are we done? Nope. There’s still a couple of problems.
+
+One is programmer ergonomics. If you are using `_file` a lot in this actor, you are going to be constantly matching to make sure you are handling `None` correctly.
+
+Even worse, we are also silently eating failures. If this actor can’t start up properly then we might not want to continue running. We aren’t going to know. As far as a caller is concerned, we’ve successfully initialized and we are writing data to the file. What might actually be happening is that every call to `record` results in absolutely nothing. Tracking that down could turn out to be a nightmare.
+
+Lastly, even if we wanted to communicate failure back, this is an actor. Everything is asynchronous and there’s no straightforward way to say something like:
+
+```
+if (my_actor.is_initialized()) then
+  my_actor.record(it)
+else
+  error
+end
+```
+
+And even if there was, we want to fail on initialization, not lazily at some unknown time in the future.
+
+## Solution
+
+All of the problems that we enumerated above come from attempting to create objects whose creation can fail in the constructor of our actor. Rather than delay errors until we are in our actor’s constructor, a much better approach is to supply our dependencies fully initialized.
+
+In our previous case, we were relying on our ability to successfully create the temporary directory that we will create our file in. If we initialize the directory and file outside of our actor then we can easily report construction errors and avoid messing with `None` as a possibility inside our `TempWriter` actor:
+
+```
+use "files"
+
+actor Main
+  new create(env: Env) =>
+    try
+      let dir = FilePath.mkdtemp(FileAuth(env.root))?
+      let log = FilePath.from(dir, "free-candy.txt")?
+      let file = recover iso
+        match CreateFile(log)
+        | let f: File => f
+        else
+          error
+        end
+      end
+      TempWriter(consume file)
+    else
+      env.err.print("Couldn't create dependencies")
+    end
+
+actor TempWriter
+  let _file: File
+
+  new create(file: File iso) =>
+    _file = consume file
+
+  be record(it: String) =>
+    _file.write(it)
+```
+
+## Discussion
+
+This pattern is applicable across a wide swath of Pony code. There are many methods that like `File.mkdtemp` can fail to successfully complete. Some examples include network sockets, regular expressions, and anything that involves parsing user input.
+
+In addition to the benefits we’ve already enumerated previously, by using [dependency injection](https://en.wikipedia.org/wiki/Dependency_injection) to solve our Pony specific problem, we also reap the advantages of DI, in particular, a much more testable actor.
+
+For dependencies that themselves have complicated dependencies, we could combine together with a pattern like [Builder](https://en.wikipedia.org/wiki/Builder_pattern) or [Factory](https://en.wikipedia.org/wiki/Factory_%28object-oriented_programming%29) to abstract away a lot of the gory details.
+
+# Typed Step Builder
+
+## Problem
+
+You’re building an object that requires several fields, and some of them are mandatory. When the constructor has many parameters, it’s easy to mix up their order or forget one entirely. A fluent builder helps by letting you name each field as you set it, but the common approach — where every method returns the same builder type — doesn’t enforce that required fields are actually provided.
+
+```
+class MessageBuilder
+  var _to: String = ""
+  var _subject: String = ""
+  var _body: String = ""
+
+  fun ref to(recipient: String): MessageBuilder =>
+    _to = recipient
+    this
+
+  fun ref subject(subject': String): MessageBuilder =>
+    _subject = subject'
+    this
+
+  fun ref body(body': String): MessageBuilder =>
+    _body = body'
+    this
+
+  fun build(): String =>
+    "To: " + _to + "\nSubject: " + _subject + "\n\n" + _body
+```
+
+The fields default to empty strings because Pony requires every field to be initialized in the constructor. That means `build()` always has valid data as far as the type system is concerned. Nothing prevents a caller from skipping straight to the end:
+
+```
+actor Main
+  new create(env: Env) =>
+    let msg = MessageBuilder.body("How are you?").build()
+    env.out.print(msg)
+```
+
+This compiles and runs, producing a message with no recipient and no subject. The builder silently accepted incomplete data because every field had a default. The caller forgot `.to()` and the compiler didn’t say a word.
+
+You could add validation to `build()` — check that `_to` isn’t empty and return an error or raise `error` if it is. That catches the mistake, but now the caller has to handle a runtime error every time they build a message, even when they did fill in every field. The compiler can’t tell a correct build chain from a broken one, so every call site pays the cost of error handling.
+
+## Solution
+
+The key insight is to make illegal states unrepresentable: instead of validating at runtime that required fields were provided, structure the types so that an incomplete build can’t compile. Instead of a single builder type with all the methods, define a separate interface for each construction phase. Each interface exposes exactly one advancement method whose return type is the next phase’s interface. The compiler enforces the build order: you literally can’t call the wrong method because it doesn’t exist on the type you’re holding.
+
+We’ll build an email message in three mandatory steps: set the recipient, set the subject, then set the body. Here’s the first phase:
+
+```
+interface MessageBuildRecipient
+  fun ref to(recipient: String): MessageBuildSubject
+```
+
+A `MessageBuildRecipient` has exactly one method: `to()`. It takes the recipient and returns a `MessageBuildSubject`. There’s no way to finish without providing a recipient first.
+
+```
+interface MessageBuildSubject
+  fun ref subject(subject': String): MessageBuildBody
+```
+
+Once you’ve set the recipient, you’re holding a `MessageBuildSubject`. The only thing you can do is call `subject()`, which advances you to the final phase.
+
+```
+interface MessageBuildBody
+  fun ref body(body': String): String
+```
+
+The last phase collects the body and returns the finished message as a `String`. In a real application this final method would typically return a domain object rather than a string; we’re keeping it simple here.
+
+Now the concrete class that ties it all together:
+
+```
+class _MessageBuilder
+  var _to: String = ""
+  var _subject: String = ""
+
+  fun ref to(recipient: String): MessageBuildSubject =>
+    _to = recipient
+    this
+
+  fun ref subject(subject': String): MessageBuildBody =>
+    _subject = subject'
+    this
+
+  fun ref body(body': String): String =>
+    "To: " + _to + "\nSubject: " + _subject + "\n\n" + body'
+```
+
+`_MessageBuilder` has all three methods, one from each phase. Notice there’s no `is` clause declaring that it implements any of the interfaces. It doesn’t need one. Pony interfaces use structural subtyping: any type whose methods match an interface’s signatures automatically satisfies that interface. Since `_MessageBuilder` has `to()` returning `MessageBuildSubject`, it satisfies `MessageBuildRecipient`. Since it has `subject()` returning `MessageBuildBody`, it satisfies `MessageBuildSubject`. And since it has `body()` returning `String`, it satisfies `MessageBuildBody`. One class, three interface views.
+
+The caller never sees `_MessageBuilder` directly. A factory primitive provides the entry point:
+
+```
+primitive Messages
+  fun apply(): MessageBuildRecipient =>
+    _MessageBuilder
+```
+
+`Messages()` returns a `MessageRecipient`, so the caller starts at phase one. Each method advances to the next phase, and the compiler enforces the order.
+
+Here’s the complete program:
+
+```
+interface MessageBuildRecipient
+  fun ref to(recipient: String): MessageBuildSubject
+
+interface MessageBuildSubject
+  fun ref subject(subject': String): MessageBuildBody
+
+interface MessageBuildBody
+  fun ref body(body': String): String
+
+class _MessageBuilder
+  var _to: String = ""
+  var _subject: String = ""
+
+  fun ref to(recipient: String): MessageBuildSubject =>
+    _to = recipient
+    this
+
+  fun ref subject(subject': String): MessageBuildBody =>
+    _subject = subject'
+    this
+
+  fun ref body(body': String): String =>
+    "To: " + _to + "\nSubject: " + _subject + "\n\n" + body'
+
+primitive Messages
+  fun apply(): MessageBuildRecipient =>
+    _MessageBuilder
+
+actor Main
+  new create(env: Env) =>
+    let message =
+      Messages()
+        .to("alice@example.com")
+        .subject("Hello")
+        .body("How are you?")
+    env.out.print(message)
+```
+
+Try skipping a step and the compiler stops you. Calling `Messages().subject("Hello")` fails because `Messages()` returns a `MessageBuildRecipient`, which only has `to()`. Calling `Messages().to("alice@example.com").body("How are you?")` also fails because `.to()` returns a `MessageBuildSubject`, which only has `subject()`. Out-of-order calls are compile errors, not runtime surprises.
+
+## Discussion
+
+The core idea is that a single concrete class can satisfy multiple phase types simultaneously. In our example, `_MessageBuilder` has all three methods, so it conforms to all three interfaces at once. The example uses interfaces because Pony’s structural subtyping means the class doesn’t need to declare anything extra. Traits work just as well; you’d add `is (MessageRecipient & MessageSubject & MessageBody)` to the class declaration. Either way, adding a new phase means defining a new type and adding a new method on the concrete class.
+
+This pattern shares a key idea with the [State Machine](https://patterns.ponylang.io/behavioral/state-machine.html) pattern: both use different types to represent different phases of a lifecycle. The difference is in what they’re solving. State Machine creates separate objects for each state and swaps them at runtime to change behavior. The actor delegates to whichever state object is current, and different states respond to the same message differently. Typed Step Builder uses a single object behind multiple interface views to enforce construction ordering at compile time. State Machine is about runtime behavior dispatch; Typed Step Builder is about compile-time sequencing guarantees.
+
+The pattern extends naturally to repeatable steps within a phase. If one of your phases allows multiple calls before advancing, give it a method that stays in the current phase alongside the advancement method. For example, a `cc()` method on `MessageBuildRecipient` could return `MessageBuildRecipient` while `to()` still advances to `MessageBuildSubject`. The caller can add as many CC recipients as they like, and the compiler still forces them to call `to()` before moving on. The same idea works for optional fields: put them on the phase interface alongside the required advancement method.
+
+The Typed Step Builder becomes especially powerful when combined with constrained types. If `to()` accepts an `EmailAddress` that can only be constructed through validation instead of a bare `String`, the builder enforces not just that a recipient was provided but that it’s a well-formed address. The builder handles ordering at compile time; constrained types handle value validity at the point of construction. Together they guarantee the final object has all required fields, provided in the right order, with every field individually validated.
+
+Builders can also support reuse. Adding a `reset()` method to each interface that returns `MessageBuildRecipient` gives the caller a way to abandon a partial build and start over from the first phase without allocating a new builder.
+# Data Sharing Patterns
+
+# Data Sharing Patterns
+
+“How can I send my mutable `ref` value from one actor to another?” It’s a question that new Pony programmers often ask. The short answer is, you can’t.
+
+Sharing mutable data between actors is fundamentally unsafe. The Pony compiler will prevent you from doing it. However, that doesn’t mean that you can’t accomplish your goal.
+
+In this section, we’ll cover some patterns for sharing data between actors including a couple ways to you can “share” `refs` between actors.
+
+# Copying
+
+## Problem
+
+You need to send mutable data from one actor to another while keeping a copy of it in your original actor.
+
+## Solution
+
+```
+use "collections"
+
+actor Collector
+  """
+  Receives characters via it's `collect` behavior and stores them.
+  Every 10 characters we receive results in the entire array being sent all to
+  the receiver.
+  """
+  let _receiver: Receiver
+  let _data: Array[U8] = Array[U8]
+
+  new create(receiver: Receiver) =>
+    _receiver = receiver
+
+  be collect(char: U8) =>
+    _data.push(char)
+
+    if (_data.size() % 10) == 0 then
+      let copy: Array[U8] iso = recover Array[U8] end
+
+      for v in _data.values() do
+        copy.push(v)
+      end
+
+      _receiver.receive(consume copy)
+    end
+
+actor Receiver
+  """
+  Receives an array of characters from a collector and prints them as a string
+  to standard out.
+  """
+  let _out: OutStream
+
+  new create(out: OutStream) =>
+    _out = out
+
+  be receive(data: Array[U8] iso) =>
+    let s = String.from_array(consume data)
+    _out.print(s)
+```
+
+The critical section from our example is:
+
+```
+      let copy: Array[U8] iso = recover Array[U8] end
+
+      for v in _data.values() do
+        copy.push(v)
+      end
+
+      _receiver.receive(consume copy)
+```
+
+Let’s walk through what we are doing. First, we create a new `iso` array that we will populate with the values from `_data` and then to our receiver. That our array is an `iso` is crucial. Because `copy` is isolated, the Pony compiler will make sure that we only ever have a single reference to it and can safely share the isolated copy.
+
+```
+      let copy: Array[U8] iso = recover Array[U8] end
+```
+
+Next, we copy all the value from our mutable `ref` array into our `iso` array:
+
+```
+      for v in _data.values() do
+        copy.push(v)
+      end
+```
+
+Finally, we `consume` our reference to the `iso` `copy` array and send it to our receiver:
+
+```
+      _receiver.receive(consume copy)
+```
+
+## Discussion
+
+The copying pattern goes hand in hand with the use of [persistent data structures to share data](https://patterns.ponylang.io/data-sharing/persistent-data-structures.html) between actors. Each method involves copying data. Which pattern should you pick? Whichever one will minimize the number of copies.
+
+Persistent data structures involve copying on each update. The copying pattern involves a copy each time we send the data to another actor. As a general rule of thumb, you should figure out which you will do more: update or send. If you are updating more, use the copying pattern. If you are sending more, use persistent data structures.
+
+In the end, that’s just a rule of thumb. Your best bet is to benchmark and pick the method that gives you the best performance for your use case. In our simple example, we are going to update our `_data` array 10 times for every one time we copy it to send. In this case, we are pretty sure that our rule of thumb would stand up to benchmarking.
+
+# Isolated Field
+
+## Problem
+
+You have a mutable data structure that you are building up over time in an actor and eventually need to send it to another actor. You could use the [copying pattern](https://patterns.ponylang.io/data-sharing/copying.html). However, the copying pattern is not without issue.
+
+The problem with the copying pattern is that you are… copying. Copying large data structures isn’t cheap. Even with small data structures, copying will result in many allocations and [avoiding allocations](https://www.ponylang.io/reference/pony-performance-cheatsheet/#avoid-allocations) is one of the critical pieces of advice in the [Pony Performance Cheat Sheet](https://www.ponylang.io/reference/pony-performance-cheatsheet/).
+
+If your use case meets one critical criterion, you can avoid copying. That criteria? You can “give away” the mutable data rather than having hold on to a reference so you can continue to update your copy later.
+
+If that sounds like your problem, then welcome to your solution: “the isolated field.”
+
+## Solution
+
+Let’s take a look at an example of the isolated field pattern. Pay particular attention to the `_data` field on the `Collector` actor. `_data` is the variable that we want to share between actors.
+
+```
+use "collections"
+
+actor Collector
+  """
+  Receives characters via it's `collect` behavior and stores them.
+  Once our collector receives 10 characters, it sends all 10 to the receiver.
+  """
+  let _receiver: Receiver
+  var _data: Array[U8] iso
+
+  new create(receiver: Receiver) =>
+    _receiver = receiver
+    _data = recover Array[U8] end
+
+  be collect(char: U8) =>
+    _data.push(char)
+
+    if _data.size() == 10 then
+      let to_send = _data = recover Array[U8] end
+      _receiver.receive(consume to_send)
+    end
+
+actor Receiver
+  """
+  Receives an array of characters from a collector and prints them as a string
+  to standard out.
+  """
+  let _out: OutStream
+
+  new create(out: OutStream) =>
+    _out = out
+
+  be receive(data: Array[U8] iso) =>
+    let s = String.from_array(consume data)
+    _out.print(s)
+```
+
+## Discussion
+
+The isolated field pattern combines a couple of features:
+
+- The ability to [rebind a variable](https://tutorial.ponylang.io/expressions/variables.html#var-vs-let) by declaring it a `var`
+- [Destructive read](https://tutorial.ponylang.io/reference-capabilities/consume-and-destructive-read.html)
+
+Let’s zoom in on the one key line from our example:
+
+```
+let to_send = _data = recover Array[U8] end
+```
+
+What’s going on with that? If you are new to Pony, that might be a very confusing bit of code. What you are looking at is a destructive read. What happens with the expression is evaluated? Well…
+
+- `_data` is rebound to a new empty `Array[U8] iso`
+- the previous value of `_data` is assigned to `to_send`
+
+Did you follow that? When the expression is done, we are left with 2 `Array[U8] iso`’s in scope:
+
+- The local variable `to_send` which is an isolated array of 10 characters
+- Our actor field `_data` that has been reinitialized to an empty array.
+
+We are now free to take our mutable data that we’ve been collecting and send it along to the waiting `Receiver` actor:
+
+```
+_receiver.receive(consume to_send)
+```
+
+# Mutable and Sendable
+
+## Problem
+
+You have a central actor that manages a large data structure. Other actors send it updates, and still other actors need to read from it. The data structure has to be both mutable — so updates are cheap — and shareable — so reads can be served to other actors.
+
+This is a common scenario. Think of a Supervisor actor that collects results from a pool of Workers and responds to queries from Requesters. Workers produce results and send them to the Supervisor. Requesters ask for results, and the Supervisor sends them back.
+
+The tension is between mutating data and sharing it. In Pony, mutable data is `ref`, which can’t be sent to another actor. Shareable data is `val`, which can be sent freely but can’t be mutated. We need both properties, but on different parts of the structure.
+
+Let’s look at why the obvious approaches fall short.
+
+If you use a fully mutable structure — say a `Map[USize, Array[I32]]` where both the map and its values are `ref` — updating is cheap, but sharing is expensive. Every time a Requester asks for data, you’d have to [copy](https://patterns.ponylang.io/data-sharing/copying.html) the relevant `ref` Array into a new `iso` to send it. If requests are frequent, that’s a lot of copying.
+
+If you go fully persistent — a persistent `Map` holding persistent `Lists` — sharing is free because everything is `val`. But every update to the map creates a new map. [Persistent data structures](https://patterns.ponylang.io/data-sharing/persistent-data-structures.html) are designed to share structure with their previous versions, so this isn’t as bad as a full copy, but for a very large map with frequent updates, the overhead adds up.
+
+You might think `iso` solves the problem. An `iso` reference is both mutable and sendable — it’s the one reference capability that allows both. But if you send it to a Requester, the Supervisor no longer has it. The Supervisor can’t process any more updates or requests until the Requester sends the data back. You’ve effectively serialized all access to the data, which defeats the purpose. You could try the [isolated field pattern](https://patterns.ponylang.io/data-sharing/isolated-field.html), but that’s designed for cases where you’re giving data away, not sharing it while keeping it.
+
+What we need is a way to get cheap updates to the structure as a whole while still being able to share individual pieces of it freely.
+
+## Solution
+
+Use a mutable `ref` collection to hold persistent `val` values. The container is cheap to update because it’s mutable. The values inside are cheap to share because they’re `val`.
+
+```
+use mut = "collections"
+use "collections/persistent"
+
+type Datum is List[I32]
+
+actor Worker
+  let _supervisor: Supervisor
+
+  new create(supervisor: Supervisor) =>
+    _supervisor = supervisor
+
+  be do_work(id: USize) =>
+    // do heavy lifting here, build up a result
+    let result = [as I32: 1; 2; 3; 4]
+    // convert to a persistent List and send to Supervisor
+    _supervisor.update(id, Lists[I32](result))
+
+actor Requester
+  let _supervisor: Supervisor
+
+  new create(supervisor: Supervisor) =>
+    _supervisor = supervisor
+
+  be request(id: USize) =>
+    _supervisor.get(id, this)
+
+  be receive(id: USize, result: Datum) =>
+    // use the result here
+    None
+
+actor Supervisor
+  let _data: mut.Map[USize, Datum]
+  let _default: Datum = Lists[I32]([0; 0; 0; 0])
+
+  new create() =>
+    _data = mut.Map[USize, Datum]
+
+  be update(id: USize, new_data: Datum) =>
+    _data.update(id, new_data)
+
+  be get(id: USize, requester: Requester) =>
+    requester.receive(id, _data.get_or_else(id, _default))
+```
+
+Let’s walk through the key parts.
+
+```
+actor Supervisor
+  let _data: mut.Map[USize, Datum]
+```
+
+The Supervisor holds a mutable `Map` — imported as `mut.Map` to avoid a name collision with the persistent collections. Because `_data` is a `ref`, the Supervisor can add, update, and remove entries cheaply with normal mutable map operations.
+
+```
+type Datum is List[I32]
+```
+
+`Datum` is a type alias for `List[I32]` — a persistent list from `collections/persistent`. Persistent lists are `val`, which means they can be shared freely between actors without copying.
+
+```
+  be update(id: USize, new_data: Datum) =>
+    _data.update(id, new_data)
+```
+
+When a Worker sends new results, the Supervisor swaps the value in its mutable map. This is cheap — it’s updating a pointer in the map, not copying the data.
+
+```
+  be get(id: USize, requester: Requester) =>
+    requester.receive(id, _data.get_or_else(id, _default))
+```
+
+When a Requester asks for data, the Supervisor looks up the persistent `List` and sends it directly. No copying needed — the `List` is already `val`, so it’s safe to share. The Supervisor keeps its reference to the map and can continue processing other updates and requests immediately.
+
+```
+  be do_work(id: USize) =>
+    // do heavy lifting here, build up a result
+    let result = [as I32: 1; 2; 3; 4]
+    // convert to a persistent List and send to Supervisor
+    _supervisor.update(id, Lists[I32](result))
+```
+
+Workers build up their results as mutable arrays, then convert to a persistent `List` using `Lists[I32]` before sending. The conversion happens once, and from then on the data is `val` and can flow freely between actors.
+
+## Discussion
+
+This pattern builds on two existing data sharing patterns and fills a gap between them.
+
+The [copying pattern](https://patterns.ponylang.io/data-sharing/copying.html) solves the mutable-and-shareable problem by copying the data each time you send it. That works well when sends are infrequent relative to updates. The [persistent data structures pattern](https://patterns.ponylang.io/data-sharing/persistent-data-structures.html) solves it by making everything immutable — sharing is free, but every update creates a new structure. That works well when updates are infrequent relative to sends.
+
+This pattern is for when the container itself changes frequently but individual values need to be shared often. By using a mutable container holding persistent values, you get cheap updates to the map and cheap reads from it. The trade-off is that you pay the cost of converting to a persistent structure once per update, when the Worker creates the `List`.
+
+You might also consider the [isolated field pattern](https://patterns.ponylang.io/data-sharing/isolated-field.html) for sending mutable data. The key difference is that an `iso` field requires giving away your reference when you send — the Supervisor would lose access to the data until it’s sent back. With this pattern, the values are `val`, so any number of actors can hold references to them simultaneously.
+
+# Persistent Data Structures
+
+## Problem
+
+You need to send mutable data from one actor to another while keeping a copy of it in your original actor.
+
+## Solution
+
+```
+use "collections/persistent"
+
+actor Collector
+  """
+  Receives characters via it's `collect` behavior and stores them.
+  Every 10 characters we receive results in the entire array being sent all to
+  the receiver.
+  """
+  let _receiver: Receiver
+  var _data: Vec[U8] = Vec[U8]
+
+  new create(receiver: Receiver) =>
+    _receiver = receiver
+
+  be collect(char: U8) =>
+    _data = _data.push(char)
+
+  be send(to: Receiver) =>
+    to.receive(_data)
+
+actor Receiver
+  """
+  Receives an array of characters from a collector
+  """
+  be receive(data: Vec[U8]) =>
+    // do something with `data`
+    None
+```
+
+## Discussion
+
+That’s a pretty simple looking solution, especially when you compare it to the [copying pattern](https://patterns.ponylang.io/data-sharing/copying.html), which is another way to solve this problem. So what’s going on here?
+
+The key is that our `_data` vector isn’t mutable. In fact, `var _data: Vec[U8] = Vec[U8]` is creating a `val`. So, we aren’t dealing with mutable data; we are creating a new immutable vector each time we “mutate” it. That’s why we need to assign to `_data` in the `collect` method:
+
+```
+  be collect(char: U8) =>
+    _data = _data.push(char)
+```
+
+And it’s also why we defined `_data` using a `var` rather than a `let` binding. Each time we update, we are creating a new vector and binding our `_data` variable to the new vector.
+
+Because `_data` is a `val`, it’s already safe to share between actors. We don’t need to do anything special with it when we want to send it to another actor:
+
+```
+  be send(to: Receiver) =>
+    to.receive(_data)
+```
+
+Persistent data structures go hand in hand with the [copying pattern](https://patterns.ponylang.io/data-sharing/copying.html) as a means of sharing mutable data between actors. Each method involves copying data. Which pattern should you pick? Whichever one will minimize the number of copies.
+
+Persistent data structures involve copying on each update. The copying pattern involves a copy each time we send the data to another actor. As a general rule of thumb, figure out which you will do more: update or send. If you are updating more, use the copying pattern. If you are sending more, use persistent data structures.
+
+In the end, that’s just a rule of thumb. Your best bet is to benchmark and pick the method that gives you the best performance for your use case.
+
+If you aren’t familiar with persistent data structures, we suggest you pick up a copy of the book [Purely Functional Data Structures](https://www.thriftbooks.com/w/purely-functional-data-structures_chris-okasaki/648821/item/4430756). Another option is to download a copy of [the thesis](/assets/purely-functional-data-structures.pdf) upon which the book is based. The Pony [standard library](https://stdlib.ponylang.io/collections-persistent--index/) contains a few, but you may need to design your own.
+
+If you are interested in learning more about the persistent [`Vec`](https://stdlib.ponylang.io/collections-persistent-Vec/) and [`HashMap`](https://stdlib.ponylang.io/collections-persistent-HashMap/) data structures from the Pony standard library, you can check out:
+
+- [Understanding Clojure’s Persistent Vectors Pt 1](https://hypirion.com/musings/understanding-persistent-vector-pt-1)
+- [Persistent Vector Performance Summarised](https://hypirion.com/musings/persistent-vector-performance-summarised)
+# Domain Modeling Patterns
+
+# Domain Modeling Patterns
+
+Domain modeling is about encoding your problem’s rules and constraints into Pony’s type system so that invalid states are unrepresentable. Instead of scattering validation checks throughout the code and hoping every call site remembers to validate, these patterns push validation to the construction boundary. Data is validated once when it enters the system, and the rest of the code can trust the types it receives.
+
+# Constrained Types
+
+## Problem
+
+Your system only allows usernames between 6 and 12 characters, containing only lowercase ASCII letters. You need to enforce that constraint, and you’d like to enforce it in the type system so that invalid usernames can’t flow through the program unchecked. If a username is just a `String`, then every function that touches it might need to validate that it’s actually a valid username. Otherwise, bugs creep in.
+
+```
+actor Main
+  new create(env: Env) =>
+    try
+      let username = env.args(1)?
+      if _is_valid_username(username) then
+        do_something_with_username(username)
+      end
+    end
+
+  fun _is_valid_username(name: String): Bool =>
+    if (name.size() < 6) or (name.size() > 12) then
+      return false
+    end
+    for c in name.values() do
+      if (c < 97) or (c > 122) then
+        return false
+      end
+    end
+    true
+
+  fun do_something_with_username(username: String) =>
+    // username is just a String — nothing stops a caller
+    // from passing an unvalidated value here
+    None
+```
+
+Here `do_something_with_username` accepts any `String` at all. The compiler can’t tell whether validation happened before the call. Each call site must either duplicate the validation check or trust that some earlier caller already validated, and when that trust is misplaced, invalid data silently flows through.
+
+## Solution
+
+Use the `constrained_types` standard library package. Instead of passing a plain `String` that might or might not have been validated, you define a `Username` type whose instances can only be created by going through validation. Functions that accept `Username` instead of `String` get a compile-time guarantee: callers can’t skip validation because there’s no other way to obtain an instance. Validation happens once at the boundary, and the rest of the code can trust what it receives.
+
+The first step is to encode your constraints as a `Validator`. A validator is a primitive that implements `Validator[T]`. Its `apply` method examines a value and returns either `ValidationSuccess` or a `ValidationFailure` containing error messages.
+
+```
+use "constrained_types"
+
+primitive UsernameValidator is Validator[String]
+  fun apply(string: String): ValidationResult =>
+    recover val
+      let errors: Array[String] = Array[String]()
+
+      if not _valid_length(string) then
+        errors.push("Username must be between 6 and 12 characters")
+      end
+
+      if not _all_lower_case_ascii(string) then
+        errors.push("Username can only contain lower case ASCII characters")
+      end
+
+      if errors.size() == 0 then
+        ValidationSuccess
+      else
+        let failure = ValidationFailure
+        for e in errors.values() do
+          failure(e)
+        end
+        failure
+      end
+    end
+
+  fun _valid_length(string: String): Bool =>
+    (string.size() >= 6) and (string.size() <= 12)
+
+  fun _all_lower_case_ascii(string: String): Bool =>
+    for c in string.values() do
+      if (c < 97) or (c > 122) then
+        return false
+      end
+    end
+    true
+```
+
+`UsernameValidator` is a primitive that implements `Validator[String]`. All of the validation logic lives in its `apply` method, which takes a `String` and returns a `ValidationResult`, which is a type alias for `(ValidationSuccess | ValidationFailure)`.
+
+The `apply` method runs each constraint check (`_valid_length` and `_all_lower_case_ascii`) and collects error messages for any that fail. If there are no errors, it returns `ValidationSuccess`. If there are errors, it creates a `ValidationFailure` and adds each error message to it by calling `failure(e)` (which is `ValidationFailure`’s `apply` method). The `ValidationFailure` is then returned, carrying all the reasons validation failed.
+
+The entire body of `apply` is wrapped in a `recover val` block because the `constrained_types` package requires all values to be `val`. The `ValidationFailure` is created as `ref` inside the recover block so error messages can be added to it, and then it is recovered to `val` when returned.
+
+Next, create type aliases that tie the base type to the validator. `Constrained` and `MakeConstrained` are both provided by the `constrained_types` package. You don’t write them yourself; you just parameterize them with your base type and your validator.
+
+`Constrained[String, UsernameValidator]` wraps a `String` that has been validated by `UsernameValidator`. Its constructor is private, so there is no way to create one directly; you must go through `MakeConstrained`. `MakeConstrained[String, UsernameValidator]` is a primitive whose `apply` method takes a `String`, runs it through `UsernameValidator`, and returns either a `Constrained[String, UsernameValidator]` on success or a `ValidationFailure` on failure.
+
+The type aliases give these parameterized types readable names:
+
+```
+type Username is Constrained[String, UsernameValidator]
+type MakeUsername is MakeConstrained[String, UsernameValidator]
+```
+
+Now functions can accept `Username` instead of `String`. The compiler enforces this: callers must go through `MakeUsername` because there’s no other way to produce the type.
+
+```
+  fun print_username(username: Username) =>
+    _env.out.print(username() + " is a valid username!")
+```
+
+The call `username()` unwraps the validated `String` from the `Constrained` wrapper.
+
+At system boundaries, where unvalidated input enters the program, use `MakeUsername` and pattern match on the result:
+
+```
+    match MakeUsername(arg1)
+    | let u: Username =>
+      print_username(u)
+    | let e: ValidationFailure =>
+      print_errors(e)
+    end
+```
+
+Putting it all together, here’s a complete program that takes a potential username as a command line argument, validates it, and prints the result:
+
+```
+use "constrained_types"
+
+type Username is Constrained[String, UsernameValidator]
+type MakeUsername is MakeConstrained[String, UsernameValidator]
+
+primitive UsernameValidator is Validator[String]
+  fun apply(string: String): ValidationResult =>
+    recover val
+      let errors: Array[String] = Array[String]()
+
+      if not _valid_length(string) then
+        errors.push("Username must be between 6 and 12 characters")
+      end
+
+      if not _all_lower_case_ascii(string) then
+        errors.push("Username can only contain lower case ASCII characters")
+      end
+
+      if errors.size() == 0 then
+        ValidationSuccess
+      else
+        let failure = ValidationFailure
+        for e in errors.values() do
+          failure(e)
+        end
+        failure
+      end
+    end
+
+  fun _valid_length(string: String): Bool =>
+    (string.size() >= 6) and (string.size() <= 12)
+
+  fun _all_lower_case_ascii(string: String): Bool =>
+    for c in string.values() do
+      if (c < 97) or (c > 122) then
+        return false
+      end
+    end
+    true
+
+actor Main
+  let _env: Env
+
+  new create(env: Env) =>
+    _env = env
+
+    try
+      let arg1 = env.args(1)?
+      match MakeUsername(arg1)
+      | let u: Username =>
+        print_username(u)
+      | let e: ValidationFailure =>
+        print_errors(e)
+      end
+    end
+
+  fun print_username(username: Username) =>
+    _env.out.print(username() + " is a valid username!")
+
+  fun print_errors(errors: ValidationFailure) =>
+    _env.err.print("Unable to create username")
+    for s in errors.errors().values() do
+      _env.err.print("\t- " + s)
+    end
+```
+
+## Discussion
+
+The guarantee that constrained types provide depends on immutability. Only `val` entities can be used with the `constrained_types` package. If the wrapped value were mutable, it could be changed after validation in a way that violates the constraints, defeating the entire purpose. The `Constrained` wrapper requires `val`, which guarantees the value is immutable and the constraints hold for the lifetime of the object.
+
+This immutability requirement extends to validators themselves. Validators must be `val` and provide a zero-argument constructor that returns a `val` instance. In practice, always use a `primitive` because validators are stateless, so there is no advantage to using a `class`. The `Validator` interface is:
+
+```
+interface val Validator[T]
+  new val create()
+  fun apply(i: T): ValidationResult
+```
+
+One limitation to be aware of is that constrained types aren’t composable through the type system. You can’t use a `Username` where a “lowercase string” is expected, even though `Username` has been validated to contain only lowercase characters. Pony’s type system can’t express subset relationships between constrained types. Each `Constrained[T, V]` is a distinct type regardless of whether one validator’s constraints are a superset of another’s.
+
+If you’ve seen the [Static Constructor](https://patterns.ponylang.io/creation/static-constructor.html) pattern, constrained types are a standardized version of the same idea. A static constructor is a one-off primitive whose `apply` returns either the constructed object or an error. The `constrained_types` package provides reusable infrastructure for this: a standard `Validator` interface and a `Constrained` wrapper that makes the validation guarantee visible in the type. The return type of `MakeConstrained` is `(Constrained[T, F] | ValidationFailure)`, which is the [Error as Union Type](https://patterns.ponylang.io/error-handling/error-as-union-type.html) pattern, where success and failure are distinct types in a union, and the caller pattern matches on the result.
+
+The theoretical foundation for this approach is often called “Parse, Don’t Validate”: instead of checking whether data is valid and proceeding with the original untyped value, you parse it into a type that carries the proof of validity. The `Constrained` wrapper is that proof.
+# Error Handling Patterns
+
+# Error Handling Patterns
+
+Pony’s built-in error mechanism is deliberately simple: a partial function either succeeds or raises `error`, and the caller’s `else` block handles the failure. There’s no exception hierarchy, no error message, no way to distinguish one failure from another.
+
+That simplicity is a feature — it keeps the runtime lean and the semantics clear. But when a function can fail for multiple distinct reasons, the caller often needs to know *which* reason. The patterns in this chapter use Pony’s type system to make error conditions explicit, typed, and compiler-checked.
+
+# Error as Union Type
+
+## Problem
+
+Pony’s built-in `error` mechanism is untyped — a partial function either succeeds or raises `error`, and the caller’s `else` block has no way to know *what* went wrong. When a function can fail for multiple distinct reasons, partial functions force you into workarounds: setting error state on the object before raising, or collapsing all failures into a single `error` and losing the distinction.
+
+Consider a function that sends data over a connection. Sending can fail because the connection isn’t established yet, or because the socket is under backpressure and can’t accept writes. With a partial function, the caller can’t tell these apart:
+
+```
+class Connection
+  var _connected: Bool = false
+  var _writeable: Bool = false
+
+  fun ref send(data: Array[U8] val): USize ? =>
+    if not _connected then error end
+    if not _writeable then error end
+    // actual send logic
+    data.size()
+```
+
+The caller’s `try`/`else` just sees `error`:
+
+```
+try
+  let sent = conn.send(data)?
+  env.out.print("Sent " + sent.string() + " bytes")
+else
+  // Not connected? Backpressure? We can't tell.
+  env.out.print("Send failed")
+end
+```
+
+Was the connection not established? Was the socket full? The caller has no way to find out without inspecting out-of-band state on the object.
+
+## Solution
+
+Define a primitive for each distinct error condition, group them into a union type alias, and return the union from the function. Callers pattern match on the result to handle each case.
+
+```
+primitive SendErrorNotConnected
+  """
+  The connection is not yet established or has already been closed.
+  """
+
+primitive SendErrorNotWriteable
+  """
+  The socket is not writeable — a previous send is still pending or
+  the send buffer is full. Wait for the connection to become writeable
+  before retrying.
+  """
+
+type SendError is (SendErrorNotConnected | SendErrorNotWriteable)
+
+actor Connection
+  var _connected: Bool = false
+  var _writeable: Bool = false
+
+  be connect() =>
+    _connected = true
+    _writeable = true
+
+  be send(data: Array[U8] val, out: OutStream) =>
+    match _do_send(data)
+    | let sent: USize => out.print("Sent " + sent.string() + " bytes")
+    | SendErrorNotConnected => out.print("Error: not connected")
+    | SendErrorNotWriteable => out.print("Error: backpressure active")
+    end
+
+  fun ref _do_send(data: Array[U8] val): (USize | SendError) =>
+    if not _connected then
+      return SendErrorNotConnected
+    end
+
+    if not _writeable then
+      return SendErrorNotWriteable
+    end
+
+    // actual send logic would go here
+    data.size()
+
+actor Main
+  new create(env: Env) =>
+    let conn = Connection
+    conn.connect()
+    conn.send("hello".array(), env.out)
+```
+
+Each error condition is a named primitive with a docstring explaining when it occurs. The `SendError` type alias groups them into a single type for use in return signatures. The function returns `(USize | SendError)` — either the number of bytes sent or a specific error. The caller’s `match` handles each case, and the compiler verifies that every variant is covered.
+
+## Discussion
+
+### Why primitives
+
+Primitives are singleton values that exist for the lifetime of the program. They’re never allocated, never garbage collected, and carry no data — they’re just globally unique labels. That makes them ideal for error conditions that don’t need to carry information beyond their identity.
+
+The key advantage over partial functions is that the error vocabulary is visible in the type. When you match on a `(USize | SendError)`, the compiler knows every possible variant. If you later add a third error condition to `SendError`, any `match` whose result is used in a typed context — assigned to a variable, returned from a function — will fail to compile unless it handles the new variant. With partial functions, adding a new failure mode is invisible to callers — their `else` blocks silently absorb it.
+
+### Data-carrying errors
+
+When an error needs to carry information — an exit code, a signal number, an offset into a buffer — use a class instead of a primitive. The pattern works the same way; the only difference is that the `match` arm binds a variable to access the data.
+
+The standard library’s `process` package uses this for process exit status:
+
+```
+class val Exited
+  let exit_code: I32
+  new val create(code: I32) => exit_code = code
+
+class val Signaled
+  let signal: U32
+  new val create(sig: U32) => signal = sig
+
+type ProcessExitStatus is (Exited | Signaled)
+```
+
+A process either exited normally (with a code) or was killed by a signal (with a signal number). Callers match on the result and extract the relevant data:
+
+```
+match status
+| let e: Exited => env.out.print("exit code: " + e.exit_code.string())
+| let s: Signaled => env.out.print("signal: " + s.signal.string())
+end
+```
+
+The type alias and pattern matching work identically to the primitive case. Choose primitives when the error is just a label; choose classes when it needs to carry context.
+
+### Related patterns and real-world usage
+
+The [Static Constructor](https://patterns.ponylang.io/creation/static-constructor.html) pattern applies union-type returns to object construction — the factory function returns either the constructed object or an error describing why construction failed. The [Peek Before Consume](https://patterns.ponylang.io/streaming/peek-before-consume.html) pattern uses union-type returns to distinguish three outcomes in streaming protocol parsers: a parsed value, incomplete data, and malformed input.
+
+This pattern appears throughout the Pony ecosystem. The [ponylang/lori](https://github.com/ponylang/lori) networking library defines `SendError` as a union of `SendErrorNotConnected` and `SendErrorNotWriteable`. The [ponylang/postgres](https://github.com/ponylang/postgres) driver uses `ClientQueryError` to distinguish query failures. The standard library’s `files` package uses `FileErrNo` to represent OS-level file errors.
+# Object Capabilities Patterns
+
+# Object Capabilities Patterns
+
+One of the novelties of Pony compared to most programming languages is the concept of object capabilities. If you come from a background unfamiliar with them, you may be tempted to believe that they only add unnecessary abstraction to your code. However, they are a powerful tool that offer several new possibilities to improve and secure your programs. This section will present you some additional concepts that can help you to develop awesome Pony code.
+
+# Authority Hierarchy
+
+## Problem
+
+You’re building a library that controls access to system resources like network sockets, the filesystem, or external processes. Pony’s object capability system lets you enforce this through authority tokens, and the broadest token is `AmbientAuth`, which the runtime hands to `Main` through `env.root`.
+
+The simplest thing to do is require `AmbientAuth` everywhere:
+
+```
+actor DNSResolver
+  new create(auth: AmbientAuth) =>
+    // ... set up DNS resolution
+    None
+
+actor TCPServer
+  new create(auth: AmbientAuth, port: String) =>
+    // ... bind and listen on a TCP port
+    None
+```
+
+This works, but it’s far too permissive. That `DNSResolver` only needs to look up hostnames, yet it holds the same token that grants access to the filesystem, process spawning, and every other system resource. If a bug or malicious input causes the resolver to do something unexpected, nothing in the type system prevents it from opening files or binding additional sockets. You’ve given every component the keys to the entire kingdom when each one only needs access to its own room.
+
+The principle of least authority says each component should receive only the permissions it actually requires. What you need is a way to narrow `AmbientAuth` into smaller, more specific tokens, and to do that in layers so you can hand out exactly the right level of access.
+
+## Solution
+
+The idea is straightforward: define stateless primitives that act as capability tokens, where each primitive’s constructor accepts only the authorities above it in the hierarchy. Since the constructor is the only way to create the token, the type system enforces that you can’t obtain a narrow capability without first holding a broader one.
+
+Start with a single narrowing step. A `NetAuth` token represents general networking authority, and you can only create one if you have `AmbientAuth`:
+
+```
+primitive NetAuth
+  new create(from: AmbientAuth) =>
+    None
+```
+
+The constructor body is empty. The primitive doesn’t store anything. Its entire purpose is to exist as a type that proves “someone with `AmbientAuth` authorized networking.” Because primitives are singletons, there’s no allocation cost; the runtime reuses the same value every time.
+
+Now branch the hierarchy. Networking covers several distinct capabilities: DNS resolution, TCP, and UDP. Each of these should accept either `AmbientAuth` directly (for convenience at the top level) or `NetAuth` (for code that’s already been narrowed to networking):
+
+```
+primitive DNSAuth
+  new create(from: (AmbientAuth | NetAuth)) =>
+    None
+
+primitive TCPAuth
+  new create(from: (AmbientAuth | NetAuth)) =>
+    None
+
+primitive UDPAuth
+  new create(from: (AmbientAuth | NetAuth)) =>
+    None
+```
+
+The union type `(AmbientAuth | NetAuth)` in the constructor is what makes this flexible. If you have `AmbientAuth`, you can create any of these directly. If you only have `NetAuth`, you can still create them. But you can’t use a `NetAuth` to create a `FileAuth` because the types don’t match.
+
+Add a third level. TCP itself can be subdivided: listening for incoming connections is a different capability than making outgoing ones. These leaf tokens accept the full chain above them:
+
+```
+primitive TCPListenAuth
+  new create(from: (AmbientAuth | NetAuth | TCPAuth)) =>
+    None
+
+primitive TCPConnectAuth
+  new create(from: (AmbientAuth | NetAuth | TCPAuth)) =>
+    None
+```
+
+Now your APIs can require exactly the right token. A TCP listener requires `TCPListenAuth`, a DNS resolver requires `DNSAuth`, and neither can be used for anything else:
+
+```
+actor DNSResolver
+  new create(auth: DNSAuth) =>
+    // ... set up DNS resolution
+    None
+
+actor TCPServer
+  new create(auth: TCPListenAuth, port: String) =>
+    // ... bind and listen on a TCP port
+    None
+```
+
+The caller narrows authority step by step. `Main` starts with `AmbientAuth` and hands out only what each component needs:
+
+```
+actor Main
+  new create(env: Env) =>
+    let net = NetAuth(env.root)
+    let dns = DNSAuth(net)
+    let listen = TCPListenAuth(net)
+
+    let resolver = DNSResolver(dns)
+    let server = TCPServer(listen, "8080")
+```
+
+Notice that `Main` creates `NetAuth` once and derives both `DNSAuth` and `TCPListenAuth` from it. The resolver can’t listen on sockets; the server can’t resolve hostnames. Each component has exactly the authority it needs.
+
+Here’s the hierarchy we just built, visualized as a tree. Authority flows downward; each node can only be created by someone holding a node above it:
+
+```
+graph TD
+    AmbientAuth --> NetAuth
+    NetAuth --> DNSAuth
+    NetAuth --> TCPAuth
+    NetAuth --> UDPAuth
+    TCPAuth --> TCPListenAuth
+    TCPAuth --> TCPConnectAuth
+```
+
+The standard library’s `net` package defines exactly this hierarchy. The `files` package adds a separate branch with `FileAuth` derived directly from `AmbientAuth`, and you could imagine other packages adding their own top-level branches for process spawning, environment variables, and so on.
+
+To see how this works when you design your own hierarchy, here’s a complete example for an imaginary storage library. The library supports reading and writing to a data store, and you want callers to request read-only or write-only access:
+
+```
+primitive StorageAuth
+  """
+  Authority to perform any storage operation.
+  """
+  new create(from: AmbientAuth) =>
+    None
+
+primitive ReadAuth
+  """
+  Authority to read from the data store.
+  """
+  new create(from: (AmbientAuth | StorageAuth)) =>
+    None
+
+primitive WriteAuth
+  """
+  Authority to write to the data store.
+  """
+  new create(from: (AmbientAuth | StorageAuth)) =>
+    None
+
+actor StorageReader
+  let _out: OutStream
+
+  new create(auth: ReadAuth, out: OutStream) =>
+    _out = out
+    _out.print("Reader created with read-only access")
+
+actor StorageWriter
+  let _out: OutStream
+
+  new create(auth: WriteAuth, out: OutStream) =>
+    _out = out
+    _out.print("Writer created with write-only access")
+
+actor Main
+  new create(env: Env) =>
+    let storage = StorageAuth(env.root)
+    let read = ReadAuth(storage)
+    let write = WriteAuth(storage)
+
+    StorageReader(read, env.out)
+    StorageWriter(write, env.out)
+```
+
+The `StorageReader` can’t write, the `StorageWriter` can’t read, and neither can do anything outside the storage system. All of this is enforced at compile time.
+
+## Discussion
+
+These authority primitives have zero runtime cost. Primitives in Pony are singletons: they’re never allocated and never garbage collected. Passing one around is just passing a pointer to a global value. The constructors do nothing (their bodies are `None`), so creating a derived token is free. All the enforcement happens in the type checker. If you don’t have a value of the right type to pass to the constructor, your code won’t compile.
+
+The type system also prevents lateral movement in the hierarchy. Looking at the tree again:
+
+```
+graph TD
+    AmbientAuth --> NetAuth
+    NetAuth --> DNSAuth
+    NetAuth --> TCPAuth
+    NetAuth --> UDPAuth
+    TCPAuth --> TCPListenAuth
+    TCPAuth --> TCPConnectAuth
+```
+
+If you hold a `TCPListenAuth`, you can’t use it to create a `TCPConnectAuth`. The constructor for `TCPConnectAuth` accepts `(AmbientAuth | NetAuth | TCPAuth)`, and `TCPListenAuth` isn’t in that union. You’d need to go back up the hierarchy to `TCPAuth` or higher and come back down the other branch. This is the whole point: authority only flows downward, never sideways.
+
+When designing your own hierarchy, start from the broadest capability your library offers and subdivide by the kinds of side effects it can perform. Each leaf should correspond to one kind of operation. If your library does both network I/O and file I/O, those should be separate branches. Within network I/O, if listening and connecting have different security implications, they should be separate leaves. The [ponylang/lori](https://github.com/ponylang/lori) networking library extends the stdlib hierarchy further with its own `TCPServerAuth` that narrows `TCPListenAuth` by one more level.
+
+Authority hierarchy controls *what* a component is allowed to do. The [Single Use Object Capabilities](https://patterns.ponylang.io/object-capabilities/single-use.html) pattern addresses a different dimension: *how many times* a component can exercise its authority. The two compose naturally. You might define a hierarchy of auth tokens to control which operations are available, then wrap a leaf token in an `iso` class to make it single-use. The hierarchy narrows the scope; the single-use wrapper limits the count.
+
+# Single Use Object Capabilities
+
+## Problem
+
+As shown in the [tutorial page about object capabilities](https://tutorial.ponylang.io/object-capabilities/object-capabilities.html), we can limit the actions of other objects or actors with object capabilities. This is used in the standard library of Pony for network connections and file access, for example. But it can also be used for other systems created in Pony.
+
+For example, let’s say we want to implement a capability-restricted service, that returns one unique number every time it is called. We will use a `CustomAuth` primitive as a token to restrict its access, created when provided another token, `AmbientAuth`:
+
+```
+use "promises"
+
+primitive CustomAuth
+  new create(auth: AmbientAuth) => None
+
+actor RestrictedService
+  var current_count: USize = 1
+
+  be apply(auth: CustomAuth, promise: Promise[USize]) =>
+    promise(current_count = current_count + 1)
+```
+
+Our `Main` actor receives the `AmbientAuth` token on creation from `env.root`, which means only itself or something it provided with that capability can receive an unforgeable `CustomAuth` token. We can then hand out that token to other actors or objects that need to call our `RestrictedService`.
+
+However, let’s suppose that we want these other actors to only call this restricted service *once*. As it currently stands, nothing prevents them from calling `RestrictedService.apply` several times, thus requesting a new number. The current object capability example doesn’t allow us to limit how many times the token can be used by anyone.
+
+You might think that tracking every caller of the service with a `HashMap` of identities could solve this problem, but keep in mind that not only is this cumbersome, but it incurs in runtime costs related to hash map lookups. There’s also nothing stopping the caller from lying about their identity, since the only way to get the identity of a caller is to have the caller pass a reference to themselves as an argument. They could easily construct and use a new “throwaway” identity object to pass in as the supposed identity of the caller. This circumvention could be mitigated by using a direct actor callback for the response path instead of a promise - the identity can’t be faked if you need to use it as the “return address” of the message.
+
+The actual problem lies in how to make our tokens more restrictive, so that they cannot be used more than once. That’s where single use object capabilities come in.
+
+## Solution
+
+There is a way to create a single use object capability, and it actually derives from Pony’s own reference capabilities system. We showed that primitives (global references with type `val`) can be used as a token, but even an `iso` object could be used, too:
+
+```
+use "promises"
+
+class SingleUseAuth
+  new iso create(auth: AmbientAuth) => None
+
+actor RestrictedService
+  var current_count: USize = 1
+
+  be apply(auth: SingleUseAuth iso, promise: Promise[USize]) =>
+    promise(current_count = current_count + 1)
+```
+
+Now, we can provide our actors and objects with a controlled limited access must consume their `SingleUseAuth` tokens in order to use them, making them single-use object capabilities received from an authorized source. This guarantees us that it cannot call our service more than once, since the token must be expended in order to use it:
+
+```
+use "promises"
+
+actor AuthorizedActor
+  let service: RestrictedService
+  var number: (USize | None) = None
+
+  new create(service': RestrictedService) =>
+    service = service'
+
+  be request_new_number(auth: SingleUseAuth iso) =>
+    let promise = Promise[USize] .> next[None](
+      {(number: USize)(self: AuthorizedActor = this) =>
+        self._update_number(number)
+      })
+    service(consume auth, promise)
+
+  be _update_number(number': USize) =>
+    number = number'
+```
+
+Finally, `Main` can create individual tokens and provide them to our `AuthorizedActor`s as it sees fit. Here, this is done in a loop:
+
+```
+use "collections"
+
+actor Main
+  new create(env: Env) =>
+    let service = RestrictedService
+    for i in Range(0, 10) do
+      let foo = AuthorizedActor(service)
+      let auth = SingleUseAuth(env.root)
+      foo.request_new_number(consume auth)
+    end
+```
+
+Putting it all together:
+
+```
+use "collections"
+use "promises"
+
+class SingleUseAuth
+  new iso create(auth: AmbientAuth) => None
+
+actor RestrictedService
+  var current_count: USize = 1
+
+  be apply(auth: SingleUseAuth iso, promise: Promise[USize]) =>
+    promise(current_count = current_count + 1)
+
+actor AuthorizedActor
+  let service: RestrictedService
+  var number: (USize | None) = None
+
+  new create(service': RestrictedService) =>
+    service = service'
+
+  be request_new_number(auth: SingleUseAuth iso) =>
+    let promise = Promise[USize] .> next[None](
+      {(number: USize)(self: AuthorizedActor = this) =>
+        self._update_number(number)
+      })
+    service(consume auth, promise)
+
+  be _update_number(number': USize) =>
+    number = number'
+
+actor Main
+  new create(env: Env) =>
+    let service = RestrictedService
+    for i in Range(0, 10) do
+      let foo = AuthorizedActor(service)
+      let auth = SingleUseAuth(env.root)
+      foo.request_new_number(consume auth)
+    end
+```
+
+Now, our service will only create numbers as much as we authorize our actors and objects to!
+
+## Discussion
+
+The biggest runtime impact with the use of object capabilities with object tokens instead of primitive tokens is that the former will have runtime costs, since every new token will require a memory allocation for each creation, while the latter simply reuses the primitive reference for every token. However, alternative solutions for a single-use token incur in a greater runtime penalty than the proposed pattern, as well as in an added complexity for handling permissions to a service or ambient authority with a different mechanism.
+
+The concept presented in this pattern could be extended for any number of tokens we want to give to our actors. For example, if you ever needed something like a credit flow control protocol where you didn’t trust the clients of the service to behave – you could dole out multiple unforgeable tickets to limit their use of the service, based on how many clients exist, or how often they request a token, or any other criteria you need, without worrying about the internal workings of these clients.
+
+The auth tokens used in this pattern don’t appear out of thin air. The [Authority Hierarchy](https://patterns.ponylang.io/object-capabilities/authority-hierarchy.html) pattern explains how to design hierarchies of capability tokens like `CustomAuth`, narrowing broad authority into specific permissions step by step. That pattern decides *what* operations are permitted; this one limits *how many times* they can be exercised.
+
+All in all, the object capabilities system can be used as a way to have better control over our programs’ accesses, as well as give clients the freedom to handle these tokens as they see fit. Using a single-use token can make this access more restrictive, without actually limiting the API of our libraries.
+# Performance Patterns
+
+# Performance Patterns
+
+Why are you interested in Pony? We bet at least a bit of your answer involves its promise of high-performance code. When it comes to writing code that runs fast, Pony sets you up for success in a way that few languages do. That said, you can still write slow code.
+
+The patterns in this chapter aim to help teach you a variety of tricks to help you write fast code. Most of them will focus on one or more of the following:
+
+- Limit memory allocations
+- Limit the number of objects you create
+- Avoid unnecessary work entirely
+
+None of these techniques is unique to Pony. They are all fairly standard means of getting more performance from programs in any language. How you go about that is often specific to individual languages. Here’s your entree getting the most out of Pony.
+
+In addition to checking out the Patterns in this chapter, we strongly advise that you check out the [Pony Performance Cheat Sheet](https://www.ponylang.io/reference/pony-performance-cheatsheet/).
+
+# Avoid Boxing with Parameterization
+
+## Problem
+
+You need a function that works with multiple numeric types. A natural first approach is to accept `Any val` and match on each possible type:
+
+```
+primitive Formatter
+  fun int(value: Any val): String =>
+    match value
+    | let v: I8 => v.string()
+    | let v: I16 => v.string()
+    | let v: I32 => v.string()
+    | let v: I64 => v.string()
+    | let v: I128 => v.string()
+    | let v: ILong => v.string()
+    | let v: ISize => v.string()
+    | let v: U8 => v.string()
+    | let v: U16 => v.string()
+    | let v: U32 => v.string()
+    | let v: U64 => v.string()
+    | let v: U128 => v.string()
+    | let v: ULong => v.string()
+    | let v: USize => v.string()
+    else
+      ""
+    end
+```
+
+This compiles and works, but it has two problems. The obvious one is that the code is verbose and fragile: every new numeric type needs another match arm, and it’s easy to miss one. The less obvious one is performance. Every call to `int` boxes the argument, wrapping the primitive value in a heap-allocated object even though it would fit in a machine register. That’s a heap allocation and eventual garbage collection for every call. Call `int` in a hot loop and you’ll destroy your performance.
+
+## Solution
+
+Use a type parameter to let the compiler know the concrete type at each call site:
+
+```
+primitive Formatter
+  fun int[A: (Int & Integer[A])](value: A): String =>
+    value.string()
+```
+
+The constraint `(Int & Integer[A])` tells the compiler that `A` is some integer type that implements `Integer`. At each call site, the compiler knows the exact type (`U32`, `I64`, or whatever the caller passes) and generates code that works directly with that type. No boxing, no matching, and a compile error if someone passes a non-integer.
+
+## Discussion
+
+Primitive values like `U32` and `Bool` are small enough to live in a machine register. But when Pony needs to pass one where any type is expected (an `Any val` parameter, or a union like `(U32 | U64)`), it wraps the value in a heap-allocated object. This wrapping is called boxing. The runtime allocates memory, copies the value in, and later the garbage collector has to reclaim that memory. For a single call, the cost is negligible. In a hot loop processing thousands of values, it adds up fast.
+
+You might think narrowing the parameter from `Any val` to a specific union like `(U32 | U64)` would help. It doesn’t. The runtime still needs a tagged representation to distinguish the variants, so both types get boxed at the call site. The only way to avoid boxing is to let the compiler know the single concrete type, which is what type parameters provide.
+
+The solution above parameterizes a single function, but the pattern applies equally to classes and actors. Consider a collector actor that accumulates values:
+
+```
+// Boxing version: every value sent to this actor gets boxed
+actor Collector
+  let _data: Array[Any val] = Array[Any val]
+
+  be collect(value: Any val) =>
+    _data.push(value)
+```
+
+Each message sent to `collect` will box its argument if it’s a primitive. Parameterizing the actor eliminates the boxing:
+
+```
+// No boxing: the compiler knows the concrete type
+actor Collector[A: Any val]
+  let _data: Array[A] = Array[A]
+
+  be collect(value: A) =>
+    _data.push(value)
+```
+
+Now `Collector[U64]` stores unboxed `U64` values, and `Collector[String]` stores `String` references. Each instantiation is specialized to its type. The trade-off is that a single collector instance can only hold one type, but in practice that’s usually what you want. Code that genuinely needs mixed types can still use `Any val`, paying the boxing cost only where heterogeneity is actually needed.
+
+The standard library uses this pattern in several places. `Format.int` is the most direct example, with the same `[A: (Int & Integer[A])]` constraint shown in the Solution above. `String.read_int` uses `[A: ((Signed | Unsigned) & Integer[A] val)]` to parse an integer from a string into whatever concrete type the caller requests. The `math` package’s `GreatestCommonDivisor` and `LeastCommonMultiple` both parameterize their `apply` methods over integer types. Whenever you find yourself reaching for `Any val` or a match across numeric types, check whether a type parameter can do the job instead.
+
+# Boolean Short-Circuit
+
+## Problem
+
+Your application logs messages, and constructing them involves string operations — concatenation, conversion, formatting. Most of these messages won’t be logged because the configured log level filters them out. But if your logging API takes the message as an argument, the caller builds the string and sends a message to the output stream regardless of whether the level check passes.
+
+```
+// Hypothetical API where log takes a level and a message
+logger.log(Warn, name + ": " + reason)
+```
+
+Even when the logger is configured to only show errors, this code allocates memory, constructs a new string from `name`, `":"`, and `reason`, and sends it to the output stream — all for a message that gets thrown away. In a hot loop or a high-throughput system, the cost adds up.
+
+You could guard every call with an `if`:
+
+```
+if logger(Warn) then
+  logger.log(name + ": " + reason)
+end
+```
+
+This works, but it’s verbose and easy to forget. What you want is an idiom that’s as concise as a single call but avoids evaluating the message expression — and sending the resulting message — when the level check fails.
+
+## Solution
+
+Design the API so both the condition check and the action return `Bool`, then chain them with `and`. Pony’s `and` operator short-circuits: if the left side is `false`, the right side is never evaluated.
+
+```
+use "logger"
+
+actor Main
+  new create(env: Env) =>
+    // Create a logger that only logs Warn and above
+    let logger = StringLogger(Warn, env.out)
+
+    // These two are below Warn — the right side of `and` is never
+    // evaluated, so no strings are built and no messages are sent
+    logger(Fine) and logger.log("fine: " + expensive())
+    logger(Info) and logger.log("info: " + expensive())
+
+    // These two are at or above Warn — the full expression is
+    // evaluated and the message is sent to the output stream
+    logger(Warn) and logger.log("warn: something happened")
+    logger(Error) and logger.log("error: something went wrong")
+
+  fun expensive(): String =>
+    // imagine something costly here
+    "result"
+```
+
+This is the pattern used by the [ponylang/logger](https://github.com/ponylang/logger) library. The log levels form a hierarchy — `Fine`, `Info`, `Warn`, `Error` — from most to least verbose. A logger configured at `Warn` will only log messages at `Warn` or `Error`.
+
+Let’s walk through how the API design makes this work.
+
+```
+fun apply(level: LogLevel): Bool =>
+  level() >= _level()
+```
+
+`Logger` has an `apply` method that takes a `LogLevel` and returns `Bool` — `true` if the requested level is at or above the logger’s configured level. Because it’s `apply`, calling `logger(Warn)` invokes it directly.
+
+```
+fun log(value: A, loc: SourceLoc = __loc): Bool =>
+  _out.print(_formatter(_f(consume value), loc))
+  true
+```
+
+The `log` method does the actual work: it formats the value and sends it to the output stream via `_out.print(...)`. It returns `true` so it can participate in the `and` chain.
+
+When you write:
+
+```
+logger(Warn) and logger.log(name + ": " + reason)
+```
+
+two things can happen:
+
+- If `logger(Warn)` returns `false`, Pony’s `and` short-circuits. The expression `name + ": " + reason` is never evaluated — no strings are allocated, no concatenation happens. The call to `logger.log(...)` never executes, so `_out.print(...)` never sends a message to the output stream. The cost is a single integer comparison.
+- If `logger(Warn)` returns `true`, the right side evaluates normally: the string is built, formatted, and printed.
+
+## Discussion
+
+The two costs this pattern avoids are worth understanding separately.
+
+The first is **expression evaluation**. Arguments to a method are evaluated before the method is called. In `logger.log(name + ": " + reason)`, the string concatenation happens at the call site, producing a new `String` with its own memory allocation. The [Limiting String Allocations](https://patterns.ponylang.io/performance/limiting-string-allocations.html) pattern shows how to make string construction cheaper when it does happen, but the boolean short-circuit pattern avoids the construction entirely.
+
+The second is **message sends**. Inside `log`, the call to `_out.print(...)` sends an asynchronous message to the output stream actor. Even if the message content is cheap to produce, the message send itself has overhead — it allocates a message in the actor’s queue. When the short-circuit skips the `log` call, this message send never happens.
+
+The pattern generalizes beyond logging. Any API with a condition-then-act shape can use it: make the condition method return `Bool`, make the action method return `Bool`, and let callers chain them with `and`. The trade-off is that callers need to learn the idiom — `logger(Warn) and logger.log(msg)` is less obvious than `logger.log(Warn, msg)` on first encounter. But once learned, it reads naturally and the performance benefit is automatic.
+
+# Limiting String Allocations
+
+## Problem
+
+Your code is performance sensitive and needs to make your `String` concatenation code as fast as possible.
+
+## Solution
+
+Replace any usage of `String.add` with `String.append`. Going from code like:
+
+```
+let output = file_name + ":" + file_linenum + ":" + file_linepos + ": " + msg
+```
+
+to `String.append` where we preallocate the memory needed to hold our final string.
+
+```
+let output = recover String(file_name.size()
+  + file_linenum.size()
+  + file_linepos.size()
+  + msg.size()
+  + 4) end
+
+output.append(file_name)
+output.append(":")
+output.append(file_linenum)
+output.append(":")
+output.append(file_linepos)
+output.append(": ")
+output.append(msg)
+output
+```
+
+## Discussion
+
+If you want to make your Pony code go fast (and who doesn’t want to go fast?), there are two simple steps you can take that will get you a lot of rewards: reducing the number of objects you create and reducing the number of memory allocations. Our solution does both.
+
+While String.add can be very convenient, it’s a bit of a dog performance wise.
+
+```
+let output = file_name + ":" + file_linenum + ":" + file_linepos + ": " + msg
+```
+
+will create a new `String` and allocate memory for it on each `+`. In the case of our example, that’s six objects that get created and six different memory allocations. Our solution addresses both these issues. First,
+
+```
+let output = recover String(file_name.size()
+  + file_linenum.size()
+  + file_linepos.size()
+  + msg.size()
+  + 4) end
+```
+
+allocates all the memory it is going to need in one go; cutting our memory total allocations by five. Then by using `append`
+
+```
+output.append(file_name)
+output.append(":")
+output.append(file_linenum)
+output.append(":")
+output.append(file_linepos)
+output.append(": ")
+output.append(msg)
+output
+```
+
+we don’t create any additional objects.
+
+All told, by switching from `String.add` to `String.append`, drop down to a single memory allocation and a single object being created. Replacing a single use of `+` with `append` isn’t going to get you much, however, if the code you are replacing is called a lot, it’s going to be a huge win. In the case of our solution above, we took the code from the Pony `logger` package. Given how often logging methods get called, switching from `+` to `append` has a huge impact.
+
+The `logger` package also uses the [Boolean Short-Circuit](https://patterns.ponylang.io/performance/boolean-short-circuit.html) pattern to avoid evaluating the string construction at all when the log level isn’t met.
+
+# Preallocate Arrays
+
+## Problem
+
+Your code is performance sensitive and suffers from poor performance due to arrays being resized while in use.
+
+## Solution
+
+It’s common for new Pony programmers to create arrays that use the default allocation:
+
+```
+// allocate space for no entries
+let small: Array[U8] = Array[U8]
+```
+
+Instead, preallocate more space than you expect to use:
+
+```
+// preallocate space for at least 2048 entries
+let not_so_small: Array[U8] = Array[U8](2048)
+```
+
+## Discussion
+
+Arrays are an incredibly flexible data structure. Programmers can deploy them in situations where the amount of data needed will vary over time. If the array is too small and more space is needed to hold additional items, the array will be expanded so that it can hold more items.
+
+This expansion of an array is often called “reallocating.” In general, you want to avoid reallocating because:
+
+- a new chunk of memory is allocated
+- the contents of the old array are copied over into the newly allocated space
+
+By preallocating more space than you need immediately, you are limiting future allocations and copying.
+
+If you are interested in the particulars `Array`’s resizing algorithm, you can check out [the source](https://github.com/ponylang/ponyc/blob/main/packages/builtin/array.pony).
+# Resource Management Patterns
+
+# Resource Management Patterns
+
+Some resources live outside Pony’s garbage collector. FFI handles, file descriptors, event subscriptions: the runtime can reclaim the Pony object that wraps them, but it won’t automatically clean up the underlying resource. That cleanup is your responsibility, and getting it wrong means leaks, double-frees, or dangling pointers.
+
+The patterns in this chapter show how to manage these resources safely, using Pony’s `dispose()` convention for explicit cleanup and `_final()` as a safety net during garbage collection.
+
+# FFI Resource Lifecycle
+
+## Problem
+
+You’re wrapping a C library via [Pony’s C-FFI](https://tutorial.ponylang.io/c-ffi/). The library gives you a pointer handle that you’re responsible for freeing when you’re done with it. A straightforward wrapper might look like this:
+
+```
+use @img_load[Pointer[None]](path: Pointer[U8] tag)
+use @img_width[U32](handle: Pointer[None])
+use @img_height[U32](handle: Pointer[None])
+use @img_free[None](handle: Pointer[None])
+
+class Image
+  let _handle: Pointer[None]
+
+  new create(path: String) =>
+    _handle = @img_load(path.cstring())
+
+  fun width(): U32 =>
+    @img_width(_handle)
+
+  fun height(): U32 =>
+    @img_height(_handle)
+
+  fun ref close() =>
+    @img_free(_handle)
+```
+
+This works until it doesn’t. Three things can go wrong:
+
+1. **Resource leak.** If the caller forgets to call `close()`, the C library never frees its internal memory. Pony’s garbage collector will eventually reclaim the `Image` object, but it has no idea about the C-side allocation.
+1. **Double-free.** If the caller calls `close()` twice (maybe from two different code paths that both try to clean up), the second call passes the same pointer to `img_free`. Depending on the C library, this could corrupt memory or crash.
+1. **Dangling pointer.** If the caller calls `close()` and then `width()`, you’re passing a freed pointer to `img_width`. The C library might return garbage, crash, or worse.
+
+The root cause is the same in all three cases: nothing in the code tracks whether the handle is still valid.
+
+Pony is a memory-safe language, and Pony users expect memory safety (and concurrency safety) to be guaranteed for any program that compiles. An FFI-wrapping Pony package is responsible for carefully upholding these guarantees, and any package that fails to do so will be distrusted and unused in the Pony community.
+
+## Solution
+
+The fix is to track the handle’s validity inside the wrapper itself using a sentinel value. A sentinel is a known-invalid value that marks the resource as “already released.” Combined with Pony’s `dispose()` convention for explicit cleanup and `_final()` as a garbage-collection safety net, this gives you three guarantees: no resource leaks (the finalizer catches forgotten cleanups), no double-frees (the sentinel prevents freeing twice), and no dangling pointer access (every method checks the sentinel before touching the handle).
+
+The first change is small but essential. The handle becomes `var` instead of `let`:
+
+```
+class Image
+  var _handle: Pointer[None]
+
+  new create(path: String) =>
+    _handle = @img_load(path.cstring())
+```
+
+That one-character change makes the rest of the pattern possible. After freeing the resource, we can set the handle to a null pointer to signal that it’s been released. For pointer handles, null is the natural sentinel: it’s a value the C library would never return for a valid resource, and `Pointer` has a built-in `is_null()` method.
+
+With the sentinel in place, `dispose()` can check whether the resource has already been freed before doing anything:
+
+```
+  fun ref dispose() =>
+    if not _handle.is_null() then
+      @img_free(_handle)
+      _handle = Pointer[None]
+    end
+```
+
+The null check prevents double-frees. After freeing, we set the handle to `Pointer[None]` (a null pointer) so any subsequent call to `dispose()` is a no-op. The name `dispose` follows Pony’s convention for explicit resource cleanup.
+
+Next, `_final()` acts as a safety net. Pony calls it during garbage collection, so even if the caller forgets to call `dispose()`, the C resource still gets freed:
+
+```
+  fun _final() =>
+    if not _handle.is_null() then
+      @img_free(_handle)
+    end
+```
+
+It looks almost identical to `dispose()`, with one difference: it doesn’t set the sentinel afterward. The finalizer runs exactly once during garbage collection, so there’s no re-entry to guard against and no reason to update state that nobody will read again.
+
+If `dispose()` was already called, the sentinel is null and `_final()` skips the free. If `dispose()` was never called, `_final()` frees the resource. Either way, the C library sees exactly one call to `img_free`.
+
+Finally, every method that touches the handle needs the same guard. After `dispose()`, the handle is a null pointer, and passing it to any C function is undefined behavior:
+
+```
+  fun width(): U32 =>
+    if _handle.is_null() then return 0 end
+    @img_width(_handle)
+
+  fun height(): U32 =>
+    if _handle.is_null() then return 0 end
+    @img_height(_handle)
+```
+
+When the resource has been disposed, these methods return a safe default instead of calling into the C library with an invalid pointer.
+
+Here’s the complete wrapper with all the pieces together:
+
+```
+use @img_load[Pointer[None]](path: Pointer[U8] tag)
+use @img_width[U32](handle: Pointer[None])
+use @img_height[U32](handle: Pointer[None])
+use @img_free[None](handle: Pointer[None])
+
+class Image
+  var _handle: Pointer[None]
+
+  new create(path: String) =>
+    _handle = @img_load(path.cstring())
+
+  fun width(): U32 =>
+    if _handle.is_null() then return 0 end
+    @img_width(_handle)
+
+  fun height(): U32 =>
+    if _handle.is_null() then return 0 end
+    @img_height(_handle)
+
+  fun ref dispose() =>
+    if not _handle.is_null() then
+      @img_free(_handle)
+      _handle = Pointer[None]
+    end
+
+  fun _final() =>
+    if not _handle.is_null() then
+      @img_free(_handle)
+    end
+
+actor Main
+  new create(env: Env) =>
+    let img = Image("photo.png")
+    env.out.print(
+      "Size: " + img.width().string() + "x" + img.height().string())
+    img.dispose()
+```
+
+## Discussion
+
+Why have both `dispose()` and `_final()`? Pony’s garbage collector runs on its own schedule. If your code creates an `Image`, uses it, and lets it go out of scope, the GC will eventually collect the `Image` object and run `_final()`. But “eventually” might mean the C library holds onto a large allocation for much longer than necessary. `dispose()` gives callers a way to free the resource immediately when they know they’re done with it. Think of `_final()` as a safety net: it catches leaks from code paths that forgot to call `dispose()`, but it shouldn’t be your primary cleanup mechanism.
+
+You might notice that `dispose()` sets the handle to `Pointer[None]` after freeing, but `_final()` doesn’t bother. That’s intentional. `dispose()` can be called from any code path at any time, so it needs the sentinel to prevent double-frees if someone calls it again. The finalizer runs exactly once during garbage collection, so there’s no re-entry to guard against. If `dispose()` already ran, the sentinel is null and `_final()` simply skips the free.
+
+Guarding isn’t just for cleanup methods. After `dispose()`, the handle points to freed memory, and passing it to any C function is undefined behavior. Every method that touches the handle needs to check the sentinel first. Without those guards, a caller who disposes an image and then accidentally calls `width()` would pass a freed pointer to the C library. The guard turns that into a safe no-op that returns a default value. The choice of default depends on the method. For dimensions, 0 is reasonable. For methods where no default makes sense, you could return a union type that includes an error (see the [Error as Union Type](https://patterns.ponylang.io/error-handling/error-as-union-type.html) pattern).
+
+The sentinel value depends on the kind of handle you’re wrapping. For pointer handles (`Pointer[None]`), a null pointer is the natural choice: it’s a value the C library would never return for a valid resource, and `Pointer` has a built-in `is_null()` check. For integer handles like file descriptors, -1 is the conventional invalid value. The check looks different (`fd != -1` instead of `not _handle.is_null()`) but the structure is identical: a known-invalid value that means “this resource has been released.”
+
+This pattern shows up throughout the standard library. `File` manages an OS file descriptor, guarding reads and writes and freeing the descriptor in both `dispose()` and `_final()`. `Directory` does the same for directory handles. Each wraps a different kind of resource, but they both follow the same shape: track the resource in a mutable field, check before use, clean up explicitly with `dispose()`, and backstop with `_final()`.
+
+For the related case of one-time library initialization and teardown (not per-instance resources), see the [FFI Global Initializer](https://patterns.ponylang.io/creation/ffi-global-initializer.html) pattern.
+# Streaming Patterns
+
+# Streaming Patterns
+
+Data rarely arrives all at once. When you’re parsing structured messages from a network connection using `buffered.Reader`, you need to handle the case where a message is only partially available. Read too eagerly and you’ll consume bytes you can’t use yet, corrupting the buffer for the next attempt. The patterns in this chapter show how to work with `Reader` safely, ensuring you only consume data you’re ready to process.
+
+# Peek Before Consume
+
+## Problem
+
+You’re building a streaming protocol parser on top of `buffered.Reader`. Data arrives over the network in chunks, and you need to parse structured messages as they come in. The challenge is that when you read from a `Reader`, you consume bytes. If a message is only partially available, you’ve eaten some bytes, failed to parse the rest, and now the buffer is in a broken state.
+
+Here’s a concrete example. Suppose your wire protocol has two message types: strings (tag `0x01`, followed by a big-endian `U16` length, followed by that many bytes) and 32-bit integers (tag `0x02`, followed by 4 bytes big-endian). A straightforward parser might look like this:
+
+```
+use "buffered"
+
+primitive NaiveParser
+  fun apply(buffer: Reader ref): (String | I32) ? =>
+    let tag = buffer.u8()?
+    match tag
+    | 0x01 =>
+      let len = buffer.u16_be()?
+      String.from_array(buffer.block(len.usize())?)
+    | 0x02 =>
+      buffer.i32_be()?
+    else
+      error
+    end
+```
+
+This works when complete messages are sitting in the buffer. But streaming data doesn’t arrive that neatly. Suppose only the tag byte `0x02` has arrived so far and the 4-byte integer payload hasn’t come in yet. The parser calls `buffer.u8()?` and successfully consumes the tag. Then it calls `buffer.i32_be()?`, which fails because there aren’t 4 bytes available. The caller’s `try`/`else` catches the error, but the damage is done: the tag byte is gone from the buffer. When the remaining 4 bytes arrive and the parser tries again, it reads what should be the first payload byte as a tag. The buffer is now permanently misaligned and every subsequent parse produces garbage.
+
+## Solution
+
+The fix is to separate checking from consuming. First, peek at the buffer to determine whether a complete message is available. Peeking reads data at a given offset without advancing the read position. Only after confirming the message is complete do you consume the bytes.
+
+`Reader` provides two families of methods that make this possible. Peek methods like `peek_u8`, `peek_u16_be`, and `peek_i32_be` take an offset parameter and read without consuming. Consume methods like `u8()`, `u16_be()`, `i32_be()`, and `block()` advance the read position. The peek methods let you scan ahead through the buffer, and the consume methods let you actually extract the data once you know it’s all there.
+
+Start by defining the result types. A parse attempt has three possible outcomes: a successfully parsed value, an indication that the data is incomplete (we need to wait for more bytes), or an indication that the data is malformed. A union type captures all three:
+
+```
+use "buffered"
+
+primitive ParseError
+  """
+  The data in the buffer is malformed.
+  """
+
+type ParseResult is (String | I32 | None | ParseError)
+```
+
+`None` means “not enough data yet, try again later.” `ParseError` means “the data is structurally invalid.” Parsed values (`String` or `I32`) represent success.
+
+The completeness check uses only peek methods and `size()`. It scans the buffer from a given offset to determine how many bytes the next message occupies, without consuming anything:
+
+```
+primitive Parser
+  fun _complete_size(buffer: Reader ref, offset: USize)
+    : (USize | None | ParseError)
+  =>
+    try
+      let tag = buffer.peek_u8(offset)?
+      match tag
+      | 0x01 =>
+        let len = buffer.peek_u16_be(offset + 1)?
+        let total = 1 + 2 + len.usize()
+        if buffer.size() >= (offset + total) then
+          total
+        else
+          None
+        end
+      | 0x02 =>
+        let total: USize = 1 + 4
+        if buffer.size() >= (offset + total) then
+          total
+        else
+          None
+        end
+      else
+        ParseError
+      end
+    else
+      None
+    end
+```
+
+Each peek method is partial: it raises an error if the offset is beyond the available data. The outer `try`/`else` catches that and returns `None` (incomplete). Inside, we peek at the tag to determine the message type, then check whether enough bytes are available for the full message. For strings, we also peek at the length field to find out how many payload bytes to expect. If the tag is unrecognized, we return `ParseError`.
+
+The consume pass only runs after the completeness check confirms the data is there. It reads the same fields in the same order, but this time using consume methods that advance the read position:
+
+```
+  fun _parse(buffer: Reader ref): (String | I32 | ParseError) =>
+    try
+      let tag = buffer.u8()?
+      match tag
+      | 0x01 =>
+        let len = buffer.u16_be()?
+        String.from_array(buffer.block(len.usize())?)
+      | 0x02 =>
+        buffer.i32_be()?
+      else
+        ParseError
+      end
+    else
+      // Unreachable: _complete_size confirmed the data is available.
+      ParseError
+    end
+```
+
+The structure mirrors `_complete_size` exactly. The `try`/`else` is required by the compiler because the consume methods are still partial, but the else path should never execute since the completeness check already verified the data.
+
+The orchestrator ties the two passes together:
+
+```
+  fun apply(buffer: Reader ref): ParseResult =>
+    match _complete_size(buffer, 0)
+    | let _: USize => _parse(buffer)
+    | None => None
+    | ParseError => ParseError
+    end
+```
+
+If the completeness check returns a byte count, the data is ready and we consume it. If it returns `None`, we pass that through to the caller. If it returns `ParseError`, we pass that through too.
+
+Here’s the complete program showing incremental data arrival:
+
+```
+use "buffered"
+
+primitive ParseError
+  """
+  The data in the buffer is malformed.
+  """
+
+type ParseResult is (String | I32 | None | ParseError)
+
+primitive Parser
+  fun _complete_size(buffer: Reader ref, offset: USize)
+    : (USize | None | ParseError)
+  =>
+    try
+      let tag = buffer.peek_u8(offset)?
+      match tag
+      | 0x01 =>
+        let len = buffer.peek_u16_be(offset + 1)?
+        let total = 1 + 2 + len.usize()
+        if buffer.size() >= (offset + total) then
+          total
+        else
+          None
+        end
+      | 0x02 =>
+        let total: USize = 1 + 4
+        if buffer.size() >= (offset + total) then
+          total
+        else
+          None
+        end
+      else
+        ParseError
+      end
+    else
+      None
+    end
+
+  fun _parse(buffer: Reader ref): (String | I32 | ParseError) =>
+    try
+      let tag = buffer.u8()?
+      match tag
+      | 0x01 =>
+        let len = buffer.u16_be()?
+        String.from_array(buffer.block(len.usize())?)
+      | 0x02 =>
+        buffer.i32_be()?
+      else
+        ParseError
+      end
+    else
+      // Unreachable: _complete_size confirmed the data is available.
+      ParseError
+    end
+
+  fun apply(buffer: Reader ref): ParseResult =>
+    match _complete_size(buffer, 0)
+    | let _: USize => _parse(buffer)
+    | None => None
+    | ParseError => ParseError
+    end
+
+actor Main
+  let _env: Env
+
+  new create(env: Env) =>
+    _env = env
+    let buffer = Reader
+
+    // First chunk: tag 0x02 (I32) arrives, but no payload yet
+    buffer.append(recover val [as U8: 0x02] end)
+    _print_result(Parser(buffer))
+
+    // Second chunk: the 4-byte payload arrives
+    buffer.append(recover val [as U8: 0x00; 0x00; 0x01; 0xA4] end)
+    _print_result(Parser(buffer))
+
+  fun _print_result(result: ParseResult) =>
+    match result
+    | let s: String => _env.out.print("Parsed string: " + s)
+    | let n: I32 => _env.out.print("Parsed integer: " + n.string())
+    | None => _env.out.print("Incomplete, waiting for more data...")
+    | ParseError => _env.out.print("Error: malformed data")
+    end
+```
+
+The first call to `Parser(buffer)` returns `None` because only the tag byte is in the buffer. No bytes are consumed. When the 4-byte payload arrives in the second chunk, the buffer now contains all 5 bytes (tag + payload), and the second call successfully parses the integer 420.
+
+## Discussion
+
+The `ParseResult` type is the [Error as Union Type](https://patterns.ponylang.io/error-handling/error-as-union-type.html) pattern applied to parsing. A partial function could only tell you “it worked” or “something went wrong.” The union type distinguishes three fundamentally different outcomes: a parsed value means the caller can proceed, `None` means it should wait for more data and try again, and `ParseError` means the data is bad and the caller needs to take corrective action (close the connection, skip bytes, log an error). The caller’s `match` handles each case, and the compiler verifies that every possibility is covered.
+
+The offset parameter on peek methods is what makes the completeness check work for messages with variable-length fields. For the string type in our protocol, we first peek at the tag at offset 0, then peek at the 2-byte length field at offset 1. Only after reading the length do we know the total size of the message. Without offsets, we’d need to consume the tag and length to learn the total size, which is exactly the problem we’re trying to avoid.
+
+One refinement worth knowing about: peek methods on `Reader` are declared as `fun` (which means the receiver capability is `box`), while consume methods are `fun ref`. That means you could declare the completeness check parameter as `Reader box` instead of `Reader ref`. With that signature, the compiler would reject any attempt to call consume methods inside `_complete_size`, because `box` doesn’t satisfy the `ref` requirement. The two-pass discipline becomes compiler-enforced rather than just convention. Most parsers don’t bother with this refinement since the peek/consume split is already clear from the method names, but it’s there if you want the extra safety net.
+
+There’s an asymmetry in `Reader`’s API worth calling out: there’s no `peek_block` method. You can peek at individual integers (`peek_u8`, `peek_u16_be`, `peek_i32_be`, and so on), but there’s no way to peek at an arbitrary byte sequence. For variable-length data like strings, you peek at the length field to find out how many bytes to expect, then check with `size()` that the buffer has enough total bytes. The actual byte extraction happens in the consume pass with `block()`. This is something you’ll run into immediately when building a real parser, and it’s why the completeness check focuses on byte counts rather than peeking at the payload itself.
+
+This pattern scales naturally to nested and recursive protocols. Consider a protocol where one message type is an array containing other messages, like RESP (the Redis Serialization Protocol). The completeness check for an array would peek at the element count, then call `_complete_size` recursively for each element with an advancing offset. Each recursive call returns the size of that element, and the offset advances by that amount before checking the next one. If any nested element is incomplete, `None` propagates up and the entire buffer is untouched. No partial consumption, no matter how deeply nested the structure.
+
+For real-world examples of this pattern, the [ponylang/redis](https://github.com/ponylang/redis) library’s RESP parser is the canonical implementation. RESP has multiple types (simple strings, errors, integers, bulk strings, arrays), with arrays containing arbitrary nested elements. The parser uses exactly this two-pass approach: a completeness check that recurses through nested arrays using peek methods with advancing offsets, followed by a consume pass that extracts the data. The [Pony MessagePack](https://github.com/seantallen-org/msgpack) library applies the same pattern to the MessagePack binary serialization format, where dozens of format families each have their own length encoding schemes.
+
+Everything in this pattern is presented in terms of `buffered.Reader`, but the core idea doesn’t depend on it. Any buffering API that lets you inspect data without consuming it supports the same two-pass approach. The important thing is the separation: check completeness non-destructively, then consume only when you know the data is there.
+# Testing Patterns
+
+# Testing Patterns
+
+Most of us are familiar with unit testing code with more traditional concurrency models. In this case of threaded code, for many, this means throwing up your hands in disgust and walking away. Testing concurrency with threads is hard. Testing concurrency in Pony is much easier but if you haven’t encountered anything like it before it can be hard to know where to start.
+
+The patterns in this chapter will cover various ways of testing your Pony code. We will pay particular attention to how to test actors. Please note that this chapter assumes that you are familiar with the basics of using `PonyTest`, the Pony unit testing framework. If you aren’t, please review the [`PonyTest` documentation](http://stdlib.ponylang.io/pony_test--index/).
+
+# Testing Notifier Interactions
+
+## Problem
+
+Event driven code is very common in Pony. Many classes take a “notifier” class that has callbacks that get triggered when certain events happen. The network code such as `UDPNotify` and `TCPNotify` are examples of this. As you write your own Pony code, the notifier pattern is one you’ll end up using quite a bit. Testing that your code is correctly interacting with notifiers is straightforward; however, how you go about doing that isn’t immediately obvious. Imagine for a moment that you have the following actor:
+
+```
+actor Receiver
+  let _notify: Notified
+
+  new create(notify: Notified iso) =>
+    _notify = consume notify
+
+  be receive(msg: String) =>
+    _notify.received(this, msg)
+```
+
+It’s really simple. When it receives some string, it will pass its own identity and that string along to the object it is supposed to notify. What is the object it will notify? Anything that conforms to the interface
+
+```
+interface Notified
+  fun ref received(rec: Receiver ref, msg: String)
+```
+
+In our contrived, simplified example, we want to know that if we call `receive` on the `Receiver` actor, then the string we call it with will end up being passed to our notifier where we can process it. So, how do we go about that?
+
+## Solution
+
+```
+use "pony_test"
+
+actor Main is TestList
+  new create(env: Env) => PonyTest(env, this)
+  new make() => None
+
+  fun tag tests(test: PonyTest) =>
+    test(_TestNotifier)
+
+class iso _TestNotifier is UnitTest
+  fun name(): String => "test notifier"
+
+  fun apply(h: TestHelper) =>
+    let r = Receiver(recover TestNotifier(h, "Hi") end)
+
+    r.receive("Hi")
+    h.long_test(2_000_000_000)
+
+  fun timed_out(h: TestHelper) =>
+    h.complete(false)
+
+class TestNotifier is Notified
+  let _h: TestHelper
+  let _expected: String
+
+  new iso create(h: TestHelper, expected: String) =>
+    _h = h
+    _expected = expected
+
+  fun ref received(rec: Receiver ref, msg: String) =>
+   _h.assert_eq[String](_expected, msg)
+   _h.complete(true)
+
+interface Notified
+  fun ref received(rec: Receiver ref, msg: String)
+
+actor Receiver
+  let _notify: Notified
+
+  new create(notify: Notified iso) =>
+    _notify = consume notify
+
+  be receive(msg: String) =>
+    _notify.received(this, msg)
+```
+
+## Discussion
+
+Notifiers work by using structural typing. We define an interface that the given notifier has to implement and then create concrete implementations. In our above solution, you can see this with:
+
+```
+interface Notified
+  fun ref received(rec: Receiver ref, msg: String)
+```
+
+and
+
+```
+class TestNotifier is Notified
+  let _h: TestHelper
+  let _e: String
+
+  new iso create(h: TestHelper, e: String) =>
+    _h = h
+    _e = e
+
+  fun ref received(rec: Receiver ref, msg: String) =>
+   _h.assert_eq[String](_e, msg)
+   _h.complete(true)
+```
+
+Our test is verifying that our Receiver correctly uses the notifier and that when we call `receive` on a `Receiver`, we pass the correct data to the notifier’s `received` method:
+
+```
+  fun ref received(rec: Receiver ref, msg: String) =>
+   _h.assert_eq[String](_e, msg)
+   _h.complete(true)
+```
+
+# Testing Output Only Actors
+
+## Problem
+
+A lot of the Pony code you will need to test involves actors that take input and create output that leaves your system. A good example of this is testing writing to a file. How can you verify that the contents of the file are what you expect? You could write the file as normal and then compare its contents to what you were expecting. In the end, though, that doesn’t work for everything. What if you are writing to standard out or over a network? Luckily, there is a general purpose pattern to address this problem.
+
+## Solution
+
+Our solution draws on three primary elements:
+
+- Pony promises
+- Stub objects
+- Pony’s causal messaging
+
+The code below can be used to test that you are outputting data correctly to a file stream. In this particular case, “correctly” means that when we call `print` on `MyImportantClass` with the argument “Hello World!” that we would get “Hello World!” as output from the stream that `MyImportantClass` is using.
+
+```
+use "pony_test"
+use "promises"
+
+class MyImportantClass
+  let _stream: OutStream
+  new create(s: OutStream) =>
+    _stream = s
+
+  fun print(s: String) =>
+    _stream.print(s)
+
+actor Main is TestList
+  new create(env: Env) => PonyTest(env, this)
+  new make() => None
+
+  fun tag tests(test: PonyTest) =>
+    test(_TestImportantPrinting)
+
+class iso _TestImportantPrinting is UnitTest
+  fun name(): String => "my important printing test"
+
+  fun apply(h: TestHelper) =>
+    h.long_test(1_000_000_000)
+
+    let promise = Promise[String]
+    promise.next[String](recover this~_fulfill(h) end)
+
+    let stream = _TestStream(promise)
+    let important = MyImportantClass(stream)
+    important.print("Hello World!")
+    stream.written()
+
+  fun tag _fulfill(h: TestHelper, value: String): String =>
+    h.assert_eq[String](value, "Hello World!")
+    h.complete(true)
+    value
+
+  fun timed_out(h: TestHelper) =>
+    h.complete(false)
+
+actor _TestStream is OutStream
+  let _output: String ref = String
+  let _promise: Promise[String]
+
+  new create(promise: Promise[String]) =>
+    _promise = promise
+
+  be print(data: ByteSeq) =>
+    _collect(data)
+
+  be write(data: ByteSeq) =>
+    _collect(data)
+
+  be printv(data: ByteSeqIter) =>
+    for bytes in data.values() do
+      _collect(bytes)
+    end
+
+  be writev(data: ByteSeqIter) =>
+    for bytes in data.values() do
+      _collect(bytes)
+    end
+
+  fun ref _collect(data: ByteSeq) =>
+    _output.append(data)
+
+  be written() =>
+    let s: String = _output.clone()
+    _promise(s)
+```
+
+That’s a nice chunk of code, let’s break it down and focus on the important bits. Here is the core of our test, the `apply` method on our test class:
+
+```
+  fun apply(h: TestHelper) =>
+    h.long_test(1_000_000_000)
+
+    let promise = Promise[String]
+    promise.next[String](recover this~_fulfill(h) end)
+
+    let stream = _TestStream(promise)
+    let important = MyImportantClass(stream)
+    important.print("Hello World!")
+    stream.written()
+```
+
+Note the use of `TestHelper.long_test(1_000_000_000)`, where we tell the test framework that our test will continue to run until an assertion fails or one of `TestHelper.complete(true)` or `TestHelper.complete(false)` is called. We also provide it with a 1-second timeout after which it will fail the test with a timeout error.
+
+Remember, we are attempting to verify that when we print to `MyImportantClass`, we get the correct output on the stream. In a real world example, our class would probably be doing some sort of formatting and wouldn’t just be a pass through of the data. Instead of testing file stream directly, we are testing a stub `_TestStream` that is standing in for a standard library `OutStream` interface. In real code, this would probably be the concrete actor `FileStream` or similar. Our stub implements the `OutStream` interface and records everything we write to it:
+
+```
+actor _TestStream is OutStream
+  let _output: String ref = String
+  let _promise: Promise[String]
+
+  new create(promise: Promise[String]) =>
+    _promise = promise
+
+  be print(data: ByteSeq) =>
+    _collect(data)
+
+  be write(data: ByteSeq) =>
+    _collect(data)
+
+  be printv(data: ByteSeqIter) =>
+    for bytes in data.values() do
+      _collect(bytes)
+    end
+
+  be writev(data: ByteSeqIter) =>
+    for bytes in data.values() do
+      _collect(bytes)
+    end
+
+  fun ref _collect(data: ByteSeq) =>
+    _output.append(data)
+
+  be written() =>
+    let s: String = _output.clone()
+    _promise(s)
+```
+
+The most interesting method in `_TestStream` is `be written()`, what’s going on in there?
+
+```
+  be written() =>
+    let s: String = _output.clone()
+    _promise(s)
+```
+
+When invoked, it takes the promise that was supplied upon construction:
+
+```
+    let stream = _TestStream(promise)
+```
+
+And fulfills it with any data we have collected so far:
+
+```
+    let s: String = _output.clone()
+    _promise(s)
+```
+
+Our promise was set up to call the `_fulfill` method on our test class when the promise is fulfilled.
+
+```
+  fun tag _fulfill(h: TestHelper, value: String): String =>
+    h.assert_eq[String](value, "Hello World!")
+    h.complete(true)
+    value
+```
+
+What’s going on in there? Well, we take our string of output that our stub got and compare it to our expected value (in this case “Hello World!”) and then indicate that our test is complete. We have access to the `TestHelper` we need to run `assert_eq` in `_fulfill` because when we constructed our promise initially, we created the promise as partially applied, supplying the `TestHelper` parameter:
+
+```
+    promise.next[String](recover this~_fulfill(h) end)
+```
+
+It’s important to note that the above solution only works because we can rely on Pony’s causal messaging. That is, each message sent to an actor from another actor will arrive in order. In our test, we call:
+
+```
+    important.print("Hello World!")
+    stream.written()
+```
+
+because important.print calls a method on stream:
+
+```
+  fun print(s: String) =>
+    _stream.print(s)
+```
+
+`stream.written()` is guaranteed to happen after the `_stream.print(s)`. Without that guarantee, this test wouldn’t work. Without causal messaging, our promise might fire before it ever saw any data and our test could pass sometimes and fail other times.
+
+## Discussion
+
+Well, there you have it. How to test our interactions with an actor whose side-effects are only observable outside out system. As mentioned in the *Problem* section, this pattern can be applied in many different scenarios so long as it involves testing an actor. And the code above can be used to test any actor that implements `OutStream`. Before we wrap up, let’s cover one additional benefit of using a stub to test a `FileStream`.
+
+The `FileStream` constructor takes a `File` object. That’s an external dependency. When testing, avoiding external dependencies is good. In the case of a file, that might seem like a relatively benign dependency right up until the day the file system permissions on your test machine change or a directory you depend on isn’t there and your tests start failing. The important part of all this is, we’ve left our process and can’t rely on the external party to help our test (nor do we want to).
+
+If you want to see an example of this pattern in the wild, check out the [tests for the `logger` package](https://github.com/ponylang/logger/blob/main/logger/_test.pony) in the [ponylang/logger library](https://ponylang.github.io/logger/).
