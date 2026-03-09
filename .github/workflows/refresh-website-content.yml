@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4.1.1
       - name: Fetch latest website content
-        run: ./refresh-website-content.sh
+        run: .ci-scripts/refresh-website-content.sh
       - name: Commit if changed
         run: |
           git config user.name "ponylang-main"
