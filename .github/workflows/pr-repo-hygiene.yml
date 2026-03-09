@@ -23,4 +23,3 @@ jobs:
           VALIDATE_BASH: true
           VALIDATE_MD: true
           VALIDATE_YAML: true
-          FILTER_REGEX_EXCLUDE: '.*/pony-ref/.*'
