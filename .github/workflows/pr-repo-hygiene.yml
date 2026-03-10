@@ -23,3 +23,11 @@ jobs:
           VALIDATE_BASH: true
           VALIDATE_MD: true
           VALIDATE_YAML: true
+
+  refresh-website-content:
+    name: Verify refresh-website-content script runs successfully
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.1.1
+      - name: Run refresh-website-content.sh
+        run: .ci-scripts/refresh-website-content.sh
