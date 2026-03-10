@@ -28,8 +28,7 @@ No re-install needed — the symlinks point to your clone, so pulling new conten
 Remove the symlinks for each installed skill:
 
 ```bash
-rm ~/.claude/skills/pony-ref
-# repeat for any other installed skills
+rm ~/.claude/skills/pony-ref ~/.claude/skills/pony-ffi-audit
 ```
 
 This only removes the symlinks, not the cloned repo.
@@ -56,3 +55,22 @@ What's in the `references/` directory (read on demand for deeper questions):
 - **Runtime/GC synopsis** — ORCA object GC, MAC actor cycle collection, per-actor heaps, causal messaging, the scheduler. Includes an "Implementation Divergences" section documenting where the current ponyc runtime has evolved beyond the papers.
 - **Academic papers** — the full text of all nine Pony papers covering the type system, garbage collection, generics, and distributed programming.
 - **Website content** — snapshots of the Pony tutorial, patterns cookbook, and main website (via their llms.txt files). Covers language fundamentals, idiomatic patterns, tooling guides, and FAQ.
+
+### pony-ffi-audit
+
+Audit methodology for finding dangerous FFI usage in Pony codebases. Load it with `/pony-ffi-audit` before auditing a project's C-FFI calls for reference capability violations.
+
+Pony's FFI declarations are trusted by the compiler — if you declare a parameter as `tag` but C writes through it, nothing catches the violation at compile time. This skill teaches Claude how to find those gaps systematically.
+
+What's in the quick reference (loaded into context automatically):
+
+- The FFI trust boundary and refcap mutation rules
+- Step-by-step audit methodology (find calls, determine mutation, check caps, classify)
+- How to identify which arguments a C function mutates (common C functions, OpenSSL, PCRE2, Windows APIs)
+- Known patterns: `.cpointer()`/`.cstring()` returning `tag`, structs declared `tag`, FFI-allocated buffers with wrong cap, runtime event handles, finalizer `box`
+- Escape hatches: `addressof` and `USize` coercion bypasses
+- Fix strategies for each pattern category
+
+What's in the `references/` directory (read on demand):
+
+- **Example audit** — a condensed real-world audit showing the reporting format, classification, and summary structure across multiple projects and all pattern categories.
