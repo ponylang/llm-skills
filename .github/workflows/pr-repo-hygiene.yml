@@ -14,7 +14,7 @@ jobs:
     name: Lint bash, markdown, and yaml
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@v6.0.2
       - name: Lint codebase
         uses: docker://github/super-linter:v3.8.3
         env:
@@ -28,6 +28,6 @@ jobs:
     name: Verify refresh-website-content script runs successfully
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@v6.0.2
       - name: Run refresh-website-content.sh
         run: .ci-scripts/refresh-website-content.sh
