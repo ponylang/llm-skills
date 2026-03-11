@@ -12,7 +12,7 @@ jobs:
   refresh:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@v6.0.2
       - name: Fetch latest website content
         run: .ci-scripts/refresh-website-content.sh
       - name: Commit if changed
