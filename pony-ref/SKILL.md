@@ -97,6 +97,8 @@ Works with constructors too — `String.>append("hello").>append(" world")` crea
 
 8. **`consume` requires a variable or field, not an expression**: `consume some_method()` is a compile error. Assign the result to a `let` first, then consume (or just assign directly when the target capability allows it). For example, when a method returns `String iso^`, `let s: String val = the_method()?` works directly — ephemeral `iso^` can be assigned to `val` without an explicit `consume`.
 
+9. **Don't use marker traits to group variants**: When a trait carries no methods and exists only to group a closed set of types (e.g., `trait val MyError` with several primitives `is MyError`), use a union type instead (`type MyError is (ErrA | ErrB | ErrC)`). Marker traits are open — anyone can implement them — so the compiler can't enforce exhaustive matching. Union types are closed and enable `match \exhaustive\`, producing compile errors when a variant is unhandled. Reserve traits for when you actually need openness.
+
 ## Integer Arithmetic Modes
 
 Pony integers have **three** arithmetic modes — choose based on how you want to handle overflow:
