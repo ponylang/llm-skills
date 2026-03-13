@@ -190,6 +190,7 @@ Do NOT try `primitive MyGen is GenObj[String]` or `class MyGen is GenObj[String]
 
 ## Stdlib Pitfalls and Patterns
 
+- **Use `constrained_types` for validated wrappers**: When you need a type that enforces a domain constraint (e.g., a value within a range, a string matching a pattern), use the `constrained_types` stdlib package instead of writing a class with a partial constructor. Define a `Validator` primitive, then alias `Constrained[T, MyValidator]` and `MakeConstrained[T, MyValidator]`. This returns `(Constrained[T, V] | ValidationFailure)` with descriptive error messages — better than a bare `error` from a partial constructor. Only `val` types can be constrained. See the [Constrained Types](https://patterns.ponylang.io/domain-modeling/constrained-types.md) pattern for the full approach.
 - **`Reader.skip(n)` vs `Reader.block(n)` for discarding data**: `block(n)` allocates an `Array[U8]` of size n; `skip(n)` just advances the cursor. When you don't need the bytes, always use `skip`.
 - **Zero-copy chain: `Array[U8] val.trim()` + `String.from_array()`**: `trim` on a `val` array returns a shared view (no data copy). `String.from_array` reuses the data pointer. Together they give zero-copy from buffer to decoded String.
 - **`Array.shift()` is O(n), `List.shift()` is O(1)**: `Array.shift()` calls `delete(0)` which moves all elements. For chunk-based readers or queues consuming from the head, use `List`.
