@@ -99,6 +99,8 @@ Works with constructors too — `String.>append("hello").>append(" world")` crea
 
 9. **Don't use marker traits to group variants**: When a trait carries no methods and exists only to group a closed set of types (e.g., `trait val MyError` with several primitives `is MyError`), use a union type instead (`type MyError is (ErrA | ErrB | ErrC)`). Marker traits are open — anyone can implement them — so the compiler can't enforce exhaustive matching. Union types are closed and enable `match \exhaustive\`, producing compile errors when a variant is unhandled. Reserve traits for when you actually need openness.
 
+10. **Actor constructors cannot fail**: Actor constructor calls return immediately and always succeed from the caller's perspective — there is no way to signal a construction failure. If a partial function's error path would leave the actor in an invalid or unusable state, move the fallible work before actor creation: validate and prepare all inputs in the calling code first, then pass only known-good data to the constructor. This is the "supply chain" pattern — the actor's constructor receives pre-validated inputs, so it never needs to handle errors that would compromise its integrity.
+
 ## Integer Arithmetic Modes
 
 Pony integers have **three** arithmetic modes — choose based on how you want to handle overflow:
