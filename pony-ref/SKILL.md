@@ -101,6 +101,8 @@ Works with constructors too — `String.>append("hello").>append(" world")` crea
 
 10. **Actor constructors cannot fail**: Actor constructor calls return immediately and always succeed from the caller's perspective — there is no way to signal a construction failure. If a partial function's error path would leave the actor in an invalid or unusable state, move the fallible work before actor creation: validate and prepare all inputs in the calling code first, then pass only known-good data to the constructor. This is the "supply chain" pattern — the actor's constructor receives pre-validated inputs, so it never needs to handle errors that would compromise its integrity.
 
+11. **Prefer `embed` over `let` for class/struct fields**: When a field's type is a class or struct and it's initialized from a constructor expression, use `embed` instead of `let`. `embed` is the recommended default — it avoids a pointer indirection and a separate heap allocation. Only use `let` when the field might outlive its parent (exterior references would prevent GC of the parent object), or when the type is an interface, trait, primitive, or numeric type (which can't be embedded).
+
 ## Integer Arithmetic Modes
 
 Pony integers have **three** arithmetic modes — choose based on how you want to handle overflow:
