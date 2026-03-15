@@ -213,6 +213,10 @@ Implementation: uses `@fprintf`/`@exit`/`@pony_os_stderr` FFI, takes `SourceLoc 
 
 For deeper type system and runtime questions, read files in the `references/` directory alongside this skill. Start with `type-system-synopsis.md` for a distilled overview, then consult specific papers as needed.
 
+### Performance
+
+**Performance**: For performance questions, read `references/website-llms-full.txt` (search for "Performance Cheat Sheet") and `references/patterns-llms-full.txt` (search for "performance/"). These cover allocations, boxing, GC tuning, scheduler threads, OS tuning, and profiling.
+
 ### Synopses
 
 `references/type-system-synopsis.md` — Distilled reference covering all six capabilities, the deny-properties matrix, subtyping lattice, ephemeral modifiers, aliasing/unaliasing, local and global compatibility tables, viewpoint adaptation (non-extracting and extracting), safe-to-write rules, recovery, generics with capability constraints, and the Steed vs. PonyS differences. **Read this first** for any formal type system question.
