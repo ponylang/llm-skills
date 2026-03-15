@@ -2797,7 +2797,7 @@ Several exemptions apply. No docstring is required for:
 - Methods inside private types or `\nodoc\`-annotated types
 - `Main` actors
 - Well-known method names: `create`, `string`, `eq`, `ne`, `hash`, `hash64`, `compare`, `lt`, `le`, `ge`, `gt`, `dispose`, `has_next`, `next`, `values`, `size`
-- Type aliases (Pony does not support docstrings on type aliases)
+- Type aliases
 - Methods inside anonymous `object` literals
 - Concrete methods with 3 or fewer top-level expressions in the body (abstract methods are not exempt)
 

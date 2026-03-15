@@ -91,9 +91,9 @@ Works with constructors too — `String.>append("hello").>append(" world")` crea
 
 5. **Default capabilities**: Classes default to `ref`, primitives to `val`, actors to `tag`.
 
-6. **`_` scoping is context-dependent**: `_method` (leading underscore on a member) is **type-private** — only accessible within the same type, not by other types in the same package. `_Type` (leading underscore on a type name) is **package-private** — accessible by all types in the same package but not outside it. This distinction matters when writing tests: you can't call `SomeType._helper()` from a test class, even in the same package. Test through the public API instead.
+6. **`_` scoping depends on what it's on**: `_field` (leading underscore on a field) is **type-private** — only accessible within the same type. `_method` (leading underscore on a method, constructor, or behavior) is **package-private** — accessible by any type in the same package but not outside it. `_Type` (leading underscore on a type name) is also **package-private**. This distinction matters: you CAN call `SomeType._helper()` from another type in the same package (including tests), but you CANNOT read `SomeType._field` from outside the type.
 
-7. **Type aliases can't have docstrings**: Placing a docstring string literal above or inside a `type` alias is a compile error. If documentation is needed, use a comment instead.
+7. **Type aliases support docstrings**: A docstring string literal inside a `type` alias compiles and is included in generated documentation, just like classes and primitives.
 
 8. **`consume` requires a variable or field, not an expression**: `consume some_method()` is a compile error. Assign the result to a `let` first, then consume (or just assign directly when the target capability allows it). For example, when a method returns `String iso^`, `let s: String val = the_method()?` works directly — ephemeral `iso^` can be assigned to `val` without an explicit `consume`.
 
