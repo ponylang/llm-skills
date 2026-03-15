@@ -213,9 +213,40 @@ Implementation: uses `@fprintf`/`@exit`/`@pony_os_stderr` FFI, takes `SourceLoc 
 
 For deeper type system and runtime questions, read files in the `references/` directory alongside this skill. Start with `type-system-synopsis.md` for a distilled overview, then consult specific papers as needed.
 
+### C-FFI
+
+For C interop questions (calling C from Pony, passing pointers, callbacks, structs for FFI, error handling across the boundary), read `references/tutorial-llms-full.txt` (search for "C-FFI"). For FFI initialization and resource cleanup patterns, read `references/patterns-llms-full.txt` (search for "FFI Global Initializer", "FFI Resource Lifecycle", or "Static Constructor").
+
+### Async and Actor Interaction Patterns
+
+For questions about getting values back from actors, batching work, or coordinating between actors, read `references/patterns-llms-full.txt`. Key sections: "Accessing an Actor with Arbitrary Transactions", "Interrogating Actors with Promises", "Batch and Yield", "Waiting". The Promises pattern is especially common — it solves "how do I get a result from an actor?"
+
+### Compiler Error Messages
+
+Pony's compiler errors can be cryptic. For help interpreting them, read `references/tutorial-llms-full.txt` (search for "A Short Guide to Pony Error Messages").
+
+### Compiler Annotations and Platform-Dependent Code
+
+For `ifdef`/`else` conditionals, `\nodoc\`, `\nosupertype\`, and other annotations, read `references/tutorial-llms-full.txt` (search for "Platform-dependent Code" and "Program Annotations").
+
+### Pattern Cookbook
+
+`references/patterns-llms-full.txt` organizes idiomatic Pony patterns by category. When looking for "how do I..." answers, search by category:
+
+- **Asynchronous** — actor transactions, promises, batch-and-yield, waiting/timers
+- **State Machine** — trait-based state machines
+- **Code Sharing** — embed/delegate, mixin, notifier, object algebra
+- **Creation** — FFI global initializer, static constructor, supply chain, typed step builder
+- **Data Sharing** — copying, isolated fields, persistent data structures
+- **Error Handling** — error as union type
+- **Object Capabilities** — authority hierarchy, single-use capabilities
+- **Resource Management** — FFI resource lifecycle
+- **Streaming** — peek before consume
+- **Testing** — notifier interactions, output-only actors
+
 ### Performance
 
-**Performance**: For performance questions, read `references/website-llms-full.txt` (search for "Performance Cheat Sheet") and `references/patterns-llms-full.txt` (search for "performance/"). These cover allocations, boxing, GC tuning, scheduler threads, OS tuning, and profiling.
+For performance questions, read `references/website-llms-full.txt` (search for "Performance Cheat Sheet") and `references/patterns-llms-full.txt` (search for "performance/"). These cover allocations, boxing, GC tuning, scheduler threads, OS tuning, and profiling.
 
 ### Synopses
 
