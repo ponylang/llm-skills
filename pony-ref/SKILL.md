@@ -200,6 +200,18 @@ Do NOT try `primitive MyGen is GenObj[String]` or `class MyGen is GenObj[String]
 - **Semicolons in multi-line array literals**: `[as U8: 1; 2;\n 3; 4]` is a compile error — semicolons at line-continuation points are rejected. All semicolon-separated elements must be on the same line, or use a `recover val` block with the array literal on one line.
 - **`block(0)` edge case in chunk-based readers**: When implementing a chunk-based reader, `block(0)` can be called after all chunks are consumed (e.g., zero-length string payloads in msgpack). Must short-circuit and return an empty array before accessing the chunk list.
 
+## Byte-by-Byte Copying is a Design Smell
+
+When you find yourself copying data one byte at a time — manual loops, `append`/`concat` on `Array[U8]`, building a new array element by element — stop and ask why. The usual cause: the reference capabilities don't line up for a bulk operation like `copy_from` or zero-copy `trim`, so you fell back to the slow path to make it compile.
+
+The fix is almost never "accept the byte-by-byte copy." Instead, trace back to where the capability mismatch originates and redesign:
+- Can the source data be `val` instead of `ref` so `trim` gives a zero-copy view?
+- Can you `recover` earlier to get the right capability at the point where bulk copying happens?
+- Can you restructure ownership so the data doesn't need copying at all?
+- Can you use `copy_from` instead of `append`/`concat`? (`copy_from` is `memcpy`; `append`/`concat` copy byte-by-byte in a loop. `copy_from` is only available for `Array[U8]`.)
+
+Byte-by-byte is the last resort, not the first workaround. If the refcaps won't cooperate, that's the type system telling you the data flow needs rethinking, not that you need a slower algorithm. If you can't figure out how to make bulk operations work, ask — that's far better than silently inserting a slow copy path.
+
 ## Panic Primitives ("Mort" Pattern)
 
 **Panic primitives for impossible code paths**: When the compiler requires a branch that should never execute (e.g., `else` in a `try` after prior size validation), use a panic primitive instead of silently returning a value. The primitive prints file/line to stderr via FFI and exits. Common variants express intent:
