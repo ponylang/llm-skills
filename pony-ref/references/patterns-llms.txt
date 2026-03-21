@@ -24,11 +24,13 @@
 - [Mixin](https://patterns.ponylang.io/code-sharing/mixin.md)
 - [Notifier](https://patterns.ponylang.io/code-sharing/notifier.md)
 - [Object Algebra](https://patterns.ponylang.io/code-sharing/object-algebra.md)
+- [Parser Combinators](https://patterns.ponylang.io/code-sharing/parser-combinators.md)
 
 ## Creation Patterns
 
 - [Overview](https://patterns.ponylang.io/creation/index.md)
 - [FFI Global Initializer](https://patterns.ponylang.io/creation/ffi-global-initializer.md)
+- [Recover for Isolated Return](https://patterns.ponylang.io/creation/recover-iso.md)
 - [Static Constructor](https://patterns.ponylang.io/creation/static-constructor.md)
 - [Supply Chain](https://patterns.ponylang.io/creation/supply-chain.md)
 - [Typed Step Builder](https://patterns.ponylang.io/creation/typed-step-builder.md)
@@ -45,6 +47,7 @@
 
 - [Overview](https://patterns.ponylang.io/domain-modeling/index.md)
 - [Constrained Types](https://patterns.ponylang.io/domain-modeling/constrained-types.md)
+- [Value Classes](https://patterns.ponylang.io/domain-modeling/value-classes.md)
 
 ## Error Handling Patterns
 
@@ -68,6 +71,7 @@
 ## Resource Management Patterns
 
 - [Overview](https://patterns.ponylang.io/resource-management/index.md)
+- [Disposable Actor](https://patterns.ponylang.io/resource-management/disposable-actor.md)
 - [FFI Resource Lifecycle](https://patterns.ponylang.io/resource-management/ffi-resource-lifecycle.md)
 
 ## Streaming Patterns

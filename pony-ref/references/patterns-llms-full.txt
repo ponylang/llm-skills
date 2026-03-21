@@ -812,6 +812,10 @@ Does your favorite language have bare functions of some sort? Do you wish Pony h
 
 Need to extend a system with both new data variants and new operations without modifying existing code? The object algebra pattern uses Pony’s interfaces with default implementations and structural typing to solve the Expression Problem.
 
+## Parser Combinators
+
+Build parsers that read like grammars by using operator overloading to turn sequencing into `*` and choice into `/`. Small, composable parser objects snap together into complex recognizers.
+
 # Embed and Delegate
 
 ## Problem
@@ -1439,7 +1443,7 @@ Notifiers cannot receive messages. They can send messages to actors they hold re
 
 ## Problem
 
-There’s a real problem inherent in most data modeling we tend to do with our programming languages. It’s so common that Philip Wadler gave it a name, “[the Expression Problem](https://homepages.inf.ed.ac.uk/wadler/papers/expression/expression.txt)”. A full discussion is out of scope for this pattern — refer to the linked original formulation for the details. Here’s the short version:
+There’s a real problem inherent in most data modeling we tend to do with our programming languages. It’s so common that Philip Wadler gave it a name, “[the Expression Problem](/assets/wadler-expression-problem.txt)”. A full discussion is out of scope for this pattern — refer to the linked original formulation for the details. Here’s the short version:
 
 ### Expression Problem in Object-Oriented Languages
 
@@ -1460,7 +1464,7 @@ There are a variety of solutions to the Expression Problem in various languages,
 
 ## Solution
 
-The [Solutions to the Expression Problem Using Object Algebras](https://i.cs.hku.hk/~bruno/oa/) site presents solutions in a variety of languages. What follows is a Pony version modeled on the [Java version](https://i.cs.hku.hk/~bruno/oa/OA_J.zip).
+The [Solutions to the Expression Problem Using Object Algebras](https://i.cs.hku.hk/~bruno/oa/) site presents solutions in a variety of languages. What follows is a Pony version modeled on the [Java version](/assets/object-algebras-java-examples.zip).
 
 The problem presented is the need to create a simple expression interpreter that starts with two operations, `lit` and `add`, which we need to be able to evaluate. We then need to extend our data types by adding a new operation `sub` and a new interpretation that pretty-prints the expression.
 
@@ -1634,14 +1638,461 @@ If you’re building something that needs to be extended in both dimensions — 
 
 The [Solutions to the Expression Problem Using Object Algebras](https://i.cs.hku.hk/~bruno/oa/) site presents solutions in several languages beyond Java. We modeled our Pony version on the Java solution because it’s the closest to what most Object Oriented programmers would be familiar with, but the other solutions could also be implemented in Pony.
 
-For a deeper treatment, see the original “[Extensibility for the Masses](https://www.cs.utexas.edu/~wcook/Drafts/2012/ecoop2012.pdf)” paper by Bruno Oliveira and William Cook.
+For a deeper treatment, see the original “[Extensibility for the Masses](/assets/extensibility-for-the-masses.pdf)” paper by Bruno Oliveira and William Cook.
+
+The [Parser Combinators](https://patterns.ponylang.io/code-sharing/parser-combinators.html) pattern applies a similar compositional idea to a different domain. Where object algebras compose interpretations over a fixed set of operations, parser combinators compose operations (sequencing, choice, repetition) over a fixed interpretation. Both build complex behavior from small, reusable pieces; they just vary different axes.
+
+# Parser Combinators
+
+## Problem
+
+You need to recognize structured text. Maybe it’s a configuration format, a query language, or just a number with an optional sign and decimal point. Given a string, you want to answer one question: is this a valid number or not? `"42"` yes. `"-7"` yes. `"3.14"` yes. `"abc"` no. `""` no. Number or not number.
+
+You could reach for a regular expression, but regexes get unreadable fast and can’t handle recursive structures like nested parentheses. Another common approach is to write a parser: a function that walks through the input character by character, checks whether it matches some expected pattern, and tracks how far it got. Parsers have a reputation for being scary, but the concept is simple. You can build small parsers for each piece of the grammar (match a literal string, match a character in a range) and then combine them with functions like “try A then B” or “try A, and if that fails, try B instead.”
+
+The rules for our number are simple enough to state in one line:
+
+```
+number = '-'? (digit19 digits | digit) ('.' digits)?
+```
+
+An optional minus sign, followed by either a multi-digit integer (starting with 1-9) or a single digit, optionally followed by a decimal point and more digits. Clear enough on paper. But try to express that with parsing functions:
+
+```
+let number = sequence(
+  opt(literal("-")),
+  sequence(
+    choice(
+      sequence(range('1', '9'), many1(range('0', '9'))),
+      range('0', '9')),
+    opt(sequence(literal("."), many1(range('0', '9'))))))
+```
+
+It works, but the structure of the code doesn’t resemble the structure of the grammar. You read it inside-out, matching parentheses carefully to figure out what’s nested inside what. Changing the grammar means restructuring the nesting, which means getting the parentheses right again. As grammars grow, this gets worse.
+
+The idea of combining small parsers into bigger ones is sound. The problem is that the combining functions bury the grammar’s structure under layers of nesting. Parser combinators clean this up.
+
+## Solution
+
+A parser combinator is a function that takes one or more parsers as input and returns a new parser. “Match A then B” is a combinator called *sequence*. “Match A or else try B” is *choice*. “Match A zero or one times” is *optional*. You build complex grammars by snapping these pieces together, the same way you’d describe the grammar in English: “a minus sign, optionally, followed by some digits.”
+
+The combining functions from the Problem section are already combinators. They just don’t read well. The fix is operator overloading. If sequence is `*` and choice is `/`, the grammar reads like a specification instead of a puzzle.
+
+### The parser trait
+
+The core is a trait that defines two things: how to parse, and how to combine parsers using operators.
+
+```
+trait box Parser
+  fun parse(input: String val, offset: USize): (Bool, USize)
+
+  fun mul(that: Parser): Parser =>
+    Sequence(this, that)
+
+  fun div(that: Parser): Parser =>
+    Choice(this, that)
+
+  fun opt(): Parser =>
+    Optional(this)
+
+  fun many1(): Parser =>
+    Many(this)
+```
+
+Every parser takes a string and an offset, and returns whether it matched and where parsing ended up. Pony maps `*` to `mul` and `/` to `div`, so any two parsers can be sequenced with `*` or alternated with `/`. The `opt()` and `many1()` methods handle repetition. Each combinator method returns a new `Parser`, which means the result can immediately be combined again. That’s what makes the chaining work.
+
+The trait is `box`, meaning combinators only need read access to the parsers they contain. Any `ref`, `val`, `trn`, or `box` parser can be stored as `box`; the combinator doesn’t need to write to its children, just call `parse` on them. The combinator methods capture `this` and store it inside a new combinator object, building a tree of parsers as you compose them.
+
+### Leaf parsers
+
+Leaf parsers are the bottom of the tree. They look directly at the input text rather than delegating to other parsers. Everything else is built on top of them.
+
+#### Literal
+
+`Literal` matches an exact string at the current position:
+
+```
+class Literal is Parser
+  let _text: String val
+
+  new create(text: String val) =>
+    _text = text
+
+  fun parse(input: String val, offset: USize): (Bool, USize) =>
+    var i: USize = 0
+    try
+      while i < _text.size() do
+        if input(offset + i)? != _text(i)? then
+          return (false, offset)
+        end
+        i = i + 1
+      end
+      (true, offset + _text.size())
+    else
+      (false, offset)
+    end
+```
+
+It walks through the input byte by byte, comparing each one against the stored text. The `?` on the array indexing marks the call as partial: indexing can fail if the offset is past the end of the input, so the compiler requires us to handle that. The `try` block wraps the whole loop; if any index is out of bounds, the `else` branch catches the error and returns a non-match. When every byte matches, it returns `true` and advances the position past the matched text.
+
+#### CharRange
+
+`CharRange` matches a single character that falls within a range:
+
+```
+class CharRange is Parser
+  let _lo: U8
+  let _hi: U8
+
+  new create(lo: U8, hi: U8) =>
+    _lo = lo
+    _hi = hi
+
+  fun parse(input: String val, offset: USize): (Bool, USize) =>
+    try
+      let c = input(offset)?
+      if (c >= _lo) and (c <= _hi) then
+        (true, offset + 1)
+      else
+        (false, offset)
+      end
+    else
+      (false, offset)
+    end
+```
+
+Same structure as `Literal` but simpler. It reads one byte from the input, checks whether it falls between `_lo` and `_hi` inclusive, and advances by one position on a match. The `try`/`else` handles the same out-of-bounds case: if there’s no character at the current offset, that’s a non-match.
+
+### Combinators
+
+Leaf parsers look at the input directly. Combinators don’t. A combinator is a parser that wraps one or more other parsers and coordinates how they run. It implements the same `Parser` trait, so from the outside it looks just like a leaf. But inside, it delegates to its children and decides what to do based on whether they succeed or fail. That’s the whole trick: because both leaves and combinators are `Parser`, you can nest them freely.
+
+#### Sequence
+
+“Sequence” means “match A then B.” It takes two parsers and runs them one after the other. If the first one matches, the second one picks up where the first left off. If either fails, the whole thing fails:
+
+```
+class Sequence is Parser
+  let _left: Parser
+  let _right: Parser
+
+  new create(left: Parser, right: Parser) =>
+    _left = left
+    _right = right
+
+  fun parse(input: String val, offset: USize): (Bool, USize) =>
+    (let ok, let pos) = _left.parse(input, offset)
+    if ok then
+      _right.parse(input, pos)
+    else
+      (false, offset)
+    end
+```
+
+Notice that `_right` receives `pos`, the position where `_left` finished. That’s how parsers chain: each one picks up where the previous one stopped.
+
+#### Choice
+
+“Choice” means “match A or, failing that, try B.” It takes two parsers, tries the first, and falls back to the second only if the first fails:
+
+```
+class Choice is Parser
+  let _left: Parser
+  let _right: Parser
+
+  new create(left: Parser, right: Parser) =>
+    _left = left
+    _right = right
+
+  fun parse(input: String val, offset: USize): (Bool, USize) =>
+    (let ok, let pos) = _left.parse(input, offset)
+    if ok then
+      (true, pos)
+    else
+      _right.parse(input, offset)
+    end
+```
+
+When the left parser fails, `Choice` passes the original `offset` to the right parser, not `pos`. The first parser’s failure didn’t consume any input, so the second one starts from the same place.
+
+#### Optional
+
+`Optional` wraps a single parser and always succeeds. If the inner parser matches, it advances. If not, it stays put and reports success anyway:
+
+```
+class Optional is Parser
+  let _inner: Parser
+
+  new create(inner: Parser) =>
+    _inner = inner
+
+  fun parse(input: String val, offset: USize): (Bool, USize) =>
+    (let ok, let pos) = _inner.parse(input, offset)
+    if ok then (true, pos) else (true, offset) end
+```
+
+Both branches return `true`. The only difference is the position: either advanced past the match or unchanged.
+
+#### Many
+
+`Many` requires at least one match, then keeps running the inner parser until it fails. It’s the “one or more” combinator:
+
+```
+class Many is Parser
+  let _inner: Parser
+
+  new create(inner: Parser) =>
+    _inner = inner
+
+  fun parse(input: String val, offset: USize): (Bool, USize) =>
+    var result = _inner.parse(input, offset)
+    if not result._1 then return (false, offset) end
+    var pos = result._2
+    var running = true
+    while running do
+      result = _inner.parse(input, pos)
+      if result._1 then
+        pos = result._2
+      else
+        running = false
+      end
+    end
+    (true, pos)
+```
+
+The first call to the inner parser is the required one. If it fails, `Many` fails. After that, the `while` loop greedily consumes as many matches as it can, advancing `pos` each time. When the inner parser finally fails, the loop stops and `Many` returns however far it got.
+
+### Putting it together
+
+First, short type aliases keep the grammar concise:
+
+```
+type L is Literal
+type R is CharRange
+```
+
+Then we build up the grammar from small pieces. Each `let` binding creates a parser that we can use in later definitions:
+
+```
+let digit = R('0', '9')
+let digit19 = R('1', '9')
+let digits = digit.many1()
+```
+
+`digit` matches any character from `'0'` to `'9'`. `digit19` matches `'1'` through `'9'` (no leading zeros). `digits` is `digit.many1()`, which means “one or more digits.” Remember, `many1()` is defined on the `Parser` trait, so calling it on `digit` wraps it in a `Many` combinator and returns a new parser.
+
+Now the full number grammar:
+
+```
+let number =
+  L("-").opt() * ((digit19 * digits) / digit) * (L(".") * digits).opt()
+```
+
+Reading left to right: `L("-").opt()` creates a `Literal` parser for `"-"` and wraps it in `Optional`, so the minus sign is allowed but not required. The `*` after it is sequence (the `mul` method from the trait), so whatever comes next must follow the optional minus.
+
+Inside the parentheses, `(digit19 * digits) / digit` is a choice (the `div` method). It first tries a multi-digit integer: a digit from 1-9 followed by one or more digits. If that fails, it falls back to a single digit. The choice is ordered this way because `digit` alone would match the first character of `"42"` and stop, leaving the `"2"` unconsumed.
+
+Finally, `(L(".") * digits).opt()` handles the optional decimal part: a literal `"."` followed by one or more digits, all wrapped in `Optional`.
+
+Compare that to the nested function calls in the Problem section. The structure of the code now mirrors the structure of the grammar.
+
+### Complete program
+
+```
+trait box Parser
+  fun parse(input: String val, offset: USize): (Bool, USize)
+
+  fun mul(that: Parser): Parser =>
+    Sequence(this, that)
+
+  fun div(that: Parser): Parser =>
+    Choice(this, that)
+
+  fun opt(): Parser =>
+    Optional(this)
+
+  fun many1(): Parser =>
+    Many(this)
+
+class Literal is Parser
+  let _text: String val
+
+  new create(text: String val) =>
+    _text = text
+
+  fun parse(input: String val, offset: USize): (Bool, USize) =>
+    var i: USize = 0
+    try
+      while i < _text.size() do
+        if input(offset + i)? != _text(i)? then
+          return (false, offset)
+        end
+        i = i + 1
+      end
+      (true, offset + _text.size())
+    else
+      (false, offset)
+    end
+
+class CharRange is Parser
+  let _lo: U8
+  let _hi: U8
+
+  new create(lo: U8, hi: U8) =>
+    _lo = lo
+    _hi = hi
+
+  fun parse(input: String val, offset: USize): (Bool, USize) =>
+    try
+      let c = input(offset)?
+      if (c >= _lo) and (c <= _hi) then
+        (true, offset + 1)
+      else
+        (false, offset)
+      end
+    else
+      (false, offset)
+    end
+
+class Sequence is Parser
+  let _left: Parser
+  let _right: Parser
+
+  new create(left: Parser, right: Parser) =>
+    _left = left
+    _right = right
+
+  fun parse(input: String val, offset: USize): (Bool, USize) =>
+    (let ok, let pos) = _left.parse(input, offset)
+    if ok then
+      _right.parse(input, pos)
+    else
+      (false, offset)
+    end
+
+class Choice is Parser
+  let _left: Parser
+  let _right: Parser
+
+  new create(left: Parser, right: Parser) =>
+    _left = left
+    _right = right
+
+  fun parse(input: String val, offset: USize): (Bool, USize) =>
+    (let ok, let pos) = _left.parse(input, offset)
+    if ok then
+      (true, pos)
+    else
+      _right.parse(input, offset)
+    end
+
+class Optional is Parser
+  let _inner: Parser
+
+  new create(inner: Parser) =>
+    _inner = inner
+
+  fun parse(input: String val, offset: USize): (Bool, USize) =>
+    (let ok, let pos) = _inner.parse(input, offset)
+    if ok then (true, pos) else (true, offset) end
+
+class Many is Parser
+  let _inner: Parser
+
+  new create(inner: Parser) =>
+    _inner = inner
+
+  fun parse(input: String val, offset: USize): (Bool, USize) =>
+    var result = _inner.parse(input, offset)
+    if not result._1 then return (false, offset) end
+    var pos = result._2
+    var running = true
+    while running do
+      result = _inner.parse(input, pos)
+      if result._1 then
+        pos = result._2
+      else
+        running = false
+      end
+    end
+    (true, pos)
+
+type L is Literal
+type R is CharRange
+
+actor Main
+  new create(env: Env) =>
+    let digit = R('0', '9')
+    let digit19 = R('1', '9')
+    let digits = digit.many1()
+    let number =
+      L("-").opt() * ((digit19 * digits) / digit) * (L(".") * digits).opt()
+
+    let tests = ["42"; "-7"; "3.14"; "abc"; ""]
+    for input in tests.values() do
+      (let ok, let pos) = number.parse(input, 0)
+      if ok and (pos == input.size()) then
+        env.out.print("\"" + input + "\" => match")
+      else
+        env.out.print("\"" + input + "\" => no match")
+      end
+    end
+```
+
+The output:
+
+```
+"42" => match
+"-7" => match
+"3.14" => match
+"abc" => no match
+"" => no match
+```
+
+## Discussion
+
+### Where combinators fit
+
+The Problem section mentioned regexes and hand-written parsers. There’s a third alternative worth knowing about: parser generators like yacc or ANTLR. You write the grammar in a special notation, then run a tool that generates parsing code. That’s powerful but introduces a build step, a separate language to learn, and generated code that’s hard to debug.
+
+Parser combinators avoid all of that. The grammar lives right next to the code that uses it and is written in the same language. No external tools, no generated code, no separate grammar files. The tradeoff is performance: parser combinators are generally slower than generated parsers for large grammars. But for the kinds of grammars most applications deal with (config formats, DSLs, structured input), the difference rarely matters, and being able to read your grammar at a glance is worth a lot.
+
+### Why Pony
+
+This pattern works in any language with operator overloading, but Pony makes it particularly clean. Pony maps arithmetic operators directly to method names: `*` calls `mul`, `/` calls `div`. Because these are regular methods defined on a trait, any type that implements `Parser` gets the operators for free. There’s no special syntax, no macros, no metaprogramming. You define methods on a trait and the operators just work.
+
+The `box` capability on the trait matters too. Combinators store their children as `Parser box`, which means they only need read access. You can build the entire parser tree out of `ref` objects, `val` objects, or a mix, and everything composes without capability conflicts. The type system stays out of the way while still enforcing the rules.
+
+### What real parsers add
+
+Our example only recognizes whether text matches a grammar. It returns `true` or `false` and a position. A real parser needs to do more than that.
+
+Most parsers build an abstract syntax tree (AST) as they match. Instead of just knowing “this is a valid number,” you get a data structure that says “here’s a number with a negative sign, integer part 3, and fractional part 14.” That’s the structure your program actually works with.
+
+Real parsers also report errors with location information. When parsing fails, “expected a digit at line 3, column 12” is a lot more helpful than `false`. They handle whitespace so the grammar doesn’t have to mention spaces everywhere. And they support recursive grammars, where a rule can refer to itself. Think matching nested parentheses, or an expression language where `1 + (2 * 3)` is valid. Our example can’t express that because a parser would need to reference itself before it’s been created.
+
+Pony’s [`peg`](https://github.com/ponylang/peg) library is a full parser combinator implementation that handles all of these: ASTs, error reporting, whitespace, and recursive grammars. [`changelog-tool`](https://github.com/ponylang/changelog-tool), which validates and manipulates CHANGELOG files, is a good example of `peg` in production with a real grammar.
+
+### Beyond parsing
+
+The technique isn’t limited to parsing. Any domain where you compose small operations into larger ones can benefit from the same approach: define a trait with the composition operators, implement the leaves and combinators, and let operator overloading turn the construction code into something that reads like a specification. Query builders, validation pipelines, and workflow definitions are all natural fits. The key ingredient is a closed set of composition operators that Pony’s operator overloading can express.
+
+If the compositional idea resonates, the [Object Algebra](https://patterns.ponylang.io/code-sharing/object-algebra.html) pattern takes it in a different direction. Where parser combinators compose operations (sequencing, choice, repetition) over a fixed interpretation, object algebras compose interpretations over a fixed set of operations. Both patterns build complex behavior from small, reusable pieces; they just vary different axes.
+
+### Learn more
+
+- [Monadic Parser Combinators](https://www.cs.nott.ac.uk/~pszgmh/monparsing.pdf) by Graham Hutton and Erik Meijer. The foundational paper on building parsers from composable functions. It uses Haskell, but the ideas translate to any language.
+- [Parsing Expression Grammars](https://bford.info/pub/lang/peg.pdf) by Bryan Ford. PEGs are the formal grammar theory behind most combinator libraries, including Pony’s `peg`. The key insight is ordered choice: try alternatives in order and commit to the first one that matches.
+- The Pony [`peg`](https://github.com/ponylang/peg) library. A real parser combinator library for Pony that builds on the same ideas shown here.
 # Creation Patterns
 
 # Creation Patterns
 
-Pony constructors always return an initialized instance of their type. There’s no `null`, no uninitialized state, and actor constructors can’t be partial. These constraints push you toward patterns that might be unfamiliar if you’re coming from languages where constructors can fail freely or return null.
+Pony constructors always return an initialized instance of their type. There’s no `null`, no uninitialized state, and actor constructors can’t be partial. Reference capabilities add another dimension: constructing a value with the right capability for its intended use sometimes requires specific techniques. These constraints push you toward patterns that might be unfamiliar if you’re coming from languages where constructors can fail freely or return null.
 
 [FFI Global Initializer](https://patterns.ponylang.io/creation/ffi-global-initializer.html) uses a primitive’s `_init` method to run C library initialization exactly once, taking advantage of the fact that primitives are singletons.
+
+[Recover for Isolated Return](https://patterns.ponylang.io/creation/recover-iso.html) shows how to build up mutable data inside a `recover` block and return it as `iso^`. This is the standard technique for writing functions that construct sendable values, and you’ll find it throughout the standard library in places like `File.read` and `Directory.entries`.
 
 [Static Constructor](https://patterns.ponylang.io/creation/static-constructor.html) wraps object construction in a primitive’s `apply` method so it can return either the constructed object or a meaningful error, something Pony constructors can’t do on their own.
 
@@ -1688,6 +2139,128 @@ primitive LibraryInitializer
 ```
 
 For managing per-instance FFI resource handles that need cleanup when you’re done with them, see the [FFI Resource Lifecycle](https://patterns.ponylang.io/resource-management/ffi-resource-lifecycle.html) pattern.
+
+# Recover for Isolated Return
+
+## Problem
+
+You’re writing a function that builds up some data and needs to return it as `iso^`. Maybe you’re constructing a response that another actor will consume, or you’re implementing an interface that requires an `iso^` return type. You write the obvious code:
+
+```
+fun make_greeting(name: String val): String iso^ =>
+  let greeting = String
+  greeting.append("Hello, ")
+  greeting.append(name)
+  greeting.append("!")
+  greeting
+```
+
+The compiler rejects this. `greeting` is a `String ref` because that’s what `String` gives you by default: a mutable reference. But the return type demands `iso^`, and the compiler can’t let a `ref` become `iso`. There might be other references to that object in scope, and `iso` means “I am the only reference.” The compiler has no way to verify that promise starting from a `ref`.
+
+## Solution
+
+Wrap the construction in a `recover` block. Inside the block, you create objects and work with them as `ref` just like normal. When the block ends, the compiler lifts the result to `iso^`.
+
+```
+fun make_greeting(name: String val): String iso^ =>
+  recover
+    let greeting = String
+    greeting.append("Hello, ")
+    greeting.append(name)
+    greeting.append("!")
+    greeting
+  end
+```
+
+The compiler enforces a rule inside recover blocks: you can only access variables from outside the block if their capability is sendable (`val`, `tag`, or `iso`). No `ref` references from the enclosing scope can leak in. That means when the block finishes, the compiler knows for certain that nothing else aliases the result. It’s safe to call it `iso`.
+
+In this example, `name` is `String val`, which is sendable, so it crosses into the block without issue. Fields that are `val` work the same way. A `String val` field on your actor can be read directly inside a recover block because the field itself is sendable.
+
+Where things get more involved is when you need data from a non-sendable field. If your actor has a `ref` field (like a mutable class instance), you can’t access it inside a recover block, even if the piece of data you want from it is `val`:
+
+```
+class Settings
+  let prefix: String val = "Hello"
+
+actor Greeter
+  let _settings: Settings  // Settings ref — not sendable
+
+  fun _make_message(name: String val): String iso^ =>
+    recover
+      let msg = String
+      msg.append(_settings.prefix)  // Error: _settings is ref
+      msg
+    end
+```
+
+The compiler sees `_settings` is `ref` and blocks the access, even though `_settings.prefix` is `val`. The fix is to extract the value you need before entering the recover block:
+
+```
+  fun _make_message(name: String val): String iso^ =>
+    let prefix = _settings.prefix  // String val, extracted from the ref
+    recover
+      let msg = String
+      msg.append(prefix)  // OK: prefix is val
+      msg.append(", ")
+      msg.append(name)
+      msg.append("!")
+      msg
+    end
+```
+
+`_settings.prefix` evaluates to `String val` outside the recover block, and binding it to a local gives you a `val` reference that the block accepts. Any time you have a non-sendable object holding `val` data you need inside a recover block, extracting the values first is the way through.
+
+Here’s a complete program that builds an `iso` string inside one actor and sends it to another:
+
+```
+actor Main
+  new create(env: Env) =>
+    let printer = Printer(env.out)
+    let greeter = Greeter(printer, "Hello")
+    greeter.greet("Alice")
+    greeter.greet("Bob")
+
+actor Greeter
+  let _printer: Printer
+  let _prefix: String val
+
+  new create(printer: Printer, prefix: String val) =>
+    _printer = printer
+    _prefix = prefix
+
+  be greet(name: String val) =>
+    let message = _make_message(name)
+    _printer.print_it(consume message)
+
+  fun _make_message(name: String val): String iso^ =>
+    recover
+      let msg = String
+      msg.append(_prefix)
+      msg.append(", ")
+      msg.append(name)
+      msg.append("!")
+      msg
+    end
+
+actor Printer
+  let _out: OutStream
+
+  new create(out: OutStream) =>
+    _out = out
+
+  be print_it(message: String iso) =>
+    _out.print(consume message)
+```
+
+`Greeter._make_message` builds the greeting string mutably inside a recover block, then the `greet` behavior consumes the result and sends it to the `Printer` actor. Since `_prefix` is `String val`, it can be used directly inside the recover block without extracting it first.
+
+## Discussion
+
+A bare `recover` block lifts the result to whatever the surrounding context requires: `iso^` or `val`. When the return type is `iso^`, you get `iso^`. When you’re assigning to a `val` binding, you get `val`. You can also be explicit by writing `recover val` or `recover iso` to spell out what you want. Both forms enforce the same constraint on what can enter the block; the only difference is what comes out.
+
+This pattern is the foundation beneath several of the [Data Sharing](https://patterns.ponylang.io/data-sharing/index.html) patterns. The [Copying](https://patterns.ponylang.io/data-sharing/copying.html) pattern uses it directly: `let copy: Array[U8] iso = recover Array[U8] end` creates the empty `iso` array that gets populated with copied data. The [Isolated Field](https://patterns.ponylang.io/data-sharing/isolated-field.html) pattern uses it to reinitialize the field after a destructive read: `_data = recover Array[U8] end`. In both cases, the recover block is doing the same job: producing an `iso` value that the compiler can trust is truly isolated.
+
+The standard library leans on this idiom heavily. `File.read` returns `Array[U8] iso^` by creating an array inside a recover block and filling it through FFI calls. `Directory.entries` returns `Array[String] iso^` by building the directory listing in a recover block. If you find yourself writing a function that returns `iso^`, this is almost certainly the technique you’ll reach for.
 
 # Static Constructor
 
@@ -2187,6 +2760,8 @@ Persistent data structures involve copying on each update. The copying pattern i
 
 In the end, that’s just a rule of thumb. Your best bet is to benchmark and pick the method that gives you the best performance for your use case. In our simple example, we are going to update our `_data` array 10 times for every one time we copy it to send. In this case, we are pretty sure that our rule of thumb would stand up to benchmarking.
 
+If the `recover` block syntax in this pattern is unfamiliar, the [Recover for Isolated Return](https://patterns.ponylang.io/creation/recover-iso.html) pattern explains the technique and its constraints in detail.
+
 # Isolated Field
 
 ## Problem
@@ -2263,6 +2838,8 @@ Did you follow that? When the expression is done, we are left with 2 `Array[U8] 
 
 - The local variable `to_send` which is an isolated array of 10 characters
 - Our actor field `_data` that has been reinitialized to an empty array.
+
+The `recover Array[U8] end` expressions are instances of the [Recover for Isolated Return](https://patterns.ponylang.io/creation/recover-iso.html) pattern: they create a `ref` array inside a recover block and lift it to `iso`.
 
 We are now free to take our mutable data that we’ve been collecting and send it along to the waiting `Receiver` actor:
 
@@ -2667,6 +3244,183 @@ One limitation to be aware of is that constrained types aren’t composable thro
 If you’ve seen the [Static Constructor](https://patterns.ponylang.io/creation/static-constructor.html) pattern, constrained types are a standardized version of the same idea. A static constructor is a one-off primitive whose `apply` returns either the constructed object or an error. The `constrained_types` package provides reusable infrastructure for this: a standard `Validator` interface and a `Constrained` wrapper that makes the validation guarantee visible in the type. The return type of `MakeConstrained` is `(Constrained[T, F] | ValidationFailure)`, which is the [Error as Union Type](https://patterns.ponylang.io/error-handling/error-as-union-type.html) pattern, where success and failure are distinct types in a union, and the caller pattern matches on the result.
 
 The theoretical foundation for this approach is often called “Parse, Don’t Validate”: instead of checking whether data is valid and proceeding with the original untyped value, you parse it into a type that carries the proof of validity. The `Constrained` wrapper is that proof.
+
+Constrained types pair naturally with [Value Classes](https://patterns.ponylang.io/domain-modeling/value-classes.html). A constrained type ensures data is valid at construction time; a value class defines what it means for two instances to be “the same” by implementing structural equality and hashing. A validated `Email` type, for example, might also need structural equality so you can deduplicate a list of addresses or use them as map keys.
+
+# Value Classes
+
+## Problem
+
+A value class is a type whose identity is defined by its contents, not by which object it happens to be in memory. Think of a point on a coordinate plane: two points at (3, 4) are the same point regardless of how many `Point` objects you’ve allocated. The value *is* the coordinates. A color, a money amount, a date: these are all values. Two instances with the same fields should be equal, hashable to the same bucket, and printable the same way.
+
+Pony doesn’t give you any of that for free. A bare class has identity semantics: each instance is a distinct object, and the language has no built-in notion of “these two things hold the same data, so treat them as equal.”
+
+```
+class val Point
+  let x: I64
+  let y: I64
+
+  new val create(x': I64, y': I64) =>
+    x = x'
+    y = y'
+
+actor Main
+  new create(env: Env) =>
+    let a = Point(3, 4)
+    let b = Point(3, 4)
+
+    // Won't compile — Point has no eq method
+    // if a == b then env.out.print("equal") end
+
+    // Identity comparison compiles, but it answers "are these the
+    // same object?" not "are these logically the same?"
+    if a is b then
+      env.out.print("same object")
+    else
+      env.out.print("different objects")  // always prints this
+    end
+```
+
+The `==` operator requires the type to implement `Equatable`, which `Point` doesn’t. The `is` operator compares identity (whether two references point to the same object in memory), which isn’t what you want for values. And `Map` requires its keys to be both `Hashable` and `Equatable`, so you can’t use a `Point` as a map key either.
+
+## Solution
+
+Turn `Point` into a proper value class by implementing four interfaces: `Equatable` for structural equality, `Hashable` so it works with `Map` and `Set`, `Comparable` for ordering, and `Stringable` for printing. `Equatable` and `Hashable` are the essential pair. `Comparable` and `Stringable` are optional but come up often enough that they’re worth covering together.
+
+Start with `Equatable`. The default `eq` method compares identity, so you need to override it to compare field values instead:
+
+```
+class val Point is Equatable[Point]
+  let x: I64
+  let y: I64
+
+  new val create(x': I64, y': I64) =>
+    x = x'
+    y = y'
+
+  fun eq(that: box->Point): Bool =>
+    (x == that.x) and (y == that.y)
+```
+
+The `eq` method takes `box->Point`, which is a read-only view of the other point. This is a viewpoint adaptation: `box->` means “read the `Point` through a `box` reference.” Since `Point` is a `val` class, `box->val` resolves to `val`, so you can read the other point’s fields just fine.
+
+Now `==` compares contents. But to use `Point` as a `Map` key, you also need `Hashable`. The `Hashable` interface requires a single method, `hash`, that returns a `USize`:
+
+```
+use "collections"
+
+class val Point is (Equatable[Point] & Hashable)
+  let x: I64
+  let y: I64
+
+  new val create(x': I64, y': I64) =>
+    x = x'
+    y = y'
+
+  fun eq(that: box->Point): Bool =>
+    (x == that.x) and (y == that.y)
+
+  fun hash(): USize =>
+    x.hash() xor (y.hash() << 1)
+```
+
+The hash function combines the hashes of both fields. Every primitive numeric type in Pony already has a `hash` method that applies good bit mixing, so you don’t need to worry about mixing individual field hashes. What you do need to worry about is how you combine them.
+
+Plain XOR (`x.hash() xor y.hash()`) is a bad choice. It’s symmetric: `Point(1, 2)` and `Point(2, 1)` would get the same hash. Worse, any point where both coordinates are equal (`Point(5, 5)`) would hash to zero, since any value XORed with itself is zero. Adding a bit shift (`<< 1`) before the XOR makes the combination order-dependent and avoids the self-cancellation problem.
+
+For types with more than two fields, chain the combination. Each field gets a different shift to keep the hashes distinct:
+
+```
+// For a hypothetical Color class with r, g, b fields:
+fun hash(): USize =>
+  r.hash() xor (g.hash() << 1) xor (b.hash() << 2)
+```
+
+There’s one rule that must never be violated: **if two values are equal, they must have the same hash.** The reverse isn’t required (different values can share a hash; that’s just a collision), but if `a == b` and `a.hash() != b.hash()`, hash-based collections like `Map` and `Set` will silently lose data. Build your `eq` and `hash` from the same set of fields to keep them in sync.
+
+Next, `Comparable`. This extends `Equatable` with ordering. You only need to implement `lt` (less than); the interface provides default implementations for `le`, `ge`, `gt`, and `compare` based on your `eq` and `lt`:
+
+```
+  fun lt(that: box->Point): Bool =>
+    if x == that.x then
+      y < that.y
+    else
+      x < that.x
+    end
+```
+
+This gives lexicographic ordering: compare by `x` first, break ties with `y`. The ordering you choose depends on what makes sense for your type. The only requirement is that it’s consistent (if `a < b` and `b < c`, then `a < c`).
+
+Finally, `Stringable`. The interface requires a `string` method that returns `String iso^`:
+
+```
+  fun string(): String iso^ =>
+    "(" + x.string() + ", " + y.string() + ")"
+```
+
+The `+` operator on `String` returns `String iso^`, which is exactly what `Stringable` requires. You can chain concatenations directly and the result has the right type.
+
+Here’s the complete program with all four interfaces:
+
+```
+use "collections"
+
+class val Point is (Comparable[Point] & Hashable & Stringable)
+  let x: I64
+  let y: I64
+
+  new val create(x': I64, y': I64) =>
+    x = x'
+    y = y'
+
+  fun eq(that: box->Point): Bool =>
+    (x == that.x) and (y == that.y)
+
+  fun lt(that: box->Point): Bool =>
+    if x == that.x then
+      y < that.y
+    else
+      x < that.x
+    end
+
+  fun hash(): USize =>
+    x.hash() xor (y.hash() << 1)
+
+  fun string(): String iso^ =>
+    "(" + x.string() + ", " + y.string() + ")"
+
+actor Main
+  new create(env: Env) =>
+    let a = Point(3, 4)
+    let b = Point(3, 4)
+    let c = Point(1, 2)
+
+    // Structural equality
+    env.out.print(a.string() + " == " + b.string() + ": " + (a == b).string())
+    env.out.print(a.string() + " == " + c.string() + ": " + (a == c).string())
+
+    // Ordering
+    env.out.print(c.string() + " < " + a.string() + ": " + (c < a).string())
+
+    // Use as a Map key
+    let m = Map[Point, String]
+    m(a) = "origin-adjacent"
+    m(c) = "near-origin"
+
+    try
+      env.out.print("m(" + b.string() + ") = " + m(b)?)
+    end
+```
+
+The type signature `Comparable[Point] & Hashable & Stringable` is all you need. `Comparable` already extends `Equatable`, so listing `Equatable` separately would be redundant.
+
+## Discussion
+
+Don’t confuse “value class” with `class val`. They’re different things. `class val` is a Pony keyword combination that makes `val` the default capability for instances of the class. A value class is a design concept: a type whose identity comes from its contents. You can have a `class val` that isn’t a value class (it’s just an immutable object without structural equality), and you could technically implement value class semantics on a `class ref`. That said, `class val` is the right default for value classes. Immutability means instances can be freely shared between actors, and it prevents a subtle bug: if a value class were mutable, inserting it into a `Map` and then changing a field would break the hash, and the map would silently lose track of the entry.
+
+The `Map` and `Set` types in the `collections` package don’t use `Hashable` and `Equatable` directly. They’re parameterized by a `HashFunction` that bundles `hash` and `eq` together. The type aliases `Map[K, V]` and `Set[A]` plug in `HashEq`, which delegates to the key’s own `hash` and `eq` methods. That’s why `Map` requires its key type to be both `Hashable` and `Equatable`: `HashEq` needs both. If you only needed equality without hashing (say, for searching a list), `Equatable` alone would be enough.
+
+Value classes and [Constrained Types](https://patterns.ponylang.io/domain-modeling/constrained-types.html) solve different problems, but they’re complementary. Constrained types ensure data is valid at construction time: a `Username` can only exist if it passed validation. Value classes define what it means for two instances to be “the same”: two `Point` objects with identical coordinates are interchangeable. You’ll often want both. A validated `Email` type might also need structural equality so you can deduplicate a list of addresses or use them as map keys.
 # Error Handling Patterns
 
 # Error Handling Patterns
@@ -3423,9 +4177,191 @@ If you are interested in the particulars `Array`’s resizing algorithm, you can
 
 # Resource Management Patterns
 
-Some resources live outside Pony’s garbage collector. FFI handles, file descriptors, event subscriptions: the runtime can reclaim the Pony object that wraps them, but it won’t automatically clean up the underlying resource. That cleanup is your responsibility, and getting it wrong means leaks, double-frees, or dangling pointers.
+Some resources live outside Pony’s garbage collector. FFI handles, file descriptors, event subscriptions: the runtime can reclaim the Pony object that wraps them, but it won’t automatically clean up the underlying resource. That cleanup is your responsibility, and getting it wrong means leaks, double-frees, dangling pointers, or a program that simply refuses to exit.
 
-The patterns in this chapter show how to manage these resources safely, using Pony’s `dispose()` convention for explicit cleanup and `_final()` as a safety net during garbage collection.
+The patterns in this chapter show how to manage these resources safely. For C library handles wrapped via FFI, there’s the sentinel-and-finalizer approach with `dispose()` and `_final()`. For actors that subscribe to asynchronous events (TCP listeners, timers, signal handlers), there’s the `DisposableActor` interface and `Custodian` for coordinated shutdown.
+
+# Disposable Actor
+
+## Problem
+
+Your Pony program has actors that hold resources: a TCP listener waiting for connections, a timer firing periodically, a process monitor watching a child. You want the program to shut down cleanly when it’s done, but it just hangs:
+
+```
+use "net"
+
+class MyListener is TCPListenNotify
+  let _env: Env
+
+  new iso create(env: Env) =>
+    _env = env
+
+  fun ref listening(listen: TCPListener ref) =>
+    _env.out.print("Listening")
+
+  fun ref not_listening(listen: TCPListener ref) =>
+    _env.out.print("Failed to listen")
+
+  fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
+    object iso is TCPConnectionNotify
+      fun ref received(conn: TCPConnection ref, data: Array[U8] iso,
+        times: USize): Bool => true
+      fun ref connect_failed(conn: TCPConnection ref) => None
+    end
+
+actor Main
+  new create(env: Env) =>
+    TCPListener(TCPListenAuth(env.root),
+      recover MyListener(env) end, "localhost", "8989")
+    env.out.print("Started")
+```
+
+This program prints “Started” and “Listening” and then sits there forever. It will never exit on its own. The Pony runtime shuts down when every actor has finished processing its messages and has no more work to do. But a TCP listener has subscribed to the runtime’s ASIO event system, telling it “wake me up when a connection arrives.” As far as the runtime is concerned, that actor always has pending work. The same is true for timers, UDP sockets, signal handlers, and anything else that subscribes to asynchronous events.
+
+You need a way to tell these actors to release their resources so the program can exit. And when you have more than a handful of them, you need a way to do it without threading shutdown logic through every corner of your code.
+
+## Solution
+
+Pony’s standard library gives you two pieces that solve this together: the `DisposableActor` interface and the `Custodian` actor.
+
+`DisposableActor` lives in `builtin`, so it’s available everywhere without a `use` statement. It’s about as simple as an interface gets:
+
+```
+interface tag DisposableActor
+  be dispose()
+```
+
+One behavior, no arguments, no return value. An actor that implements `dispose()` is making a promise: “call this and I’ll clean up after myself.” The `tag` capability means you can call `dispose()` on any reference to the actor, regardless of what capability you hold. That’s the whole point: shutdown messages need to reach actors from anywhere.
+
+Many standard library actors already implement this. `TCPListener.dispose()` stops listening and closes the socket. `TCPConnection.dispose()` finishes pending writes and closes the connection. `Timers.dispose()` cancels all pending timers and unsubscribes from the event system. You don’t need to do anything special to use them with this pattern; they’re ready to go.
+
+For your own actors, implementing `dispose()` means deciding what “clean up” looks like. An actor managing a database connection pool might close all connections. An actor coordinating workers might tell each worker to stop. The specifics depend on what your actor owns:
+
+```
+actor Ticker
+  let _timers: Timers
+
+  new create(env: Env) =>
+    _timers = Timers
+    let t = Timer(object iso is TimerNotify
+      let _env: Env = env
+      fun ref apply(timer: Timer ref, count: U64): Bool =>
+        _env.out.print("tick")
+        true
+    end, 1_000_000_000, 1_000_000_000)
+    _timers(consume t)
+
+  be dispose() =>
+    _timers.dispose()
+```
+
+`Ticker` owns a `Timers` instance, so its `dispose()` disposes the timers. The chain propagates: `Timers.dispose()` cancels all pending timers and unsubscribes from ASIO events, which lets that actor become idle, which lets the runtime see one fewer actor with pending work.
+
+Now, you could call `dispose()` on each actor yourself. With two or three actors, that’s fine. But programs grow. You end up with a listener, several connections, a timer, maybe a process monitor. Threading individual `dispose()` calls through your shutdown path gets tedious and fragile. Miss one and your program hangs.
+
+`Custodian` from the `bureaucracy` package solves this. It’s an actor that keeps a set of `DisposableActor` references. When you dispose the custodian, it disposes everything in its set:
+
+```
+use "bureaucracy"
+
+actor Main
+  new create(env: Env) =>
+    let custodian = Custodian
+
+    let listener = TCPListener(...)
+    let ticker = Ticker(env)
+
+    custodian(listener)
+    custodian(ticker)
+
+    // Later, when it's time to shut down:
+    custodian.dispose()
+```
+
+The `custodian(actor)` syntax works because `Custodian` implements `apply`. You register actors as you create them, and when shutdown time comes, one call to `custodian.dispose()` fans out to everything.
+
+In practice, “shutdown time” is usually a signal. Here’s a complete program that starts a TCP listener and a ticker, then shuts down cleanly when it receives SIGTERM:
+
+```
+use "bureaucracy"
+use "net"
+use "signals"
+use "time"
+
+class MyListener is TCPListenNotify
+  let _env: Env
+
+  new iso create(env: Env) =>
+    _env = env
+
+  fun ref listening(listen: TCPListener ref) =>
+    _env.out.print("Listening on 8989")
+
+  fun ref not_listening(listen: TCPListener ref) =>
+    _env.out.print("Failed to listen")
+
+  fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
+    object iso is TCPConnectionNotify
+      fun ref received(conn: TCPConnection ref, data: Array[U8] iso,
+        times: USize): Bool => true
+      fun ref connect_failed(conn: TCPConnection ref) => None
+    end
+
+class TermHandler is SignalNotify
+  let _custodian: Custodian
+
+  new iso create(custodian: Custodian) =>
+    _custodian = custodian
+
+  fun ref apply(count: U32): Bool =>
+    _custodian.dispose()
+    true
+
+actor Ticker
+  let _timers: Timers
+
+  new create(env: Env) =>
+    _timers = Timers
+    let t = Timer(object iso is TimerNotify
+      let _env: Env = env
+      fun ref apply(timer: Timer ref, count: U64): Bool =>
+        _env.out.print("tick")
+        true
+    end, 1_000_000_000, 1_000_000_000)
+    _timers(consume t)
+
+  be dispose() =>
+    _timers.dispose()
+
+actor Main
+  new create(env: Env) =>
+    let custodian = Custodian
+
+    let listener = TCPListener(TCPListenAuth(env.root),
+      recover MyListener(env) end, "localhost", "8989")
+    let ticker = Ticker(env)
+
+    custodian(listener)
+    custodian(ticker)
+
+    let signal = SignalHandler(recover TermHandler(custodian) end,
+      Sig.term())
+    custodian(signal)
+```
+
+When the process receives SIGTERM, `TermHandler.apply` fires, which disposes the custodian, which disposes the listener, the ticker, and the signal handler. Each of those actors releases its ASIO resources, and the runtime exits cleanly.
+
+## Discussion
+
+Pony uses structural typing, so actors don’t need to explicitly declare `is DisposableActor`. If an actor has a `dispose()` behavior, it satisfies the interface automatically. That’s why `TCPListener`, `TCPConnection`, `Timers`, and `ProcessMonitor` all work with `Custodian` even though none of them mention `DisposableActor` in their type declarations. You just pass them in and it works.
+
+`Custodian` itself implements `dispose()`, which means it’s a `DisposableActor` too. You can nest custodians. A subsystem might have its own custodian managing its internal actors, and you register that custodian with a top-level one. Disposing the top-level custodian cascades through the tree. This is useful for larger programs where different subsystems have independent lifecycles but you still want a single kill switch at the top.
+
+`Custodian` also has a `remove` behavior for actors that shut down before the program does. If a TCP connection closes on its own, you can remove it from the custodian so it doesn’t try to dispose an already-finished actor. Calling `dispose()` on an actor that’s already cleaned up is usually harmless (it’s good practice to make `dispose()` idempotent), but removing it keeps the custodian’s set from growing unboundedly in long-running programs where connections come and go.
+
+The order of disposal is not guaranteed. `Custodian` iterates its internal set, and `SetIs` doesn’t promise any particular ordering. If your actors have dependencies (actor A should shut down before actor B), you need to handle that yourself, either by nesting custodians with explicit ordering or by having actor A dispose actor B as part of its own `dispose()` implementation. For most programs this doesn’t matter; each actor just releases its own resources independently.
+
+This pattern is the actor-level complement to [FFI Resource Lifecycle](https://patterns.ponylang.io/resource-management/ffi-resource-lifecycle.html), which handles cleanup for C library handles within a single class. FFI Resource Lifecycle uses `dispose()` plus `_final()` as a GC safety net for non-actor objects. Disposable Actor uses `dispose()` to coordinate shutdown across actors that hold ASIO subscriptions. In a real program you’ll often use both: an actor implements `dispose()` (so it works with `Custodian`), and inside that actor, a class wraps a C handle with the sentinel-and-finalizer pattern. The two patterns layer naturally because they both speak the same `dispose()` protocol.
 
 # FFI Resource Lifecycle
 
@@ -3573,7 +4509,7 @@ The sentinel value depends on the kind of handle you’re wrapping. For pointer 
 
 This pattern shows up throughout the standard library. `File` manages an OS file descriptor, guarding reads and writes and freeing the descriptor in both `dispose()` and `_final()`. `Directory` does the same for directory handles. Each wraps a different kind of resource, but they both follow the same shape: track the resource in a mutable field, check before use, clean up explicitly with `dispose()`, and backstop with `_final()`.
 
-For the related case of one-time library initialization and teardown (not per-instance resources), see the [FFI Global Initializer](https://patterns.ponylang.io/creation/ffi-global-initializer.html) pattern.
+For the related case of one-time library initialization and teardown (not per-instance resources), see the [FFI Global Initializer](https://patterns.ponylang.io/creation/ffi-global-initializer.html) pattern. For coordinating shutdown across multiple actors that hold ASIO resources (TCP listeners, timers, signal handlers), see the [Disposable Actor](https://patterns.ponylang.io/resource-management/disposable-actor.html) pattern. The two patterns layer naturally: an actor implements `dispose()` for coordinated shutdown, and inside it a class wraps a C handle with the sentinel-and-finalizer approach described here.
 # Streaming Patterns
 
 # Streaming Patterns
