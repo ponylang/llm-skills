@@ -103,6 +103,8 @@ Works with constructors too — `String.>append("hello").>append(" world")` crea
 
 11. **Prefer `embed` over `let` for class/struct fields**: When a field's type is a class or struct and it's initialized from a constructor expression, use `embed` instead of `let`. `embed` is the recommended default — it avoids a pointer indirection and a separate heap allocation. Only use `let` when the field might outlive its parent (exterior references would prevent GC of the parent object), or when the type is an interface, trait, primitive, or numeric type (which can't be embedded).
 
+12. **`Any` is a code smell**: Using `Any` is almost never what you want. It erases type information and forces runtime checks where compile-time guarantees should exist. In most cases, the right answer is a generic type parameter — this preserves type safety and lets the compiler enforce constraints. If you're reaching for `Any`, stop and ask whether a generic would work instead.
+
 ## Integer Arithmetic Modes
 
 Pony integers have **three** arithmetic modes — choose based on how you want to handle overflow:
