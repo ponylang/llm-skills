@@ -8,6 +8,7 @@
 - [Accessing an Actor with Arbitrary Transactions](https://patterns.ponylang.io/async/access.md)
 - [Interrogating Actors with Promises](https://patterns.ponylang.io/async/actorpromise.md)
 - [Batch and Yield](https://patterns.ponylang.io/async/batch-and-yield.md)
+- [Supervisor and Worker](https://patterns.ponylang.io/async/supervisor-worker.md)
 - [Waiting](https://patterns.ponylang.io/async/waiting.md)
 
 ## Behavioral Patterns
