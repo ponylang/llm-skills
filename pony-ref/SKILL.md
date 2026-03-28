@@ -105,6 +105,8 @@ Works with constructors too — `String.>append("hello").>append(" world")` crea
 
 12. **`Any` is a code smell**: Using `Any` is almost never what you want. It erases type information and forces runtime checks where compile-time guarantees should exist. In most cases, the right answer is a generic type parameter — this preserves type safety and lets the compiler enforce constraints. If you're reaching for `Any`, stop and ask whether a generic would work instead.
 
+13. **Don't use `fun tag` on primitives**: Primitives are `val`, and the default method receiver is `box`. Since `val <: box`, plain `fun` works on primitives without annotation. `fun tag` compiles but pointlessly weakens the receiver to `tag`, which can't read fields — it's never what you want on a primitive. Just use `fun`.
+
 ## Integer Arithmetic Modes
 
 Pony integers have **three** arithmetic modes — choose based on how you want to handle overflow:
