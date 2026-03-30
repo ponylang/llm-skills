@@ -9,7 +9,7 @@ Clone the repo and run the install script. It symlinks each skill into your Clau
 ```bash
 git clone https://github.com/ponylang/llm-skills.git
 cd llm-skills
-./install.sh
+python install.py
 ```
 
 That's it. Start a new Claude Code session and the skills are available.
