@@ -23,10 +23,12 @@ from pathlib import Path
 
 
 def repo_dir():
+    """Return the absolute path to the repository root."""
     return Path(__file__).resolve().parent
 
 
 def claude_home():
+    """Return the path to ~/.claude."""
     return Path.home() / ".claude"
 
 
@@ -50,7 +52,31 @@ def symlink(src, dst, dry_run):
     return f"  link: {dst} -> {src}"
 
 
+def remove_stale_symlinks(repo, skills_dst, dry_run):
+    """Remove symlinks in skills_dst that point into repo but whose targets no longer exist."""
+    if not skills_dst.is_dir():
+        return
+    stale = []
+    for entry in sorted(skills_dst.iterdir()):
+        if not entry.is_symlink():
+            continue
+        target = entry.resolve()
+        try:
+            target.relative_to(repo.resolve())
+        except ValueError:
+            continue
+        if not target.exists():
+            stale.append(entry)
+    if stale:
+        print("\nStale skill symlinks:")
+        for entry in stale:
+            if not dry_run:
+                entry.unlink()
+            print(f"  remove: {entry}")
+
+
 def main():
+    """Install skills by symlinking into ~/.claude/skills/."""
     if len(sys.argv) > 1 and sys.argv[1] in ("-h", "--help"):
         print(__doc__.strip())
         sys.exit(0)
@@ -78,28 +104,7 @@ def main():
     if not found_any:
         print("  (no skill directories found)")
 
-    # Remove stale skill symlinks that point into this repo but no longer
-    # have a corresponding source directory.
-    skills_dst = home / "skills"
-    if skills_dst.is_dir():
-        stale = []
-        for entry in sorted(skills_dst.iterdir()):
-            if not entry.is_symlink():
-                continue
-            target = entry.resolve()
-            # Only touch symlinks that point into this repo.
-            try:
-                target.relative_to(repo.resolve())
-            except ValueError:
-                continue
-            if not target.exists():
-                stale.append(entry)
-        if stale:
-            print("\nStale skill symlinks:")
-            for entry in stale:
-                if not dry_run:
-                    entry.unlink()
-                print(f"  remove: {entry}")
+    remove_stale_symlinks(repo, home / "skills", dry_run)
 
     if dry_run:
         print("\n=== DRY RUN complete (no changes were made) ===")
