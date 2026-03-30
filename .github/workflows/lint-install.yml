@@ -1,0 +1,27 @@
+name: Lint install.py
+
+on:
+  pull_request:
+    paths:
+      - install.py
+
+concurrency:
+  group: lint-install-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pylint:
+    name: Pylint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Install pylint
+        run: pip install pylint
+      - name: Lint install.py
+        run: pylint install.py
