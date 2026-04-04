@@ -3,6 +3,7 @@
 
 Usage:
     python install.py              Install (create symlinks)
+    python install.py --uninstall  Remove all symlinks pointing into this repo
     python install.py --dry-run    Show what would be done without doing it
 
 What it does:
@@ -75,6 +76,31 @@ def remove_stale_symlinks(repo, skills_dst, dry_run):
             print(f"  remove: {entry}")
 
 
+def uninstall(repo, skills_dst, dry_run):
+    """Remove all symlinks in skills_dst that point into repo."""
+    if not skills_dst.is_dir():
+        print("Nothing to uninstall (skills directory does not exist).")
+        return
+    removed = []
+    for entry in sorted(skills_dst.iterdir()):
+        if not entry.is_symlink():
+            continue
+        target = entry.resolve()
+        try:
+            target.relative_to(repo.resolve())
+        except ValueError:
+            continue
+        removed.append(entry)
+    if not removed:
+        print("No symlinks pointing into this repo found.")
+        return
+    print("Removing:")
+    for entry in removed:
+        if not dry_run:
+            entry.unlink()
+        print(f"  {entry}")
+
+
 def main():
     """Install skills by symlinking into ~/.claude/skills/."""
     if len(sys.argv) > 1 and sys.argv[1] in ("-h", "--help"):
@@ -89,22 +115,25 @@ def main():
     repo = repo_dir()
     home = claude_home()
 
-    # Symlink each skill directory (top-level dirs containing SKILL.md)
-    print("Skills:")
-    found_any = False
-    for skill_dir in sorted(repo.iterdir()):
-        if not skill_dir.is_dir():
-            continue
-        if not (skill_dir / "SKILL.md").exists():
-            continue
-        found_any = True
-        dst = home / "skills" / skill_dir.name
-        print(symlink(skill_dir, dst, dry_run))
+    if "--uninstall" in sys.argv:
+        uninstall(repo, home / "skills", dry_run)
+    else:
+        # Symlink each skill directory (top-level dirs containing SKILL.md)
+        print("Skills:")
+        found_any = False
+        for skill_dir in sorted(repo.iterdir()):
+            if not skill_dir.is_dir():
+                continue
+            if not (skill_dir / "SKILL.md").exists():
+                continue
+            found_any = True
+            dst = home / "skills" / skill_dir.name
+            print(symlink(skill_dir, dst, dry_run))
 
-    if not found_any:
-        print("  (no skill directories found)")
+        if not found_any:
+            print("  (no skill directories found)")
 
-    remove_stale_symlinks(repo, home / "skills", dry_run)
+        remove_stale_symlinks(repo, home / "skills", dry_run)
 
     if dry_run:
         print("\n=== DRY RUN complete (no changes were made) ===")

@@ -27,10 +27,8 @@ No re-install needed — the symlinks point to your clone, so pulling new conten
 
 ### Uninstalling
 
-Remove the symlinks for each installed skill:
-
 ```bash
-rm ~/.claude/skills/pony-ref ~/.claude/skills/pony-ffi-audit ~/.claude/skills/pony-examples-readme ~/.claude/skills/pony-library-readme ~/.claude/skills/pony-release-notes ~/.claude/skills/pony-software-design ~/.claude/skills/pony-code-review ~/.claude/skills/pony-test-design ~/.claude/skills/pony-ensemble ~/.claude/skills/pony-synthesize ~/.claude/skills/pony-pbt-patterns ~/.claude/skills/pony-debug
+python install.py --uninstall
 ```
 
 This only removes the symlinks, not the cloned repo.
