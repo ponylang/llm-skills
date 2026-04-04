@@ -37,7 +37,9 @@ This only removes the symlinks, not the cloned repo.
 
 ## Skills
 
-### pony-ref
+### Pony Language
+
+#### pony-ref
 
 The Pony language reference. Load it with `/pony-ref` at the start of a Pony coding session or when you hit a question about capabilities, the type system, the runtime, or testing.
 
@@ -58,7 +60,7 @@ What's in the `references/` directory (read on demand for deeper questions):
 - **Academic papers** — the full text of all nine Pony papers covering the type system, garbage collection, generics, and distributed programming.
 - **Website content** — snapshots of the Pony tutorial, patterns cookbook, and main website (via their llms.txt files). Covers language fundamentals, idiomatic patterns, tooling guides, and FAQ.
 
-### pony-ffi-audit
+#### pony-ffi-audit
 
 Audit methodology for finding dangerous FFI usage in Pony codebases. Load it with `/pony-ffi-audit` before auditing a project's C-FFI calls for reference capability violations.
 
@@ -77,7 +79,9 @@ What's in the `references/` directory (read on demand):
 
 - **Example audit** — a condensed real-world audit showing the reporting format, classification, and summary structure across multiple projects and all pattern categories.
 
-### pony-examples-readme
+### Project Conventions
+
+#### pony-examples-readme
 
 Conventions for writing `examples/README.md` files in ponylang projects. Load it with `/pony-examples-readme` when adding, updating, or reorganizing examples.
 
@@ -88,7 +92,7 @@ What's in the quick reference:
 - Ordering strategies (by complexity, by category, by directory name)
 - What to omit (build instructions, source code snippets, detailed setup)
 
-### pony-library-readme
+#### pony-library-readme
 
 Conventions for writing Pony library project READMEs. Load it with `/pony-library-readme` when writing or updating a library's top-level README.
 
@@ -98,7 +102,7 @@ What's in the quick reference:
 - Optional sections (dependencies, usage with inline code examples)
 - What ponylang library READMEs deliberately omit (badges, contributing, license, table of contents)
 
-### pony-release-notes
+#### pony-release-notes
 
 How to write release notes and manage CHANGELOG entries in ponylang projects. Load it with `/pony-release-notes` when writing release notes, updating CHANGELOG, or preparing a PR with user-facing changes.
 
@@ -110,47 +114,51 @@ What's in the quick reference:
 - Single-type vs. multi-type PR workflows
 - Rules for updating accumulated unreleased notes
 
-### pony-software-design
+### Development Workflow
+
+#### pony-software-design
 
 Disciplines for software design work — APIs, type systems, features, system boundaries. Load it with `/pony-software-design` when designing new interfaces or deciding where ownership boundaries fall. Counters the tendency to retrieve familiar patterns instead of discovering what the problem needs.
 
 Has full (8-persona) and lightweight (5-persona) modes. Full mode runs design (3 personas) and evaluation (5 personas) stages with a feedback loop. Lightweight mode keeps all design personas but reduces evaluation to 2 personas in a single pass.
 
-### pony-code-review
+#### pony-code-review
 
 Ensemble code review with specialized reviewer personas. Load it with `/pony-code-review` when conducting a code review of a PR, branch, or local changes.
 
 Has full (8-persona, iterative re-review) and lightweight (3-persona, single pass) modes. Personas cover correctness, security, performance, API design, test quality, adversarial scenarios, design principles, and wildcard concerns.
 
-### pony-test-design
+#### pony-test-design
 
 Two-stage ensemble for planning meaningful tests. Load it with `/pony-test-design` when writing tests for new features or reviewing test quality. Counters the tendency to write tests that exercise the stdlib instead of your code.
 
 Has full (8-persona) and lightweight (5-persona) modes. Stage 1 (planning) produces a test strategy from three different analytical angles. Stage 2 (evaluation) stress-tests the strategy for coverage gaps, weak assertions, and missed property-testing opportunities.
 
-### pony-ensemble
-
-The mechanical process for producing higher-confidence outputs through decorrelated reasoning paths. Load it with `/pony-ensemble` when you want the ensemble approach. Multiple agents work the same problem with slightly different attention focuses, then a synthesizer integrates their outputs.
-
-This is infrastructure — `pony-software-design`, `pony-code-review`, and `pony-test-design` all build on it with domain-specific customizations.
-
-### pony-synthesize
-
-Fixed instructions for the ensemble synthesizer — integrates multiple agent outputs into a single higher-quality result. Load it with `/pony-synthesize` as part of the ensemble workflow.
-
-This is infrastructure — loaded by `pony-ensemble` during the synthesis step.
-
-### pony-pbt-patterns
+#### pony-pbt-patterns
 
 Property-based and generative testing patterns. Load it with `/pony-pbt-patterns` when writing property-based tests, generators, or generative test suites.
 
 Covers the valid/invalid/mixed generator triad, compositional generator hierarchies, deriving generators from validation rules, and coverage strategies. Maps directly onto PonyCheck.
 
-### pony-debug
+#### pony-debug
 
 Structured debugging protocol with checkpoints. Load it with `/pony-debug` when debugging non-trivial issues — before forming any hypothesis about the cause.
 
 Provides an OODA-loop investigation process: characterize the failure, gather context, build a minimal reproduction, then iterate through hypothesis/experiment/observe cycles until all symptoms are explained. Especially valuable for Pony's subtle failure modes (capability violations, FFI issues, actor lifecycle problems, CI timeouts from undisposed resources).
+
+### Infrastructure
+
+#### pony-ensemble
+
+The mechanical process for producing higher-confidence outputs through decorrelated reasoning paths. Load it with `/pony-ensemble` when you want the ensemble approach. Multiple agents work the same problem with slightly different attention focuses, then a synthesizer integrates their outputs.
+
+This is infrastructure — `pony-software-design`, `pony-code-review`, and `pony-test-design` all build on it with domain-specific customizations.
+
+#### pony-synthesize
+
+Fixed instructions for the ensemble synthesizer — integrates multiple agent outputs into a single higher-quality result. Load it with `/pony-synthesize` as part of the ensemble workflow.
+
+This is infrastructure — loaded by `pony-ensemble` during the synthesis step.
 
 ## Suggested Triggers
 
