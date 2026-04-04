@@ -2,6 +2,8 @@
 
 Skills for working with [Pony](https://www.ponylang.io) in [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Each skill is a self-contained reference that Claude loads on demand during coding sessions.
 
+**About the `pony-` prefix:** All skills in this repo use a `pony-` prefix as an org namespace to avoid name collisions with skills from other sources. Some skills (like `pony-ref` and `pony-ffi-audit`) are Pony-language-specific. Others (like `pony-ensemble` and `pony-code-review`) are language-agnostic methodology skills that work on any codebase — the prefix is about where they come from, not what languages they apply to.
+
 ## Installation
 
 Clone the repo and run the install script. It symlinks each skill into your Claude Code skills directory so they stay up to date when you pull.
@@ -28,7 +30,7 @@ No re-install needed — the symlinks point to your clone, so pulling new conten
 Remove the symlinks for each installed skill:
 
 ```bash
-rm ~/.claude/skills/pony-ref ~/.claude/skills/pony-ffi-audit ~/.claude/skills/pony-examples-readme ~/.claude/skills/pony-library-readme ~/.claude/skills/pony-release-notes
+rm ~/.claude/skills/pony-ref ~/.claude/skills/pony-ffi-audit ~/.claude/skills/pony-examples-readme ~/.claude/skills/pony-library-readme ~/.claude/skills/pony-release-notes ~/.claude/skills/pony-software-design ~/.claude/skills/pony-code-review ~/.claude/skills/pony-test-design ~/.claude/skills/pony-ensemble ~/.claude/skills/pony-synthesize ~/.claude/skills/pony-pbt-patterns
 ```
 
 This only removes the symlinks, not the cloned repo.
@@ -108,6 +110,42 @@ What's in the quick reference:
 - Single-type vs. multi-type PR workflows
 - Rules for updating accumulated unreleased notes
 
+### pony-software-design
+
+Disciplines for software design work — APIs, type systems, features, system boundaries. Load it with `/pony-software-design` when designing new interfaces or deciding where ownership boundaries fall. Counters the tendency to retrieve familiar patterns instead of discovering what the problem needs.
+
+Has full (8-persona) and lightweight (5-persona) modes. Full mode runs design (3 personas) and evaluation (5 personas) stages with a feedback loop. Lightweight mode keeps all design personas but reduces evaluation to 2 personas in a single pass.
+
+### pony-code-review
+
+Ensemble code review with specialized reviewer personas. Load it with `/pony-code-review` when conducting a code review of a PR, branch, or local changes.
+
+Has full (8-persona, iterative re-review) and lightweight (3-persona, single pass) modes. Personas cover correctness, security, performance, API design, test quality, adversarial scenarios, design principles, and wildcard concerns.
+
+### pony-test-design
+
+Two-stage ensemble for planning meaningful tests. Load it with `/pony-test-design` when writing tests for new features or reviewing test quality. Counters the tendency to write tests that exercise the stdlib instead of your code.
+
+Has full (8-persona) and lightweight (5-persona) modes. Stage 1 (planning) produces a test strategy from three different analytical angles. Stage 2 (evaluation) stress-tests the strategy for coverage gaps, weak assertions, and missed property-testing opportunities.
+
+### pony-ensemble
+
+The mechanical process for producing higher-confidence outputs through decorrelated reasoning paths. Load it with `/pony-ensemble` when you want the ensemble approach. Multiple agents work the same problem with slightly different attention focuses, then a synthesizer integrates their outputs.
+
+This is infrastructure — `pony-software-design`, `pony-code-review`, and `pony-test-design` all build on it with domain-specific customizations.
+
+### pony-synthesize
+
+Fixed instructions for the ensemble synthesizer — integrates multiple agent outputs into a single higher-quality result. Load it with `/pony-synthesize` as part of the ensemble workflow.
+
+This is infrastructure — loaded by `pony-ensemble` during the synthesis step.
+
+### pony-pbt-patterns
+
+Property-based and generative testing patterns. Load it with `/pony-pbt-patterns` when writing property-based tests, generators, or generative test suites.
+
+Covers the valid/invalid/mixed generator triad, compositional generator hierarchies, deriving generators from validation rules, and coverage strategies. Maps directly onto PonyCheck.
+
 ## Suggested Triggers
 
 Add these to your `CLAUDE.md` or `AGENTS.md` to load skills automatically when relevant:
@@ -131,3 +169,19 @@ Add these to your `CLAUDE.md` or `AGENTS.md` to load skills automatically when r
 ### /pony-release-notes
 
 > **Load `/pony-release-notes` for release notes and CHANGELOG**: Load it when writing release notes, updating CHANGELOG, or preparing a PR that includes user-facing changes in a Pony project.
+
+### /pony-software-design
+
+> **Load `/pony-software-design` for design work**: When the task involves designing APIs, type systems, features, or system boundaries — not just implementing an existing design — load `/pony-software-design` before starting. This includes any work where you're deciding what types to create, what a public interface looks like, or where ownership boundaries fall.
+
+### /pony-code-review
+
+> **Load `/pony-code-review` for code reviews**: When conducting a code review of a PR, branch, or local changes, load `/pony-code-review`. Not for one-line config changes or typo fixes.
+
+### /pony-test-design
+
+> **Load `/pony-test-design` when writing tests**: Before writing tests for new features or reviewing test quality, load `/pony-test-design`.
+
+### /pony-pbt-patterns
+
+> **Load `/pony-pbt-patterns` when writing property-based tests**: Load it when writing property-based tests, generators, or generative test suites, especially with PonyCheck.
