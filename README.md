@@ -30,7 +30,7 @@ No re-install needed — the symlinks point to your clone, so pulling new conten
 Remove the symlinks for each installed skill:
 
 ```bash
-rm ~/.claude/skills/pony-ref ~/.claude/skills/pony-ffi-audit ~/.claude/skills/pony-examples-readme ~/.claude/skills/pony-library-readme ~/.claude/skills/pony-release-notes ~/.claude/skills/pony-software-design ~/.claude/skills/pony-code-review ~/.claude/skills/pony-test-design ~/.claude/skills/pony-ensemble ~/.claude/skills/pony-synthesize ~/.claude/skills/pony-pbt-patterns
+rm ~/.claude/skills/pony-ref ~/.claude/skills/pony-ffi-audit ~/.claude/skills/pony-examples-readme ~/.claude/skills/pony-library-readme ~/.claude/skills/pony-release-notes ~/.claude/skills/pony-software-design ~/.claude/skills/pony-code-review ~/.claude/skills/pony-test-design ~/.claude/skills/pony-ensemble ~/.claude/skills/pony-synthesize ~/.claude/skills/pony-pbt-patterns ~/.claude/skills/pony-debug
 ```
 
 This only removes the symlinks, not the cloned repo.
@@ -146,6 +146,12 @@ Property-based and generative testing patterns. Load it with `/pony-pbt-patterns
 
 Covers the valid/invalid/mixed generator triad, compositional generator hierarchies, deriving generators from validation rules, and coverage strategies. Maps directly onto PonyCheck.
 
+### pony-debug
+
+Structured debugging protocol with checkpoints. Load it with `/pony-debug` when debugging non-trivial issues — before forming any hypothesis about the cause.
+
+Provides an OODA-loop investigation process: characterize the failure, gather context, build a minimal reproduction, then iterate through hypothesis/experiment/observe cycles until all symptoms are explained. Especially valuable for Pony's subtle failure modes (capability violations, FFI issues, actor lifecycle problems, CI timeouts from undisposed resources).
+
 ## Suggested Triggers
 
 Add these to your `CLAUDE.md` or `AGENTS.md` to load skills automatically when relevant:
@@ -185,3 +191,7 @@ Add these to your `CLAUDE.md` or `AGENTS.md` to load skills automatically when r
 ### /pony-pbt-patterns
 
 > **Load `/pony-pbt-patterns` when writing property-based tests**: Load it when writing property-based tests, generators, or generative test suites, especially with PonyCheck.
+
+### /pony-debug
+
+> **Load `/pony-debug` when you start debugging**: Before forming any hypothesis about the cause of a non-trivial issue, load `/pony-debug`. It provides a structured protocol with checkpoints.
