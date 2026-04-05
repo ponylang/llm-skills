@@ -1,12 +1,16 @@
 # Pony LLM Skills
 
-Skills for working with [Pony](https://www.ponylang.io) in [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Each skill is a self-contained reference that Claude loads on demand during coding sessions.
+Skills for working with [Pony](https://www.ponylang.io) in any LLM coding harness that supports sub-agents. Each skill is a self-contained reference that your LLM loads on demand during coding sessions.
+
+## Tested with
+
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
 
 **About the `pony-` prefix:** All skills in this repo use a `pony-` prefix as an org namespace to avoid name collisions with skills from other sources. Some skills (like `pony-ref` and `pony-ffi-audit`) are Pony-language-specific. Others (like `pony-ensemble` and `pony-code-review`) are language-agnostic methodology skills that work on any codebase — the prefix is about where they come from, not what languages they apply to.
 
 ## Installation
 
-Clone the repo and run the install script. It symlinks each skill into your Claude Code skills directory so they stay up to date when you pull.
+Clone the repo and run the install script. It symlinks each skill into your harness's skills directory so they stay up to date when you pull.
 
 ```bash
 git clone https://github.com/ponylang/llm-skills.git
@@ -14,7 +18,7 @@ cd llm-skills
 python install.py
 ```
 
-That's it. Start a new Claude Code session and the skills are available.
+That's it. Start a new session and the skills are available.
 
 To update later:
 
