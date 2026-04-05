@@ -24,11 +24,13 @@ disable-model-invocation: false
 
 **How to add release notes in Pony projects**: Create a `.md` file in the `.release-notes/` directory with any unique, descriptive name (e.g., `remove-command.md`). Format: `## Title` followed by an end-user description. Do NOT edit `next-release.md` directly — CI aggregates the individual files into that on release. The file can be included in the PR that introduces the change.
 
-**Three types of user-facing changes**: Fixed (bug fixes), Added (new features), Changed (breaking changes or conceptual changes). Most PRs are a single type, which the automation handles — do NOT include a manual CHANGELOG step in plans for single-type PRs. After opening the PR, apply the corresponding label so CI knows which CHANGELOG section to use: `changelog - fixed`, `changelog - added`, or `changelog - changed`. When a PR spans multiple types (e.g., both Added and Changed), the automation can't handle it — you must manually:
+**Three types of user-facing changes**: Fixed (bug fixes), Added (new features), Changed (breaking changes or conceptual changes). Most PRs are a single type, which the automation handles — do NOT include a manual CHANGELOG step in plans for single-type PRs. After opening the PR, apply the corresponding label so CI knows which CHANGELOG section to use: `changelog - fixed`, `changelog - added`, or `changelog - changed`.
+
+**Multi-type PRs**: When a PR spans multiple types (e.g., both Added and Changed), you can apply multiple changelog labels. The automation will create entries in each relevant CHANGELOG section, but all entries will use the PR title as the description. If the PR title works as a description for all change types, multiple labels are fine. If each change type needs its own description, handle it manually instead:
 1. Open the PR first to get a PR number.
 2. Update `CHANGELOG.md` directly, adding a line to each relevant section under `[unreleased]`. Each line should be the best short description for that specific change (not necessarily the PR title), formatted as `- Description ([PR #N](url))`. A single PR can have multiple entries in the same section (e.g., multiple Changed lines) if there are multiple distinct breaking changes.
 3. Append the release notes directly to `.release-notes/next-release.md` — one `## Title` section per change type.
-4. Do NOT create an individual `.release-notes/*.md` file for multi-type PRs.
+4. Do NOT create an individual `.release-notes/*.md` file for manually-handled multi-type PRs.
 5. Do NOT apply a `changelog` label — labels and manual CHANGELOG/next-release.md edits are mutually exclusive.
 
 **PR title must match release note title for single-type PRs**: When using a changelog label, the automation uses the PR title as the CHANGELOG entry. The release note heading (the `## Title` line) and the PR title must be the same text, so users see a consistent name in the CHANGELOG and the release notes.
