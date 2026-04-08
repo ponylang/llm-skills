@@ -71,6 +71,25 @@ synthesis output as its input. The two-stage loop and finding categorization
 base ensemble protocol handles agent spawning, triage, and synthesis
 mechanics.
 
+### Orchestrator pre-spawn: understand the problem
+
+Before spawning design personas, the orchestrator must decompose the problem
+statement. Ask: "What are we trying to accomplish? What pain point does this
+address?"
+
+If the problem statement implies a solution rather than stating a problem —
+"add convenience wrapper methods for X" rather than "users struggle with X
+because Y" — peel it back to the underlying pain point. If you can't
+confidently identify the pain point, ask the human. This is not a failure;
+it's the most valuable question the orchestrator can ask, because every
+persona will anchor on whatever framing they receive.
+
+Brief personas with the actual problem. The original problem statement can be
+included as context, but the briefing should lead with the pain point: what the
+user is struggling with and why. This gives personas room to explore different
+solutions rather than anchoring on the solution implied by the problem
+statement.
+
 ### Stage 1: Design
 
 Three design personas explore the problem space in parallel. Each applies all
@@ -83,6 +102,32 @@ definitions are in `personas/design/`.
 | `consumer-first.md` | Starts from usage code, derives API from what makes call sites clean |
 | `skeptic.md` | Questions every abstraction, tries to subtract, proposes the smallest design |
 | `principle-checker.md` | Hard verification of each design principle with evidence |
+
+### Orchestrator post-return: evaluate exploration quality
+
+When personas return, the orchestrator evaluates the quality of exploration
+before forwarding outputs to synthesis. Check:
+
+- **Did the personas explore meaningfully different approaches?** Read each
+  persona's "Key decisions / alternatives considered" section. If a persona
+  only considered one interpretation of the problem and designed for it, the
+  exploration was insufficient.
+- **Did they all anchor on the same narrow interpretation?** If all three
+  personas produced designs based on the same framing of the problem — e.g.,
+  all three designed wrapper methods — the ensemble failed to decorrelate.
+  The different entry points weren't enough to overcome the anchoring effect
+  of the problem statement.
+- **Is the reasoning for rejecting alternatives sound?** A persona that
+  considered a wild idea and rejected it with good reasoning explored
+  genuinely. A persona that listed an alternative and dismissed it in one
+  sentence didn't.
+
+If exploration quality is poor — narrow interpretation, insufficient
+alternatives, weak rejection reasoning — don't forward to synthesis. Refine
+the briefing: restate the problem more broadly, point out the anchoring you
+observed, and ask the human to clarify if needed. Then re-spawn.
+
+### Stage 1 synthesis
 
 Stage 1 synthesis produces a candidate design using the standard ensemble
 synthesis process. The synthesis should pay special attention to:
@@ -240,6 +285,12 @@ Lightweight mode uses fewer personas and a single pass. It keeps all three
 design personas but reduces evaluation to two personas and drops the
 feedback loop. Load `/pony-ensemble` for the mechanical process.
 
+### Orchestrator pre-spawn: understand the problem
+
+Same as full mode. Before spawning personas, decompose the problem statement
+to the underlying pain point. If the problem statement implies a solution,
+peel it back or ask the human. Brief personas with the actual problem.
+
 ### Stage 1: Design
 
 Three design personas explore the problem in parallel — the same as full
@@ -251,6 +302,12 @@ different entry points.
 | `consumer-first.md` | Starts from usage code, derives API from what makes call sites clean |
 | `skeptic.md` | Questions every abstraction, tries to subtract, proposes the smallest design |
 | `principle-checker.md` | Hard verification of each design principle with evidence |
+
+### Orchestrator post-return: evaluate exploration quality
+
+Same as full mode. Evaluate whether personas explored meaningfully different
+approaches before forwarding to synthesis. If all three anchored on the same
+narrow interpretation, re-brief and re-spawn.
 
 Stage 1 synthesis produces a candidate design using the standard ensemble
 synthesis process. The same synthesis guidance as full mode applies:
@@ -355,6 +412,35 @@ State what problem the user has before proposing any types, traits, or APIs.
 "The user needs X" comes before "here's a `SessionStore` trait." If you can't
 articulate the problem without referencing your solution, you don't understand
 the problem yet.
+
+### Explore before committing
+
+If you only have one idea, you don't have any. The first interpretation of a
+problem statement is pattern retrieval — the LLM equivalent of "this looks like
+a thing I've seen before." Design starts when you generate a second
+interpretation that's genuinely different, not a variation on the first.
+
+Before committing to a direction, explore the design space. Generate multiple
+approaches internally — different framings of what the problem is asking for,
+not just different implementations of the same framing. Include wild ideas.
+They're valuable not because you'll use them, but because they reveal what
+matters about the problem. An idea you reject teaches you something about why
+you rejected it — that "why" is design knowledge.
+
+Present your best idea, not your first idea. The output is the winner of an
+internal competition. The ensemble output format has a "Key decisions:
+alternatives considered" section — use it to document what you explored, what
+you picked, why, and why you rejected the alternatives. This isn't bookkeeping;
+it gives the orchestrator visibility into whether real exploration happened.
+
+The problem statement is where exploration starts, not where it ends. "Add
+convenience wrapper methods" is a hint about a pain point, not a design
+specification. What pain? Why is the current approach painful? What would
+"convenience" actually mean to the user? Different answers to those questions
+lead to genuinely different designs — one of which might be "thin wrappers"
+and another might be "a unified API that abstracts away the underlying
+complexity." Both are valid interpretations of "convenience"; only exploration
+reveals which one earns its keep.
 
 ### Sketch consumer code first
 
@@ -1050,6 +1136,14 @@ the discovery process. Back up. What's the smallest piece?
 **Starting from solution shape instead of problem statement.** If your design
 document opens with type definitions rather than "the user needs to..." — you're
 retrieving, not designing.
+
+**Committing to the first interpretation.** When the problem statement implies an
+approach ("add convenience wrapper methods"), treating that as the design rather
+than as a hint about a pain point. If every persona produced the same kind of
+solution, nobody explored — they all pattern-matched on the problem statement and
+dressed up the first idea. The tell: the "alternatives considered" section is
+empty or lists only variations on the same approach, not genuinely different
+framings of what the problem is asking for.
 
 **Importing patterns without questioning fit.** String-keyed maps, middleware
 chains, context objects, store traits — these exist in many frameworks. Their
