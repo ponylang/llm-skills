@@ -93,6 +93,16 @@ synthesis process. The synthesis should pay special attention to:
   this is the highest-value finding
 - Whether all three converged on the same abstraction — convergence from
   different starting points is strong signal
+- **When the skeptic says "no value" and redirects**: The skeptic is the only
+  persona whose job includes saying "this shouldn't exist." When the skeptic
+  concludes the proposed design doesn't earn its keep and redirects toward a
+  different problem, this is not a minority position to be outvoted because
+  the other two produced designs. The other two will *always* produce a
+  design — that's their job. Evaluate the skeptic's case on its merits. If
+  the skeptic is right that the design is a thin wrapper, the synthesis
+  output should adopt the skeptic's redirect as the foundation: "the
+  proposed design doesn't earn its keep — here's the actual problem worth
+  solving" becomes the candidate, not a blended version of the thin wrapper.
 
 ### Stage 2: Evaluation
 
