@@ -1,0 +1,105 @@
+name: PR Merge Changelog
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - CHANGELOG.md
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find merged PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Retry loop for GitHub API eventual consistency.
+          for attempt in 1 2 3; do
+            PR_JSON=$(gh api "repos/${REPO}/commits/${COMMIT_SHA}/pulls" \
+              --jq '.[0] // empty' 2>/dev/null || echo "")
+            if [ -n "$PR_JSON" ]; then
+              break
+            fi
+            echo "Attempt ${attempt}: no PR found, retrying in 10s..."
+            sleep 10
+          done
+
+          if [ -z "$PR_JSON" ]; then
+            echo "No PR found for commit — skipping"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          NUMBER=$(echo "$PR_JSON" | jq -r '.number')
+          TITLE=$(echo "$PR_JSON" | jq -r '.title')
+          URL=$(echo "$PR_JSON" | jq -r '.html_url')
+
+          CHANGELOG_LABEL=$(echo "$PR_JSON" | jq -r \
+            '[.labels[].name] | map(select(startswith("changelog - "))) | first // empty')
+
+          echo "number=$NUMBER" >> "$GITHUB_OUTPUT"
+          echo "title=$TITLE" >> "$GITHUB_OUTPUT"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "changelog_label=$CHANGELOG_LABEL" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Determine change type
+        if: steps.pr.outputs.skip != 'true' && steps.pr.outputs.changelog_label != ''
+        id: type
+        env:
+          LABEL: ${{ steps.pr.outputs.changelog_label }}
+        run: |
+          case "$LABEL" in
+            "changelog - added")   echo "entry_type=added" >> "$GITHUB_OUTPUT" ;;
+            "changelog - fixed")   echo "entry_type=fixed" >> "$GITHUB_OUTPUT" ;;
+            "changelog - changed") echo "entry_type=changed" >> "$GITHUB_OUTPUT" ;;
+            *)
+              echo "Unknown changelog label: $LABEL"
+              exit 1
+              ;;
+          esac
+
+      - name: Check out main
+        if: steps.pr.outputs.skip != 'true' && steps.pr.outputs.changelog_label != ''
+        uses: actions/checkout@v6.0.2
+
+      - name: Set up Python
+        if: steps.pr.outputs.skip != 'true' && steps.pr.outputs.changelog_label != ''
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Add changelog entry
+        if: steps.pr.outputs.skip != 'true' && steps.pr.outputs.changelog_label != ''
+        env:
+          TITLE: ${{ steps.pr.outputs.title }}
+          NUMBER: ${{ steps.pr.outputs.number }}
+          URL: ${{ steps.pr.outputs.url }}
+          ENTRY_TYPE: ${{ steps.type.outputs.entry_type }}
+        run: |
+          ENTRY="${TITLE} ([PR #${NUMBER}](${URL}))"
+          python3 .ci-scripts/changelog.py add-entry --type "$ENTRY_TYPE" "$ENTRY"
+
+      - name: Commit and push
+        if: steps.pr.outputs.skip != 'true' && steps.pr.outputs.changelog_label != ''
+        env:
+          NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Update changelog for PR #${NUMBER}"
+          git pull --rebase origin main
+          git push origin main
