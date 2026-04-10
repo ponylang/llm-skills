@@ -1,0 +1,50 @@
+name: CI Scripts
+
+on:
+  pull_request:
+    paths:
+      - ".ci-scripts/**"
+      - "CHANGELOG.md"
+
+concurrency:
+  group: lint-changelog-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out PR head
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install pylint
+        run: pip install pylint
+
+      - name: Lint
+        run: pylint .ci-scripts/changelog.py
+
+  validate-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out PR head
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Validate changelog format
+        run: python3 .ci-scripts/changelog.py validate
