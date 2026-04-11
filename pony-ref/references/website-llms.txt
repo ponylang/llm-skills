@@ -25,6 +25,7 @@ behind the language.
 - [Dependency Management](https://www.ponylang.io/use/dependency-management/index.md)
 - [Documentation Generation](https://www.ponylang.io/use/documentation/index.md)
 - [Overview](https://www.ponylang.io/use/linting/index.md)
+- [LLM Skills](https://www.ponylang.io/use/llm-skills/index.md)
 - [Packages](https://www.ponylang.io/use/packages/index.md)
 - [Overview](https://www.ponylang.io/use/performance/index.md)
 - [Pony Language Server](https://www.ponylang.io/use/pony-lsp/index.md)
