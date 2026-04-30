@@ -2240,6 +2240,161 @@ Just like `while` loops, the value given by a `repeat` loop is the value of the 
 
 **Since you always go round a repeat loop at least once, do you ever need to give it an else expression?** Yes, you may need to. A `continue` in the last iteration of a `repeat` loop needs to get a value from somewhere, and an `else` expression is used for that.
 
+## Iftype
+
+`iftype` is a compile-time conditional that selects a code path based on whether a type parameter satisfies a subtype constraint. It uses the `<:` operator to check the subtype relationship: `iftype A <: B` asks “is `A` a subtype of `B`?”
+
+Because the condition is resolved at compile time, only the matching branch is included in the generated code. Both branches are type-checked, but the non-matching one is discarded from the output.
+
+**How is iftype different from match?** A `match` expression dispatches on the runtime type of a value. `iftype` operates on type parameters as they are known at compile time. If you call a generic function `foo[Animal](Cat)`, the type parameter is `Animal`, not `Cat` — so `iftype A <: Cat` would be false, even though the runtime value is a `Cat`.
+
+Here’s a simple example with a generic function that behaves differently depending on whether the type parameter is a specific class:
+
+```
+trait Animal
+class Cat is Animal
+class Dog is Animal
+
+actor Main
+  new create(env: Env) =>
+    greet[Cat](env)
+    greet[Dog](env)
+
+  fun greet[A: Animal](env: Env) =>
+    iftype A <: Cat then
+      env.out.print("meow")
+    else
+      env.out.print("not a meow")
+    end
+```
+
+This prints “meow” and then “not a meow”. When `greet` is called with `Cat`, the compiler sees that `Cat <: Cat` is true and takes the `then` branch. When called with `Dog`, `Dog <: Cat` is false, so it takes the `else` branch.
+
+### Type narrowing
+
+Inside the `then` branch, the compiler knows the subtype relationship holds. This means you can call methods on a value that are only available on the constraining type:
+
+```
+trait Animal
+  fun name(): String
+
+class Cat is Animal
+  fun name(): String => "Cat"
+  fun purr(): String => "prrr"
+
+class Dog is Animal
+  fun name(): String => "Dog"
+
+actor Main
+  new create(env: Env) =>
+    describe[Cat val](Cat, env)
+    describe[Dog val](Dog, env)
+
+  fun describe[A: Animal val](a: A, env: Env) =>
+    env.out.print(a.name())
+    iftype A <: Cat val then
+      env.out.print(a.purr())
+    end
+```
+
+In the `then` branch the compiler knows `A <: Cat val`, so calling `a.purr()` is valid even though the method doesn’t exist on the `Animal` trait.
+
+### Elseif
+
+You can chain multiple type checks with `elseif`, just like a regular `if`:
+
+```
+trait Animal
+class Cat is Animal
+class Dog is Animal
+class Fish is Animal
+
+actor Main
+  new create(env: Env) =>
+    describe[Cat](env)
+    describe[Dog](env)
+    describe[Fish](env)
+
+  fun describe[A: Animal](env: Env) =>
+    iftype A <: Cat then
+      env.out.print("I'm a cat")
+    elseif A <: Dog then
+      env.out.print("I'm a dog")
+    else
+      env.out.print("I'm something else")
+    end
+```
+
+### Capabilities in conditions
+
+The condition can include a reference capability. This lets you write different code depending on what the caller can do with a value:
+
+```
+trait Animal
+
+class Cat is Animal
+  var _name: String = "Cat"
+
+  fun box name(): String => _name
+  fun ref set_name(name': String) => _name = name'
+
+actor Main
+  new create(env: Env) =>
+    let cat: Cat ref = Cat
+    maybe_rename[Cat ref](cat, env)
+
+    let cat2: Cat val = Cat
+    maybe_rename[Cat val](cat2, env)
+
+  fun maybe_rename[A: Animal](a: A, env: Env) =>
+    iftype A <: Cat ref then
+      a.set_name("Kitty")
+      env.out.print(a.name())
+    elseif A <: Cat box then
+      env.out.print(a.name())
+    end
+```
+
+Here the `ref` branch can call `set_name` because it knows it has write access. The `box` branch can only read.
+
+### Tuple conditions
+
+When a function has multiple type parameters, you can check them together using a tuple condition. Both sides of `<:` must be tuples of the same size:
+
+```
+trait Animal
+class Cat is Animal
+class Dog is Animal
+
+actor Main
+  new create(env: Env) =>
+    check[Cat, Dog](env)
+    check[Cat, Cat](env)
+
+  fun check[A: Animal, B: Animal](env: Env) =>
+    iftype (A, B) <: (Cat, Dog) then
+      env.out.print("cat and dog")
+    else
+      env.out.print("some other combination")
+    end
+```
+
+The condition `(A, B) <: (Cat, Dog)` is true only when `A` is a subtype of `Cat` **and** `B` is a subtype of `Dog`.
+
+### Limitations
+
+**Can I use iftype outside of a generic function?** No. The subtype (the left side of `<:`) must be a type parameter or a tuple of type parameters. You cannot use concrete types. For example, this does not compile:
+
+```
+iftype String <: Stringable then
+  ...
+end
+```
+
+Like other control structures in Pony, `iftype` is an expression. Its value is the value of whichever branch is taken. If the `then` and `else` branches produce different types, the `iftype` expression produces a union of those types.
+
+**What if my iftype doesn’t have an else?** Any `else` branch that doesn’t exist gives an implicit `None`, just like `if`.
+
 # Match Expressions
 
 If we want to compare an expression to a value then we use an `if`. But if we want to compare an expression to a lot of values this gets very tedious. Pony provides a powerful pattern matching facility, combining matching on values and types, without any special code required.
@@ -4758,6 +4913,8 @@ actor Main
     let b = Foo[String val]("World")
     env.out.print(b.get().string())
 ```
+
+Constraints restrict what types a caller can provide. If you need different behavior depending on the actual type used, see [iftype](https://tutorial.ponylang.io/expressions/control-structures.html#iftype) — a compile-time conditional that branches on subtype relationships.
 # Packages
 
 # Overview
@@ -6303,7 +6460,7 @@ Pony, like just about any other programming language, has plenty of odd symbols 
 | `~`    | Partial application   |
 | `?`    | Partial function      |
 | `'`    | Prime                 |
-| `<:`   | Subtype               |
+| `<:`   | Subtype, iftype       |
 
 Here is a more elaborate explanation of Pony’s use of special characters: (a line with (2) or (3) means an alternate usage of the symbol of the previous line)
 
@@ -6356,72 +6513,73 @@ Here is a more elaborate explanation of Pony’s use of special characters: (a l
 | `->`    | (1) arrow type                                                                 |
 |         | (2) viewpoint                                                                  |
 | `._i`   | where `i = 1,2,…` means the item at position i in the tuple                    |
-| `<:`    | “is a subtype of” or “can be substituted for”                                  |
+| `<:`    | (1) “is a subtype of” or “can be substituted for”                              |
+|         | (2) used in `iftype` conditions to check subtype relationships                 |
 
 # Keywords
 
 This listing explains the usage of every Pony keyword.
 
-| Keyword             | Usage                                                                                                    |
-| ------------------- | -------------------------------------------------------------------------------------------------------- |
-| `actor`             | defines an actor                                                                                         |
-| `as`                | conversion of a value to another Type (can raise an error)                                               |
-| `be`                | behavior, executed asynchronously                                                                        |
-| `box`               | default reference capability – object is readable, but not writable                                      |
-| `break`             | to step out of a loop statement                                                                          |
-| `class`             | defines a class                                                                                          |
-| `compile_error`     | will provoke a compile error                                                                             |
-| `compile_intrinsic` | implementation is written in C and not available as Pony code                                            |
-| `continue`          | continues a loop with the next iteration                                                                 |
-| `consume`           | move a value to a new variable, leaving the original variable empty                                      |
-| `digestof`          | create a `USize` value that summarizes the Pony object, similar to a Java object’s `hashCode()` value.   |
-| `do`                | loop statement, or after a with statement                                                                |
-| `else`              | conditional statement in if, for, while, repeat, try (as a catch block), match                           |
-| `elseif`            | conditional statement, also used with `ifdef`                                                            |
-| `embed`             | embed a class as a field of another class                                                                |
-| `end`               | ending of: `if then`, `ifdef`, `while do`, `for in`, `repeat until`, `try`, `object`, `recover`, `match` |
-| `error`             | raises an error                                                                                          |
-| `for`               | loop statement                                                                                           |
-| `fun`               | define a function, executed synchronously                                                                |
-| `if`                | (1) conditional statement                                                                                |
-|                     | (2) to define a guard in a pattern match                                                                 |
-| `ifdef`             | when defining a build flag at compile time: ponyc –D “foo”                                               |
-| `iftype`            | type conditional statement `iftype A <: B` checks if `A` is a subtype of `B`                             |
-| `in`                | used in a for in - loop statement                                                                        |
-| `interface`         | used in structural subtyping                                                                             |
-| `is`                | (1) used in nominal subtyping                                                                            |
-|                     | (2) in type aliasing                                                                                     |
-|                     | (3) identity comparison                                                                                  |
-| `isnt`              | negative identity comparison                                                                             |
-| `iso`               | reference capability – read and write uniqueness                                                         |
-| `let`               | declaration of immutable variable: you can’t rebind this name to a new value                             |
-| `match`             | pattern matching                                                                                         |
-| `new`               | constructor                                                                                              |
-| `not`               | logical negation                                                                                         |
-| `object`            | to make an object literal                                                                                |
-| `primitive`         | declares a primitive type                                                                                |
-| `recover`           | removes the reference capability of a variable                                                           |
-| `ref`               | reference capability – object (on which function is called) is mutable                                   |
-| `repeat`            | loop statement                                                                                           |
-| `return`            | to return early from a function                                                                          |
-| `tag`               | reference capability – neither readable nor writeable, only object identity                              |
-| `then`              | (1) in if conditional statement                                                                          |
-|                     | (2) as a (finally) block in try                                                                          |
-| `this`              | the current object                                                                                       |
-| `trait`             | used in nominal subtyping: `class Foo is TraitName`                                                      |
-| `trn`               | reference capability – write uniqueness, no other actor can write to the object                          |
-| `try`               | error handling                                                                                           |
-| `type`              | to declare a type alias                                                                                  |
-| `until`             | loop statement                                                                                           |
-| `use`               | (1) using a package                                                                                      |
-|                     | (2) using an external library foo: use “lib:foo”                                                         |
-|                     | (3) declaration of an FFI signature                                                                      |
-|                     | (4) add a search path for external libraries: `use "path:/usr/local/lib"`                                |
-| `var`               | declaration of mutable variable: you can rebind this name to a new value                                 |
-| `val`               | reference capability – globally immutable object                                                         |
-| `where`             | when specifying named arguments                                                                          |
-| `while`             | loop statement                                                                                           |
-| `with`              | ensure disposal of an object                                                                             |
+| Keyword             | Usage                                                                                                              |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `actor`             | defines an actor                                                                                                   |
+| `as`                | conversion of a value to another Type (can raise an error)                                                         |
+| `be`                | behavior, executed asynchronously                                                                                  |
+| `box`               | default reference capability – object is readable, but not writable                                                |
+| `break`             | to step out of a loop statement                                                                                    |
+| `class`             | defines a class                                                                                                    |
+| `compile_error`     | will provoke a compile error                                                                                       |
+| `compile_intrinsic` | implementation is written in C and not available as Pony code                                                      |
+| `continue`          | continues a loop with the next iteration                                                                           |
+| `consume`           | move a value to a new variable, leaving the original variable empty                                                |
+| `digestof`          | create a `USize` value that summarizes the Pony object, similar to a Java object’s `hashCode()` value.             |
+| `do`                | loop statement, or after a with statement                                                                          |
+| `else`              | conditional statement in if, iftype, for, while, repeat, try (as a catch block), match                             |
+| `elseif`            | conditional statement, also used with `ifdef` and `iftype`                                                         |
+| `embed`             | embed a class as a field of another class                                                                          |
+| `end`               | ending of: `if then`, `ifdef`, `iftype`, `while do`, `for in`, `repeat until`, `try`, `object`, `recover`, `match` |
+| `error`             | raises an error                                                                                                    |
+| `for`               | loop statement                                                                                                     |
+| `fun`               | define a function, executed synchronously                                                                          |
+| `if`                | (1) conditional statement                                                                                          |
+|                     | (2) to define a guard in a pattern match                                                                           |
+| `ifdef`             | when defining a build flag at compile time: ponyc –D “foo”                                                         |
+| `iftype`            | type conditional statement `iftype A <: B` checks if `A` is a subtype of `B`                                       |
+| `in`                | used in a for in - loop statement                                                                                  |
+| `interface`         | used in structural subtyping                                                                                       |
+| `is`                | (1) used in nominal subtyping                                                                                      |
+|                     | (2) in type aliasing                                                                                               |
+|                     | (3) identity comparison                                                                                            |
+| `isnt`              | negative identity comparison                                                                                       |
+| `iso`               | reference capability – read and write uniqueness                                                                   |
+| `let`               | declaration of immutable variable: you can’t rebind this name to a new value                                       |
+| `match`             | pattern matching                                                                                                   |
+| `new`               | constructor                                                                                                        |
+| `not`               | logical negation                                                                                                   |
+| `object`            | to make an object literal                                                                                          |
+| `primitive`         | declares a primitive type                                                                                          |
+| `recover`           | removes the reference capability of a variable                                                                     |
+| `ref`               | reference capability – object (on which function is called) is mutable                                             |
+| `repeat`            | loop statement                                                                                                     |
+| `return`            | to return early from a function                                                                                    |
+| `tag`               | reference capability – neither readable nor writeable, only object identity                                        |
+| `then`              | (1) in if and iftype conditional statements                                                                        |
+|                     | (2) as a (finally) block in try                                                                                    |
+| `this`              | the current object                                                                                                 |
+| `trait`             | used in nominal subtyping: `class Foo is TraitName`                                                                |
+| `trn`               | reference capability – write uniqueness, no other actor can write to the object                                    |
+| `try`               | error handling                                                                                                     |
+| `type`              | to declare a type alias                                                                                            |
+| `until`             | loop statement                                                                                                     |
+| `use`               | (1) using a package                                                                                                |
+|                     | (2) using an external library foo: use “lib:foo”                                                                   |
+|                     | (3) declaration of an FFI signature                                                                                |
+|                     | (4) add a search path for external libraries: `use "path:/usr/local/lib"`                                          |
+| `var`               | declaration of mutable variable: you can rebind this name to a new value                                           |
+| `val`               | reference capability – globally immutable object                                                                   |
+| `where`             | when specifying named arguments                                                                                    |
+| `while`             | loop statement                                                                                                     |
+| `with`              | ensure disposal of an object                                                                                       |
 
 # Examples
 
