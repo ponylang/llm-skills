@@ -70,7 +70,7 @@ Pony allows the definition of both functions and behaviours. Functions may be ca
 from within the same actor or from an actor on an object, while behaviours may only be
 defined on an actor and are executed asynchronously by adding the call to the actor’s
 message queue. As an example, consider the following small code segment:
-```
+```pony
 actor A2
   be helloBehaviour(env: Env) =>
     env.out.print("Hello from A2 (be)")
@@ -116,7 +116,7 @@ example, an object of type Baz tag permits all local and global aliases, however
 result their contents cannot be modified or even read, only the identity (address) of the
 object can be known. These behaviours are summarised in table 1 and illustrated in the
 below example:
-```
+```pony
 class LightSwitch
   fun ref toggle() =>
     // methods modifying local state must be declared ref
@@ -135,7 +135,7 @@ class LightSwitch
 
  Table 1: Capability matrix, reproduced from [4]. Capabilities in italics are sendable.
 
-```
+```pony
 actor LightSwitchToggler
   be receive_iso(ls: LightSwitch iso) =>
     // iso objects can both read and modify the object
@@ -216,12 +216,12 @@ temporary rather than a named local variable we can in fact give back an iso tem
                                                 Field
                        Origin   iso   trn    ref   val   box    tag
 
-                        iso     iso   tag    tag   val   tag    tag
-                        trn     iso   trn    box   val   box    tag
-                        ref     iso   trn    ref   val   box    tag
-                        val     val   val    val   val   val    tag
-                        box     tag   box    box   val   box    tag
-                        tag      ⊥     ⊥      ⊥     ⊥     ⊥      ⊥
+iso     iso   tag    tag   val   tag    tag
+trn     iso   trn    box   val   box    tag
+ref     iso   trn    ref   val   box    tag
+val     val   val    val   val   val    tag
+box     tag   box    box   val   box    tag
+tag      ⊥     ⊥      ⊥     ⊥     ⊥      ⊥
 
                  Table 2: Viewpoint adaptation, reproduced from [4].
 
@@ -296,7 +296,7 @@ subtyping relationships (where ≤ indicates subtyping, is read ”is a subtype 
 
 We can now construct a base class A0 with a method overridden by the deriving
 class A1 displaying both covariance and contravariance in a Java-like language:
-```
+```java
 class A0 {
   C1 m(B1 x) {
     ...
@@ -328,7 +328,7 @@ T2.
 F-Bounded Polymorphism, introduced by Canning et al. [2], is an extension to bounded
 quantification (Cardelli and Wegner [3]) that allows for a more strict return type from inherited functions. As an example, consider the below example of bounded quantification
 for a Cloneable interface:
-```
+```java
 public interface Cloneable {
   Object clone();
 }
@@ -345,7 +345,7 @@ knowledge of the deriving class it is impossible to return any class more specia
 that Cloneable. With F-bounded polymorphism (also known as recursively bounded
 quantification), the interface now changes to accept a generic parameter satisfying the
 same Cloneable interface as such:
-```
+```java
 public interface Cloneable<T extends Cloneable<T>> {
   T clone();
 }
@@ -362,7 +362,7 @@ well-typed return type of the clone method while still keeping the interface gen
 
 However notice that this only permits a single level of type-exactness unless the String
 class itself is generic, consider the following extensions extending the basic String class:
-```
+```java
 public class SpecialStringOne extends String {
   public String clone() {
     ...
@@ -390,7 +390,7 @@ generic classes at the declaration site as Foo<in T> or Foo<out T> to indicate c
 Java on the other hand supports a form of use-site variance, where the variance of a
 type is implicitly existentially quantified [12]. Consider the following example adapted
 from one put forward by Kennedy and Pierce [12]:
-```
+```java
 interface Func<A, B> {
   B apply(A a);
 }
@@ -419,7 +419,7 @@ even worse subtyping becomes undecidable under the presence of recursive inherit
 and variance [8, 12]. Consider the following example from Greenman et al. [8], written in
 a C#-like language making use of covariance (out), contravariance (in) and F-bounded
 polymorphism:
-```
+```java
 public interface Equatable<in T> {
   ...
 }
@@ -485,7 +485,7 @@ allowing recursive inheritance for anything other than shapes.
 
    Utilising our earlier Comparable example, we would now alter our code to declare
 the interface as a shape:
-```
+```java
 public shape Cloneable<T> {
   T clone();
 }
@@ -507,42 +507,58 @@ declare usage of unintuitive F-bounded polymorphism.
 
 ## 2.5 Structural and Nominal Subtyping
 
-     Both structural and nominal subtyping [13] are supported in Pony as a method of
-     allowing the programmer to express the intention of provided interfaces.
-         Structural subtyping allows for the development of interfaces and automatic introduction of subtyping between interfaces and classes implementing interface methods
-     without the programmer having to explicitly inherit the interface. This is useful for
-     cases where the original programmer may not be aware of such interfaces existing or
-     should not need to care for the purpose of interfaces used only in cases like utility
-     methods, where only a subset of behaviour is actually required.
-         In contrast, nominal subtyping refers to the practice of explicitly specifying the
-     subtyping relation. This is done in Pony by defining a trait in an identical way to
-     how interfaces are specified. In this case, a class explicitly inherits the trait and hence
-     guarantees to provides all methods of that trait, something that can be checked by
-     the compiler. Nominal subtyping has the advantages that design intent is explicitly
-     preserved and that the use of nominal subtyping prevents the accidental introduction
-     of subtyping between unrelated types, however can cause rigidity especially when thirdparty classes are provided which cannot be easily modified.
-         As an example of how Pony utilises structural and nominal subtyping, consider the
-     following example from Pony’s online documentation:
+Both structural and nominal subtyping [13] are supported in Pony as a method of
+allowing the programmer to express the intention of provided interfaces.
 
+Structural subtyping allows for the development of interfaces and automatic introduction of subtyping between interfaces and classes implementing interface methods
+without the programmer having to explicitly inherit the interface. This is useful for
+cases where the original programmer may not be aware of such interfaces existing or
+should not need to care for the purpose of interfaces used only in cases like utility
+methods, where only a subset of behaviour is actually required.
+
+In contrast, nominal subtyping refers to the practice of explicitly specifying the
+subtyping relation. This is done in Pony by defining a trait in an identical way to
+how interfaces are specified. In this case, a class explicitly inherits the trait and hence
+guarantees to provides all methods of that trait, something that can be checked by
+the compiler. Nominal subtyping has the advantages that design intent is explicitly
+preserved and that the use of nominal subtyping prevents the accidental introduction
+of subtyping between unrelated types, however can cause rigidity especially when thirdparty classes are provided which cannot be easily modified.
+
+As an example of how Pony utilises structural and nominal subtyping, consider the
+following example from Pony’s online documentation:
+
+```pony
+trait Named
+  fun name(): String val =>
+    "Somebody"
+
+  class Alice is Named
+
+class AliceUsage
+  fun use_named(x: Named ref) =>
+    ...
+
+    fun call_with_alice() =>
+      var alice = Alice.create()
+      this.receive_named(alice)
 ```
-trait Named                                         1 trait Named
-  fun name(): String val =>                         2   fun name(): String val =>
-    "Somebody"                                      3     "Somebody"
-                                                    4
 
-  class Alice is Named                              5 class Bob
-                                                    6   fun name(): String val =>
-                                                    7     "Bob"
-                                                    8
+```pony
+trait Named
+  fun name(): String val =>
+    "Somebody"
 
-class AliceUsage                                    9 class BobUsage
-  fun use_named(x: Named ref) =>                   10   fun use_named(x: Named ref) =>
-    ...                                            11     ...
-                                                   12
+class Bob
+  fun name(): String val =>
+    "Bob"
 
-    fun call_with_alice() =>                       13   fun call_with_bob() =>
-      var alice = Alice.create()                   14     var bob = Bob.create()
-      this.receive_named(alice)                    15     this.receive_named(bob)
+class BobUsage
+  fun use_named(x: Named ref) =>
+    ...
+
+  fun call_with_bob() =>
+    var bob = Bob.create()
+    this.receive_named(bob)
     // ˆ fails to compile
 ```
          In the left example, class Alice automatically inherits the function name from
@@ -555,7 +571,7 @@ class AliceUsage                                    9 class BobUsage
 
 despite Bob providing all the same methods as Named, subtyping must be introduced
 from traits explicitly by using the is keyword.
-```
+```pony
   interface Named
     fun name(): String val
 
@@ -619,7 +635,7 @@ Union types have a number of uses in Pony, the simplest and most well-known of w
 is to provide a type-safe way of encoding that a value may or may not be present. For
 example, consider a method get name which may either return a String val or else
 nothing (represented in Pony using the None val type):
-```
+```pony
 fun get_name(): (String val | None val) =>
   ...
 ```
@@ -639,7 +655,7 @@ example of this is to simulate the existence of multiple return values. Consider
 get name example from earlier, however now instead of optionally returning a String
 val we wish to return a pair of them (separating first and last names, for example).
 We can express this with the below signature:
-```
+```pony
 fun get_name(): (String val, String val) =>
   ...
 ```
@@ -654,7 +670,7 @@ are subtypes of one-another.
 In Pony, capabilities are attached to the inner types in type expressions, which allows expressions potentially dangerous combinations of capabilities to be constructed. Consider
 
 the following example we discovered:
-```
+```pony
 class Data
   fun ref modify_data() =>
     ...
@@ -692,7 +708,7 @@ Pony supports generic types, where classes may take a number of type parameters,
 may in turn take an optional constraint and default value to take if no type parameters
 are specified at the use-site. Consider an example of the Map type alias from the Pony
 online documentation, which has the following definition:
-```
+```pony
 type Map[K: (Hashable box & Comparable[K] box), V]
   is HashMap[K, V, HashEq[K]]
 ```
@@ -733,7 +749,7 @@ One of the most common uses of F-bounded polymorphism noted by Greenman et al.
 types [1] perform exactly this purpose, providing a This type which represents the type
 of the runtime object that derived it. As an example, consider the definition of our
 Cloneable interface from earlier, rewritten to use self types in a Java-like language:
-```
+```java
 public interface Cloneable {
   This clone();
 }
@@ -2067,9 +2083,9 @@ frames is at most one. This is defined as well-formed temporaries in figure 36.
 
 ## 3.14 Visibility
 
-           pe ∈  ExtPath    = (i, x)φ · fI | (i, tp )φ · fI | (i, ta ) · fI · fI
-           pg ∈ GeneralPath = pg | (i, ta )
-           I                = .| .
+pe ∈  ExtPath    = (i, x)φ · fI | (i, tp )φ · fI | (i, ta ) · fI · fI
+pg ∈ GeneralPath = pg | (i, ta )
+I                = .| .
 
                         Figure 37: Extended and General Paths.
 
@@ -2264,22 +2280,22 @@ and correct definition. We require that the following requirements hold, corresp
 to cases of figure 44:
 
 • The first case says that any two general paths from different actors to the same
-      object ι must have paths with globally compatible capabilities.
+  object ι must have paths with globally compatible capabilities.
 
 • Case two requires that for any pair of extended paths, it must be that they are
-      typed with capabilities such that the alias of one is locally compatible with the
-      other (and vice-versa), or the paths interfere with each other.
+  typed with capabilities such that the alias of one is locally compatible with the
+  other (and vice-versa), or the paths interfere with each other.
 
 • Finally we must give a much weaker requirement for the combination of active
-      temporaries and extended paths, since active temporaries must first be aliased
+  temporaries and extended paths, since active temporaries must first be aliased
 
-     before being used in most situations such as being sent to other actors (it will
-     either be aliased and then used or will be used for an operation such as field read
-     or write, being discarded in the process). We therefore simply take the second
-     case and add an additional alias operation to the capability of the temporary. In
-     this case we can also discard the possibility of interference, since this cannot occur
-     by the structure of pe (recall our definition of extended paths: pe may not be of
-     the form (i, ta )).
+before being used in most situations such as being sent to other actors (it will
+either be aliased and then used or will be used for an operation such as field read
+or write, being discarded in the process). We therefore simply take the second
+case and add an additional alias operation to the capability of the temporary. In
+this case we can also discard the possibility of interference, since this cannot occur
+by the structure of pe (recall our definition of extended paths: pe may not be of
+the form (i, ta )).
 
 Note that we do not require anything locally of pairs of active temporaries since we
 assume the number of active temporaries in a single actor is limited to at most one (see
@@ -2451,10 +2467,10 @@ non-extracting viewpoint adaptation), we use the following forms to reduce the b
 of writing down each possible combination:
 
 • We use the form φλ to indicate that the formula should be duplicated and replaced
-      such that one formula now contains simply λ and the other −λ.
+  such that one formula now contains simply λ and the other −λ.
 
 • We use the form λ I κ to indicate that the formula should be duplicated and
-      replaced such that one formula contains λ . κ and the other λ . κ.
+  replaced such that one formula contains λ . κ and the other λ . κ.
 
    We may combine these independently of each other, doubling the number of expanded formulas for each unique occurrence. For example, the formula φλ I κ ∼` φλ I
 κ would be equivalent to writing the following four individual assertions:
@@ -2758,17 +2774,18 @@ Take arbitrary λ, λ0 , ι, pg, pg 0 , assume that α 6= α0 and ∆0 , χ0 , �
 We begin with a case analysis on the value of pg:
 
 • If pg 6= (i, tp )φ · fI then λ ∼g λ0 holds trivially by WFV1(∆, χ) as neither path
-      has changed compared to the old heap.
+  has changed compared to the old heap.
 
 • If pg = (i, tp )φ · fI then we have that:
 
-        (1) λ = φ(+λ00 ) I κ by structure of pg and definition of visibility.
-        (2) Visibility of ι using the old temporary: ∆, χ, α ` ι : λa I κ, (i, ta ) · fI .
-        (3) Visibility of the α0 path is unchanged: ∆0 , χ0 , α0 ` ι : λ0 , pg 0 .
-        (4) Global compatibility of the old temporary path and the α0 path:
-            λa I κ ∼g λ0 by WFV1(∆, χ), (2) and (3)
-        (5) By lemma 11 and (4) we have that φ(+λ00 ) I κ ∼g λ0 .
-        (6) After substituting (5) for λ by (1) gives us λ ∼g λ0 as required.
+(1) λ = φ(+λ00 ) I κ by structure of pg and definition of visibility.
+(2) Visibility of ι using the old temporary: ∆, χ, α ` ι : λa I κ, (i, ta ) · fI .
+(3) Visibility of the α0 path is unchanged: ∆0 , χ0 , α0 ` ι : λ0 , pg 0 .
+(4) Global compatibility of the old temporary path and the α0 path:
+
+λa I κ ∼g λ0 by WFV1(∆, χ), (2) and (3)
+(5) By lemma 11 and (4) we have that φ(+λ00 ) I κ ∼g λ0 .
+(6) After substituting (5) for λ by (1) gives us λ ∼g λ0 as required.
 
 4.3.2.2     Case One: Reduce: WFV2 (Local Non-Active Paths)
 
@@ -2793,7 +2810,7 @@ If χ, α ` Interferes(pe[(i, ta )\(i, tp )], pe0 [(i, ta )\(i, tp )]) then χ0 
 We once again begin by a case analysis over the values of pe and pe0 :
 
 • If pe = (i, tp )φ · fI and pe0 = (i, tp )φ · f0I (for non-empty fI and f0 I ) then we
-      have that:
+  have that:
 
 Lemma 11: ∀λ, λ0 , λ00 , κ . if λ I κ ∼ λ0 and λ ≤ λ00 then φ(+λ00 ) I κ ∼ λ0
 
@@ -2843,15 +2860,17 @@ Lemma 16: ∀λ, λ0 , κ . if +(λ I κ0 ) ∼` +λ and λ ≤ λ0 then +(φ(+�
 
    • If pe = (i, tp )φ and pe0 6= (i, tp )φ · fI then we have that:
 
-        (1) λ = φ(+λ00 ) by definition of visibility and pe.
-        (2) λ0 = φλ000 I κ by definition of visibility.
-        (3) Visibility of pe using the old temporary: ∆, χ, α ` ι : λa , (i, ta )
-        (4) Visibility of the pe0 path is unchanged: ∆, χ, α ` ι : φλ000 I κ, pe0 .
-        (5) +(+λa ) ∼` λ0 and +λ0 ∼` +λa by WFV3(∆, χ), (3) and (4).
-        (6) By (5) and lemmas 19 and 20 we have that +(φ(+λ00 )) ∼` φλ000 I κ and
-            +(φλ000 I κ) ∼` φ(+λ00 ).
-        (7) After substituting (6) for λ and λ0 by (1) and (2) gives us +λ ∼` λ0 and
-            +λ0 ∼` λ as required.
+(1) λ = φ(+λ00 ) by definition of visibility and pe.
+(2) λ0 = φλ000 I κ by definition of visibility.
+(3) Visibility of pe using the old temporary: ∆, χ, α ` ι : λa , (i, ta )
+(4) Visibility of the pe0 path is unchanged: ∆, χ, α ` ι : φλ000 I κ, pe0 .
+(5) +(+λa ) ∼` λ0 and +λ0 ∼` +λa by WFV3(∆, χ), (3) and (4).
+(6) By (5) and lemmas 19 and 20 we have that +(φ(+λ00 )) ∼` φλ000 I κ and
+
++(φλ000 I κ) ∼` φ(+λ00 ).
+(7) After substituting (6) for λ and λ0 by (1) and (2) gives us +λ ∼` λ0 and
+
++λ0 ∼` λ as required.
 
    • If none of the above cases (including commutativity) match then either +λ ∼` λ0
      or χ0 , α ` Interferes(pe, pe0 ) hold trivially by WFV2(∆, χ), since these paths have
@@ -2915,13 +2934,15 @@ We begin with a case analysis on the value of pg:
 
    • If pg = (i, ta ) · fI then we have that:
 
-      (1) λ = κ I κ by structure of pg and definition of visibility.
-      (2) Visibility of ι using the local variable in the old heap:
-          ∆, χ, α ` ι : κ I κ, (i, x) · fI .
-      (3) Visibility of the α0 path is unchanged: ∆, χ, α0 ` ι : λ0 , pg 0 .
-      (4) Global compatibility of the local variable path and the α0 path: κ I κ ∼g λ0
-          by WFV1(∆, χ), (2) and (3)
-      (5) After substituting (4) for λ by (1) gives us λ ∼g λ0 as required.
+(1) λ = κ I κ by structure of pg and definition of visibility.
+(2) Visibility of ι using the local variable in the old heap:
+
+∆, χ, α ` ι : κ I κ, (i, x) · fI .
+(3) Visibility of the α0 path is unchanged: ∆, χ, α0 ` ι : λ0 , pg 0 .
+(4) Global compatibility of the local variable path and the α0 path: κ I κ ∼g λ0
+
+by WFV1(∆, χ), (2) and (3)
+(5) After substituting (4) for λ by (1) gives us λ ∼g λ0 as required.
 
 4.3.3.2     Case Two: Local: WFV2 (Local Non-Active Paths)
 
@@ -2947,19 +2968,22 @@ We once again begin by a case analysis over the value of pe:
 
 • If pe = (i, ta ) · fI (for non-empty fI ) then we have that:
 
-       (1) λ = κ I κ by structure of pe and definition of visibility.
-       (2) Visibility of ι using the local variable x: ∆, χ, α ` ι : κ I κ, (i, x) · fI
-       (3) Visibility of ι using pe0 after substitution: ∆, χ, α ` ι : λ, pe0 [(i, x)\(i, ta )]
-       (4) By WFV2(∆, χ), (3) and (4) either
-           χ, α ` Interferes((i, x) · fI , pe0 [(i, x)\(i, ta )]) (in which case we are done by
-           interference lemma) or both +(κ I κ) ∼` λ0 and +λ0 ∼` κ I κ.
-       (5) After substituting (4) for λ by (1), we have +λ ∼` λ0 and +λ0 ∼` λ as
-           required.
+(1) λ = κ I κ by structure of pe and definition of visibility.
+(2) Visibility of ι using the local variable x: ∆, χ, α ` ι : κ I κ, (i, x) · fI
+(3) Visibility of ι using pe0 after substitution: ∆, χ, α ` ι : λ, pe0 [(i, x)\(i, ta )]
+(4) By WFV2(∆, χ), (3) and (4) either
+
+χ, α ` Interferes((i, x) · fI , pe0 [(i, x)\(i, ta )]) (in which case we are done by
+
+interference lemma) or both +(κ I κ) ∼` λ0 and +λ0 ∼` κ I κ.
+(5) After substituting (4) for λ by (1), we have +λ ∼` λ0 and +λ0 ∼` λ as
+
+required.
 
 • If the above case (including commutativity) does not match then either +λ ∼` λ0
-      or χ0 , α ` Interferes(pe, pe0 ) hold trivially by WFV2(∆, χ), since these paths have
-      not been changed (by previous cases with commutativity, neither pe nor pe0 may
-      be of the form (i, ta ) · fI ).
+  or χ0 , α ` Interferes(pe, pe0 ) hold trivially by WFV2(∆, χ), since these paths have
+  not been changed (by previous cases with commutativity, neither pe nor pe0 may
+  be of the form (i, ta ) · fI ).
 
 4.3.3.3    Case Two: Local: WFV3 (Local Active Paths)
 
@@ -2978,23 +3002,26 @@ We once again begin by a case analysis over the value of pe:
 
 • If pe = (i, x)φ then we know that:
 
-        (1) λ = φκ by structure of pe and definition of visibility.
-        (2) λ0 = κ by structure of (i, ta ) and definition of visibility.
-        (3) By lemma 21 we have that +(+κ) ∼` φκ and +(φκ) ∼` +κ.
-        (4) After substituting (3) for λ and λ0 by (1) and (2), we have +(+λ0 ) ∼` λ and
-            +λ ∼` +λ0 as required.
+(1) λ = φκ by structure of pe and definition of visibility.
+(2) λ0 = κ by structure of (i, ta ) and definition of visibility.
+(3) By lemma 21 we have that +(+κ) ∼` φκ and +(φκ) ∼` +κ.
+(4) After substituting (3) for λ and λ0 by (1) and (2), we have +(+λ0 ) ∼` λ and
+
++λ ∼` +λ0 as required.
 
 • Else we know that:
 
-        (1) λ0 = κ by structure of (i, ta ) and definition of visibility.
-        (2) pe0 = pe[(i, x)\(i, ta )], an equivalent path in the old heap.
-        (3) The old path preserves visibility ∆, χ, α ` ι : λ, pe0
-        (4) Visibility of x in the old heap: ∆, χ, α ` ι : κ, (i, x)
-        (5) By WFV2(∆, χ), (3) and (4) either χ, α ` Interferes((i, x), pe0 ) (which
-            cannot happen in this case) or both +κ ∼` λ and +λ ∼` κ.
-        (6) By (5) and lemma 4 we have that +(+κ) ∼` λ and +λ ∼` +κ.
-        (7) After substituting (6) for λ0 by (1), we have +(+λ0 ) ∼` λ and +λ ∼` +λ0 as
-            required.
+(1) λ0 = κ by structure of (i, ta ) and definition of visibility.
+(2) pe0 = pe[(i, x)\(i, ta )], an equivalent path in the old heap.
+(3) The old path preserves visibility ∆, χ, α ` ι : λ, pe0
+(4) Visibility of x in the old heap: ∆, χ, α ` ι : κ, (i, x)
+(5) By WFV2(∆, χ), (3) and (4) either χ, α ` Interferes((i, x), pe0 ) (which
+
+cannot happen in this case) or both +κ ∼` λ and +λ ∼` κ.
+(6) By (5) and lemma 4 we have that +(+κ) ∼` λ and +λ ∼` +κ.
+(7) After substituting (6) for λ0 by (1), we have +(+λ0 ) ∼` λ and +λ ∼` +λ0 as
+
+required.
 
 ### 4.3.4 Case Three: Fld
 
@@ -3054,14 +3081,16 @@ We begin with a case analysis on the value of pg:
 
 • If pg = (i, t0a ) · fI then we have that:
 
-        (1) λ = λ . κ I κ by structure of pg and definition of visibility.
-        (2) Visibility of ι using the old temporary:
-            ∆, χ, α ` ι : λ I κ I κ, (i, ta ) · fI · fI .
-        (3) Visibility of the α0 path is unchanged: ∆, χ, α0 ` ι : λ0 , pg 0 .
-        (4) Global compatibility of the old temporary path and the α0 path:
-            λ I κ I κ ∼g λ0 by WFV1(∆, χ), (2) and (3)
-        (5) By expansion of I and (4) we have that λ . κ I κ ∼g λ0 .
-        (6) After substituting (5) for λ by (1) gives us λ ∼g λ0 as required.
+(1) λ = λ . κ I κ by structure of pg and definition of visibility.
+(2) Visibility of ι using the old temporary:
+
+∆, χ, α ` ι : λ I κ I κ, (i, ta ) · fI · fI .
+(3) Visibility of the α0 path is unchanged: ∆, χ, α0 ` ι : λ0 , pg 0 .
+(4) Global compatibility of the old temporary path and the α0 path:
+
+λ I κ I κ ∼g λ0 by WFV1(∆, χ), (2) and (3)
+(5) By expansion of I and (4) we have that λ . κ I κ ∼g λ0 .
+(6) After substituting (5) for λ by (1) gives us λ ∼g λ0 as required.
 
 4.3.4.2      Case Three: Fld: WFV2 (Local Non-Active Paths)
 
@@ -3091,7 +3120,7 @@ then χ0 , α ` Interferes(pe, pe0 ).
 We once again begin by a case analysis over the values of pe and pe0 :
 
 • If pe = (i, t0a ) · fI (for non-empty fI ) and pe0 = (i, t0a ) · f0 I (for non-empty f0 I )
-      then we have that:
+  then we have that:
 
         (1) λ = λa . κ I κ by structure of pe and definition of visibility.
         (2) λ0 = λa . κ I κ0 by structure of pe0 and definition of visibility.
@@ -3150,35 +3179,40 @@ We wish to show that both +(+λ0 ) ∼` λ and +λ ∼` +λ0 .
 We once again begin by a case analysis over the value of pe:
 
 • If ∃pe00 such that pe = pe00 · fI (where χ0 (α, pe00 ) = χ(α, (i, ta )) = ι0 ) then we
-      have that:
+  have that:
 
-       (1) ∃λ00 such that λ = λ00 I κ (by structure of pe and definition of visibility).
-       (2) λ00 = φλ000 I κ by definition of visibility.
-       (3) λ0 = λa . κ (by structure of (i, ta ) and definition of visibility).
-       (4) Visibility of the path to ι0 using the old temporary: ∆, χ, α ` ι0 : λa , (i, ta )
-       (5) Visibility of the pe00 path to ι0 is unchanged from the old heap after
-           substitution: ∆, χ, α ` ι0 : φλ000 I κ, pe00 [(i, ta ) · f. \(i, t0a )]
-       (6) +(+λa ) ∼` λ00 and +λ00 ∼` +λa by WFV3(∆, χ), (4) and (5).
-       (7) By lemma 23 and (6) we have that +(+(λa . κ)) ∼` λ00 I κ and
-           +(λ00 I κ) ∼` +(λa . κ).
-       (8) After substituting (7) for λ and λ0 by (1) and (2), we have that +(+λ0 ) ∼` λ
-           and +λ ∼` +λ0 as required.
+(1) ∃λ00 such that λ = λ00 I κ (by structure of pe and definition of visibility).
+(2) λ00 = φλ000 I κ by definition of visibility.
+(3) λ0 = λa . κ (by structure of (i, ta ) and definition of visibility).
+(4) Visibility of the path to ι0 using the old temporary: ∆, χ, α ` ι0 : λa , (i, ta )
+(5) Visibility of the pe00 path to ι0 is unchanged from the old heap after
+
+substitution: ∆, χ, α ` ι0 : φλ000 I κ, pe00 [(i, ta ) · f. \(i, t0a )]
+(6) +(+λa ) ∼` λ00 and +λ00 ∼` +λa by WFV3(∆, χ), (4) and (5).
+(7) By lemma 23 and (6) we have that +(+(λa . κ)) ∼` λ00 I κ and
+
++(λ00 I κ) ∼` +(λa . κ).
+(8) After substituting (7) for λ and λ0 by (1) and (2), we have that +(+λ0 ) ∼` λ
+
+and +λ ∼` +λ0 as required.
 
 • If not the above case, then we have that:
 
-       (1) λ0 = λa . κ (by structure of (i, t0a ) and definition of visibility).
-       (2) An equivalent path to pe in the old heap: pe0 = pe[(i, ta ) · f. \(i, t0a )]
-       (3) Visibility of ι using the old temporary: ∆, χ, α ` ι : λa I κ, (i, ta ) · fI
-       (4) Visibility of the path pe0 in old heap: ∆, χ, α ` ι : λ, pe0
+(1) λ0 = λa . κ (by structure of (i, t0a ) and definition of visibility).
+(2) An equivalent path to pe in the old heap: pe0 = pe[(i, ta ) · f. \(i, t0a )]
+(3) Visibility of ι using the old temporary: ∆, χ, α ` ι : λa I κ, (i, ta ) · fI
+(4) Visibility of the path pe0 in old heap: ∆, χ, α ` ι : λ, pe0
 
 Lemma 23: ∀λ, λ0 , κ, κ . if +(+λ) ∼` φλ0 I κ and +(φλ0 I κ) ∼` +λ then +(+(λ . κ)) ∼` φλ0 I κ I
 κ and +(φλ0 I κ I κ) ∼` +(λ . κ)
 
-        (5) By WFV2(∆, χ), (3) and (4) either χ, α ` Interferes((i, ta ) · f. , pe0 ) (which
-            cannot be true in this case) or both +(λa I κ) ∼` λ and +λ ∼` λa I κ.
-        (6) By lemma 24 and (5) we have that +(+(λa . κ)) ∼` λ and +λ ∼` +(λa . κ).
-        (7) After substituting (6) for λ0 by (1) we have that +(+λ0 ) ∼` λ and
-            +λ ∼` +λ0 as required.
+(5) By WFV2(∆, χ), (3) and (4) either χ, α ` Interferes((i, ta ) · f. , pe0 ) (which
+
+cannot be true in this case) or both +(λa I κ) ∼` λ and +λ ∼` λa I κ.
+(6) By lemma 24 and (5) we have that +(+(λa . κ)) ∼` λ and +λ ∼` +(λa . κ).
+(7) After substituting (6) for λ0 by (1) we have that +(+λ0 ) ∼` λ and
+
++λ ∼` +λ0 as required.
 
 ### 4.3.5 Case Four: AsnLocal
 
@@ -3232,24 +3266,28 @@ We begin with a case analysis on the value of pg:
 
    • If pg = (i, x)φ · fI then we have that:
 
-       (1) λ = φκ I κ by structure of pg and definition of visibility.
-       (2) Visibility of ι using the old temporary tp : ∆, χ, α ` ι : φκ I κ, (i, tp )φ · fI .
-       (3) Visibility of the α0 path is unchanged: ∆, χ, α0 ` ι : λ0 , pg 0 .
-       (4) Global compatibility of the old temporary path and the α0 path:
-           φκ I κ ∼g λ0 by WFV1(∆, χ), (2) and (3)
-       (5) From (4) we have that φκ I κ ∼g λ0 , which after substituting for λ by (1)
-           gives us λ ∼g λ0 as required.
+(1) λ = φκ I κ by structure of pg and definition of visibility.
+(2) Visibility of ι using the old temporary tp : ∆, χ, α ` ι : φκ I κ, (i, tp )φ · fI .
+(3) Visibility of the α0 path is unchanged: ∆, χ, α0 ` ι : λ0 , pg 0 .
+(4) Global compatibility of the old temporary path and the α0 path:
+
+φκ I κ ∼g λ0 by WFV1(∆, χ), (2) and (3)
+(5) From (4) we have that φκ I κ ∼g λ0 , which after substituting for λ by (1)
+
+gives us λ ∼g λ0 as required.
 
    • If pg = (i, ta ) · fI then we have that:
 
-       (1) λ = −κ I κ by structure of pg and definition of visibility.
-       (2) Visibility of ι using the overwritten variable x:
-           ∆, χ, α ` ι : φκ I κ, (i, x)φ · fI .
-       (3) Visibility of the α0 path is unchanged: ∆, χ, α0 ` ι : λ0 , pg 0 .
-       (4) Global compatibility of the old variable (x) path and the α0 path:
-           φκ I κ ∼g λ0 by WFV1(∆, χ), (2) and (3).
-       (5) From (4) and expansion of φ we have that −κ I κ ∼g λ0 .
-       (6) After substituting (5) for λ by (1) gives us λ ∼g λ0 as required.
+(1) λ = −κ I κ by structure of pg and definition of visibility.
+(2) Visibility of ι using the overwritten variable x:
+
+∆, χ, α ` ι : φκ I κ, (i, x)φ · fI .
+(3) Visibility of the α0 path is unchanged: ∆, χ, α0 ` ι : λ0 , pg 0 .
+(4) Global compatibility of the old variable (x) path and the α0 path:
+
+φκ I κ ∼g λ0 by WFV1(∆, χ), (2) and (3).
+(5) From (4) and expansion of φ we have that −κ I κ ∼g λ0 .
+(6) After substituting (5) for λ by (1) gives us λ ∼g λ0 as required.
 
    • If neither of the above cases match, then λ ∼g λ0 holds trivially by WFV1(∆, χ)
      as neither path has changed compared to the old heap.
@@ -3284,39 +3322,49 @@ We once again begin by a case analysis over the value of pe:
 
 • If pe = (i, x)φ · fI then we have that:
 
-        (1) λ = φκ I κ by structure of pe and definition of visibility.
-        (2) pe00 = pe[(i, tp )φ \(i, x)φ ] = (i, tp )φ · fI , the equivalent of pe in the old heap.
-        (3) pe000 = pe0 [(i, tp )φ \(i, x)φ ][(i, x)− \(i, ta )], the equivalent of pe0 in the old
-            heap.
-        (4) Visibility of ι using the old temporary: ∆, χ, α ` ι : φκ I κ, pe00
-        (5) Visibility of the pe0 path is unchanged from in old heap using the pe000 path:
-            ∆, χ, α ` ι : λ0 , pe000
-        (6) By WFV2(∆, χ), (4) and (5) either χ, α ` Interferes(pe00 , pe000 ) (in which
-            case we are done by interference lemma) or both +(φκ I κ) ∼` λ0 and
-            +λ0 ∼` φκ I κ.
-        (7) From (6) we have that +(φκ I κ) ∼` λ0 and +λ0 ∼` φκ I κ, which after
-            substituting for λ by (1) gives us +λ ∼` λ0 and +λ0 ∼` λ as required.
+(1) λ = φκ I κ by structure of pe and definition of visibility.
+(2) pe00 = pe[(i, tp )φ \(i, x)φ ] = (i, tp )φ · fI , the equivalent of pe in the old heap.
+(3) pe000 = pe0 [(i, tp )φ \(i, x)φ ][(i, x)− \(i, ta )], the equivalent of pe0 in the old
+
+heap.
+(4) Visibility of ι using the old temporary: ∆, χ, α ` ι : φκ I κ, pe00
+(5) Visibility of the pe0 path is unchanged from in old heap using the pe000 path:
+
+∆, χ, α ` ι : λ0 , pe000
+(6) By WFV2(∆, χ), (4) and (5) either χ, α ` Interferes(pe00 , pe000 ) (in which
+
+case we are done by interference lemma) or both +(φκ I κ) ∼` λ0 and
+
++λ0 ∼` φκ I κ.
+(7) From (6) we have that +(φκ I κ) ∼` λ0 and +λ0 ∼` φκ I κ, which after
+
+substituting for λ by (1) gives us +λ ∼` λ0 and +λ0 ∼` λ as required.
 
 • If pe = (i, ta ) · fI (for non-empty fI ) then we have that:
 
         (1) λ = −κ I κ by structure of pe and definition of visibility.
         (2) pe00 = pe[(i, x)− \(i, ta )] = (i, x)− · fI , the equivalent of pe in the old heap.
 
-        (3) pe000 = pe0 [(i, tp )φ \(i, x)φ ][(i, x)− \(i, ta )], the equivalent of pe0 in the old
-            heap.
-        (4) Visibility of ι using the overwritten variable x: ∆, χ, α ` ι : −κ I κ, pe00
-        (5) Visibility of the pe0 path is unchanged from the old heap using the pe000 path:
-            ∆, χ, α ` ι : λ0 , pe000
-        (6) By WFV2(∆, χ), (4) and (5) either χ, α ` Interferes(pe00 ], pe000 ]) (in which
-            case we are done by interference lemma) or both +(−κ I κ) ∼` λ0 and
-            +λ0 ∼` −κ I κ.
-        (7) From (6) we have that +(−κ I κ) ∼` λ0 and +λ0 ∼` −κ I κ, which after
-            substituting for λ by (1) gives us +λ ∼` λ0 and +λ0 ∼` λ as required.
+(3) pe000 = pe0 [(i, tp )φ \(i, x)φ ][(i, x)− \(i, ta )], the equivalent of pe0 in the old
+
+heap.
+(4) Visibility of ι using the overwritten variable x: ∆, χ, α ` ι : −κ I κ, pe00
+(5) Visibility of the pe0 path is unchanged from the old heap using the pe000 path:
+
+∆, χ, α ` ι : λ0 , pe000
+(6) By WFV2(∆, χ), (4) and (5) either χ, α ` Interferes(pe00 ], pe000 ]) (in which
+
+case we are done by interference lemma) or both +(−κ I κ) ∼` λ0 and
+
++λ0 ∼` −κ I κ.
+(7) From (6) we have that +(−κ I κ) ∼` λ0 and +λ0 ∼` −κ I κ, which after
+
+substituting for λ by (1) gives us +λ ∼` λ0 and +λ0 ∼` λ as required.
 
 • If the above cases (including commutativity) do not match then either +λ ∼` λ0
-      or χ0 , α ` Interferes(pe, pe0 ) hold trivially by WFV2(∆, χ), since these paths have
-      not been changed (by previous cases with commutativity, neither pe nor pe0 may
-      be of the form (i, x)φ · fI or (i, ta ) · fI ).
+  or χ0 , α ` Interferes(pe, pe0 ) hold trivially by WFV2(∆, χ), since these paths have
+  not been changed (by previous cases with commutativity, neither pe nor pe0 may
+  be of the form (i, x)φ · fI or (i, ta ) · fI ).
 
 4.3.5.3     Case Four: AsnLocal: WFV3 (Local Active Paths)
 
@@ -3339,16 +3387,18 @@ then χ0 , α ` Interferes(pe, pe0 ).
 
 • We have that:
 
-        (1) λ0 = −κ by structure of (i, ta ) and definition of visibility.
-        (2) pe0 = pe0 [(i, tp )φ \(i, x)φ ][(i, x)− \(i, ta )], the equivalent of pe in the old heap.
-        (3) Visibility of ι using the old variable x: ∆, χ, α ` ι : −κ, (i, x)−
-        (4) Visibility of the pe path is unchanged from the old heap using pe0 :
-            ∆, χ, α ` ι : λ, pe0
+(1) λ0 = −κ by structure of (i, ta ) and definition of visibility.
+(2) pe0 = pe0 [(i, tp )φ \(i, x)φ ][(i, x)− \(i, ta )], the equivalent of pe in the old heap.
+(3) Visibility of ι using the old variable x: ∆, χ, α ` ι : −κ, (i, x)−
+(4) Visibility of the pe path is unchanged from the old heap using pe0 :
 
-        (5) By WFV2(∆, χ), (3) and (4) either χ, α ` Interferes((i, x)− , pe0 ) (which cannot be true in this case) or both +(φκ) ∼` λ and +λ ∼` φκ.
-        (6) By lemma 25 and (4) we have that +(+(−κ)) ∼` λ and +λ ∼` +(−κ).
-        (7) After substituting (5) for λ0 by (1) we have that +(+λ0 ) ∼` λ and +λ ∼` +λ0
-            as required.
+∆, χ, α ` ι : λ, pe0
+
+(5) By WFV2(∆, χ), (3) and (4) either χ, α ` Interferes((i, x)− , pe0 ) (which cannot be true in this case) or both +(φκ) ∼` λ and +λ ∼` φκ.
+(6) By lemma 25 and (4) we have that +(+(−κ)) ∼` λ and +λ ∼` +(−κ).
+(7) After substituting (5) for λ0 by (1) we have that +(+λ0 ) ∼` λ and +λ ∼` +λ0
+
+as required.
 
 From the above cases we have now shown that the execution of an assignment to a
 local variable preserves well-formed visibility.
@@ -3408,14 +3458,15 @@ We begin with a case analysis on the value of pg:
 
 • If pg = pe00 · fI · fI and χ0 (pe00 ) = ι0 then we know that:
 
-        (1) λ = λ00 I κ I κ by structure of pg and definition of visibility.
-        (2) λ00 = φλ000 I κ0 by definition of visibility.
-        (3) Visibility of ι using the old temporary tp : ∆, χ, α ` ι : φκ0 I κ, (i, tp )φ · fI .
-        (4) Visibility of the α0 path is unchanged: ∆, χ, α0 ` ι : λ0 , pg 0 .
-        (5) Global compatibility of the old temporary path and the α0 path:
-            φκ0 I κ ∼g λ0 by WFV1(∆, χ), (3) and (4)
-        (6) By lemma 29 and (5) we have that φλ000 I κ0 I κ I κ ∼g λ0 .
-        (7) After substituting (6) for λ by (1) and (2) gives us λ ∼g λ0 as required.
+(1) λ = λ00 I κ I κ by structure of pg and definition of visibility.
+(2) λ00 = φλ000 I κ0 by definition of visibility.
+(3) Visibility of ι using the old temporary tp : ∆, χ, α ` ι : φκ0 I κ, (i, tp )φ · fI .
+(4) Visibility of the α0 path is unchanged: ∆, χ, α0 ` ι : λ0 , pg 0 .
+(5) Global compatibility of the old temporary path and the α0 path:
+
+φκ0 I κ ∼g λ0 by WFV1(∆, χ), (3) and (4)
+(6) By lemma 29 and (5) we have that φλ000 I κ0 I κ I κ ∼g λ0 .
+(7) After substituting (6) for λ by (1) and (2) gives us λ ∼g λ0 as required.
 
 • If pg = (i, t0a ) · fI then we have that:
 
@@ -3433,7 +3484,7 @@ Lemma 29: ∀λ, λ0 , λ00 , κ, κ0 , κ, κ0 . if κ0 ≤ κ and λ / κ0 and
         (6) After substituting (5) for λ by (1) gives us λ ∼g λ0 as required.
 
 • If neither of the above cases hold then λ ∼g λ0 holds trivially by WFV1(∆, χ) as
-      neither path has changed compared to the old heap.
+  neither path has changed compared to the old heap.
 
 4.3.6.2      Case Five: AsnFld: WFV2 (Local Non-Active Paths)
 
@@ -3464,25 +3515,30 @@ and χ0 (pe00 ) = χ0 (pe000 ) = χ((i, tp )φ ) then χ0 , α ` Interferes(pe, 
 We once again begin by a case analysis over the values of pe and pe0 :
 
 • If pe = pe00 · fI · fI and pe0 = pe000 · fI · f0 I and χ0 (pe00 ) = χ0 (pe000 ) = χ((i, ta )) = ι0
-      and χ0 (pe00 · fI ) = χ((i, tp )) = ι00 then we have that:
+  and χ0 (pe00 · fI ) = χ((i, tp )) = ι00 then we have that:
 
-        (1) λ = λ00 I κ I κ by structure of pe and definition of visibility.
-        (2) λ0 = λ000 I κ I κ0 by structure of pe0 and definition of visibility.
-        (3) Visibility of ι using tp and fI : ∆, χ, α ` ι : φκ I κ, (i, tp )φ · fI
-        (4) Visibility of ι using tp and f0I : ∆, χ, α ` ι : φκ I κ0 , (i, tp )φ · f0 I
-        (5) By WFV2(∆, χ), (3) and (4) either
-            χ, α ` Interferes((i, tp )φ · fI , (i, tp )φ · f0 I ) (in which case we are done by
-            interference lemma) or both +(φκ I κ) ∼` φκ I κ0 and
-            +(φκ I κ0 ) ∼` φκ I κ.
+(1) λ = λ00 I κ I κ by structure of pe and definition of visibility.
+(2) λ0 = λ000 I κ I κ0 by structure of pe0 and definition of visibility.
+(3) Visibility of ι using tp and fI : ∆, χ, α ` ι : φκ I κ, (i, tp )φ · fI
+(4) Visibility of ι using tp and f0I : ∆, χ, α ` ι : φκ I κ0 , (i, tp )φ · f0 I
+(5) By WFV2(∆, χ), (3) and (4) either
 
-        (6) From (5) and lemma we have that +(λ00 I κ I κ) ∼` λ000 I κ I κ0 and
-            +(λ000 I κ I κ0 ) ∼` λ00 I κ I κ.
-        (7) After substituting (6) for λ and λ0 by (1) and (2) we have that +λ ∼` λ0
-            and +λ0 ∼` λ as required.
+χ, α ` Interferes((i, tp )φ · fI , (i, tp )φ · f0 I ) (in which case we are done by
+
+interference lemma) or both +(φκ I κ) ∼` φκ I κ0 and
+
++(φκ I κ0 ) ∼` φκ I κ.
+
+(6) From (5) and lemma we have that +(λ00 I κ I κ) ∼` λ000 I κ I κ0 and
+
++(λ000 I κ I κ0 ) ∼` λ00 I κ I κ.
+(7) After substituting (6) for λ and λ0 by (1) and (2) we have that +λ ∼` λ0
+
+and +λ0 ∼` λ as required.
 
 • If pe = pe00 · fI · fI and pe0 = (i, t0a ) · f0 I and χ0 (pe00 ) = χ((i, ta )) = ι0 and
-      χ0 (pe00 · fI ) = χ((i, tp )) = ι00 and χ0 ((i, t0a )) = χ((i, ta ) · fI ) = ι000 then we have
-      that:
+  χ0 (pe00 · fI ) = χ((i, tp )) = ι00 and χ0 ((i, t0a )) = χ((i, ta ) · fI ) = ι000 then we have
+  that:
 
         (1) λ = λ00 I κ I κ by structure of pe and definition of visibility.
         (2) λ00 = φλ000 I κ0 by definition of visibility.
@@ -3501,16 +3557,18 @@ We once again begin by a case analysis over the values of pe and pe0 :
            +λ0 ∼` λ as required.
 
 • If pe = pe00 · fI · fI and χ0 (pe00 ) = χ((i, ta )) = ι0 and χ0 (pe00 · fI ) = χ((i, tp )) = ι00 ,
-      and neither of the previous cases, then we have that:
+  and neither of the previous cases, then we have that:
 
-        (1) λ = λ00 I κ I κ by structure of pe and definition of visibility.
-        (2) λ00 = φλ000 I κ0 by definition of visibility.
-        (3) pe000 = pe[(i, tp )φ \pe00 · fI ] = (i, tp )φ · fI , the equivalent of pe in the old heap.
-        (4) Visibility of ι using the old path: ∆, χ, α ` ι : φκ I κ, pe000
-        (5) Visibility of the pe0 path is unchanged from the old heap: ∆, χ, α ` ι : λ0 , pe0
-        (6) By WFV2(∆, χ), (4) and (5) either χ, α ` Interferes(pe000 , pe0 ) (in which case
-            we are done by interference lemma) or both +(φκ I κ) ∼` λ0 and
-            +λ0 ∼` φκ I κ.
+(1) λ = λ00 I κ I κ by structure of pe and definition of visibility.
+(2) λ00 = φλ000 I κ0 by definition of visibility.
+(3) pe000 = pe[(i, tp )φ \pe00 · fI ] = (i, tp )φ · fI , the equivalent of pe in the old heap.
+(4) Visibility of ι using the old path: ∆, χ, α ` ι : φκ I κ, pe000
+(5) Visibility of the pe0 path is unchanged from the old heap: ∆, χ, α ` ι : λ0 , pe0
+(6) By WFV2(∆, χ), (4) and (5) either χ, α ` Interferes(pe000 , pe0 ) (in which case
+
+we are done by interference lemma) or both +(φκ I κ) ∼` λ0 and
+
++λ0 ∼` φκ I κ.
 
 Lemma 30: ∀λ, λ0 , λ00 , κ, κ0 , κ, κ0 . if κ0 ≤ κ and λ / κ0 and +(+λ) ∼` φλ00 I κ0 and +(φλ00 I κ0 ) ∼`
 +λ and +(φκ0 I κ) ∼` λ0 then +(φλ00 I κ0 I κ I κ) ∼` λ0
@@ -3518,28 +3576,34 @@ Lemma 30: ∀λ, λ0 , λ00 , κ, κ0 , κ, κ0 . if κ0 ≤ κ and λ / κ0 and
 Lemma 31: ∀λ, λ0 , λ00 , κ, κ0 , κ, κ0 . if κ0 ≤ κ and λ / κ0 and +(+λ) ∼` φλ00 I κ0 and +(φλ00 I κ0 ) ∼`
 +λ and +λ0 ∼` φκ0 I κ then +λ0 ∼` φλ00 I κ0 I κ I κ
 
-        (7) From (6) and lemmas 30 and 31 we have that +(φλ000 I κ0 I κ I κ) ∼` λ0
-            and +λ0 ∼` φλ000 I κ0 I κ I κ.
-        (8) After substituting (7) for λ by (1) and (2) gives us +λ ∼` λ0 and +λ0 ∼` λ
-            as required.
+(7) From (6) and lemmas 30 and 31 we have that +(φλ000 I κ0 I κ I κ) ∼` λ0
+
+and +λ0 ∼` φλ000 I κ0 I κ I κ.
+(8) After substituting (7) for λ by (1) and (2) gives us +λ ∼` λ0 and +λ0 ∼` λ
+
+as required.
 
 • If pe = (i, t0a ) · fI and neither of the previous cases, then we have that:
 
-        (1) λ = λa . κ I κ by structure of pe and definition of visibility.
-        (2) pe00 = pe[(i, ta ) · f. \(i, t0a )] = (i, ta ) · f. · fI , the equivalent of pe in the old
-            heap.
-        (3) Visibility of ι using the old path: ∆, χ, α ` ι : λa . κ I κ, pe00
-        (4) Visibility of the pe0 path is unchanged from the old heap: ∆, χ, α ` ι : λ0 , pe0
-        (5) By WFV2(∆, χ), (4) and (5) either χ, α ` Interferes(pe00 , pe0 ) (in which case
-            we are done by interference lemma) or both +(λa . κ I κ) ∼` λ0 and
-            +λ0 ∼` λa . κ I κ.
-        (6) After substituting (5) for λ by (1) we have +λ ∼` λ0 and +λ0 ∼` λ as
-            required.
+(1) λ = λa . κ I κ by structure of pe and definition of visibility.
+(2) pe00 = pe[(i, ta ) · f. \(i, t0a )] = (i, ta ) · f. · fI , the equivalent of pe in the old
+
+heap.
+(3) Visibility of ι using the old path: ∆, χ, α ` ι : λa . κ I κ, pe00
+(4) Visibility of the pe0 path is unchanged from the old heap: ∆, χ, α ` ι : λ0 , pe0
+(5) By WFV2(∆, χ), (4) and (5) either χ, α ` Interferes(pe00 , pe0 ) (in which case
+
+we are done by interference lemma) or both +(λa . κ I κ) ∼` λ0 and
+
++λ0 ∼` λa . κ I κ.
+(6) After substituting (5) for λ by (1) we have +λ ∼` λ0 and +λ0 ∼` λ as
+
+required.
 
 • If the above case (including commutativity) does not then either +λ ∼` λ0 or
-      χ0 , α ` Interferes(pe, pe0 ) hold trivially by WFV2(∆, χ), since these paths have
-      not been changed (by previous cases with commutativity, neither pe nor pe0 may
-      be of the form pe00 · fI · fI ).
+  χ0 , α ` Interferes(pe, pe0 ) hold trivially by WFV2(∆, χ), since these paths have
+  not been changed (by previous cases with commutativity, neither pe nor pe0 may
+  be of the form pe00 · fI · fI ).
 
 4.3.6.3     Case Five: AsnFld: WFV3 (Local Active Paths)
 
@@ -3572,30 +3636,35 @@ and χ0 (pe00 ) = χ0 (pe000 ) = χ((i, tp )φ ) then χ0 , α ` Interferes(pe, 
 We once again begin by a case analysis over the value of pe:
 
 • If pe = pe00 · fI · fI for non-empty fI where χ0 (pe00 ) = χ((i, ta )) = ι0 , then we
-      know that:
+  know that:
 
-        (1) λ = λ00 I κ I κ
-        (2) λ00 = φλ000 I κ0
-        (3) λ0 = λa . κ
-        (4) ∆, χ, α ` ι : φκ0 I κ, (i, tp )φ · fI
-        (5) ∆, χ, α ` ι : λa . κ, (i, ta ) · f.
-        (6) By WFV2(∆, χ), (4) and (5) either χ, α ` Interferes((i, tp )φ · fI , (i, ta ) · f. )
-            (which cannot happen in this case) or both +(φκ0 I κ) ∼` λa . κ and
-            +(λa . κ) ∼` φκ0 I κ.
-        (7) By (6) and lemmas 33 and 34 we have that both
-            +(+(λa . κ)) ∼` φλ000 I κ0 I κ I κ and +(φλ000 I κ0 I κ I κ) ∼` +(λa . κ).
-        (8) After substituting (7) for λ and λ0 by (1) through (3) we have +(+λ0 ) ∼` λ
-            and +λ ∼` +λ0 as required.
+(1) λ = λ00 I κ I κ
+(2) λ00 = φλ000 I κ0
+(3) λ0 = λa . κ
+(4) ∆, χ, α ` ι : φκ0 I κ, (i, tp )φ · fI
+(5) ∆, χ, α ` ι : λa . κ, (i, ta ) · f.
+(6) By WFV2(∆, χ), (4) and (5) either χ, α ` Interferes((i, tp )φ · fI , (i, ta ) · f. )
+
+(which cannot happen in this case) or both +(φκ0 I κ) ∼` λa . κ and
+
++(λa . κ) ∼` φκ0 I κ.
+(7) By (6) and lemmas 33 and 34 we have that both
+
++(+(λa . κ)) ∼` φλ000 I κ0 I κ I κ and +(φλ000 I κ0 I κ I κ) ∼` +(λa . κ).
+(8) After substituting (7) for λ and λ0 by (1) through (3) we have +(+λ0 ) ∼` λ
+
+and +λ ∼` +λ0 as required.
 
 • If the above case does not hold, then we know that:
 
-        (1) λ0 = λa . κ
-        (2) ∆, χ, α ` ι : λa . κ, (i, ta ) · f.
-        (3) ∆, χ, α ` ι : λ, pe
-        (4) By WFV2(∆, χ), (2) and (3) either χ, α ` Interferes(pe, (i, ta ) · f. ) (which
-            cannot happen in this case) or both +λ ∼` λa . κ and +(λa . κ) ∼` λ.
-        (5) After substituting (4) for λ0 by (1) we have +λ ∼` λ0 and +λ0 ∼` λ.
-        (6) By (5) and lemma 4 we have +λ ∼` +λ0 and +(+λ0 ) ∼` λ as required.
+(1) λ0 = λa . κ
+(2) ∆, χ, α ` ι : λa . κ, (i, ta ) · f.
+(3) ∆, χ, α ` ι : λ, pe
+(4) By WFV2(∆, χ), (2) and (3) either χ, α ` Interferes(pe, (i, ta ) · f. ) (which
+
+cannot happen in this case) or both +λ ∼` λa . κ and +(λa . κ) ∼` λ.
+(5) After substituting (4) for λ0 by (1) we have +λ ∼` λ0 and +λ0 ∼` λ.
+(6) By (5) and lemma 4 we have +λ ∼` +λ0 and +(+λ0 ) ∼` λ as required.
 
 From the above cases we have now shown that the execution of an assignment to a
 field preserves well-formed visibility.
@@ -3638,13 +3707,16 @@ We begin with a case analysis on the value of pg 0 :
 
    • If pg 0 = (−i, xj )φ · fI and then we know that:
 
-       (1) λ0 = φκ I κ by structure of pg 0 and definition of visibility.
-       (2) Visibility of ι using the old temporary tp : ∆, χ, α ` ι : φκ I κ, (i, tp )φ · fI .
-       (3) Visibility of the α path is unchanged: ∆, χ, α ` ι : λ, pg (since if it did
-           change, it was because it was also an argument to the function, in which
-           case we are in WFV2 instead).
-       (4) By WFV2(∆, χ), (2) and (3) either χ, α ` Interferes(pg, (i, tp )φ · fI ) or
-           both +(φκ I κ) ∼` λ and +λ ∼` φκ I κ.
+(1) λ0 = φκ I κ by structure of pg 0 and definition of visibility.
+(2) Visibility of ι using the old temporary tp : ∆, χ, α ` ι : φκ I κ, (i, tp )φ · fI .
+(3) Visibility of the α path is unchanged: ∆, χ, α ` ι : λ, pg (since if it did
+
+change, it was because it was also an argument to the function, in which
+
+case we are in WFV2 instead).
+(4) By WFV2(∆, χ), (2) and (3) either χ, α ` Interferes(pg, (i, tp )φ · fI ) or
+
+both +(φκ I κ) ∼` λ and +λ ∼` φκ I κ.
 
       (5a) Assume that the latter of (4) holds, by lemma 37 we have that λ ∼g φκ I κ.
       (6a) Substituting (5a) for λ0 by (1) we have that λ ∼g λ0 as required.
@@ -3669,7 +3741,7 @@ Lemma 37: ∀λ, κ, κ . if Sendable(κ) and +(φκ I κ) ∼` λ and +λ ∼` 
            have that λ ∼g λ0 as required.
 
 • If the above case does not hold then λ ∼g λ0 holds trivially by WFV1(∆, χ) as
-      neither path has changed compared to the old heap.
+  neither path has changed compared to the old heap.
 
 4.3.7.2     Case Six: Async: WFV2 (Local Non-Active Paths)
 
@@ -3678,22 +3750,23 @@ We wish to show that either +λ ∼` λ0 or χ0 , α0 ` Interferes(pe, pe0 ).
 We begin by a case analysis over the values of pe and pe0 :
 
 • If pe = (−i, xj )φ · fI and pe0 = (−i, xk )φ · f0 I then we are done trivially: both
-      paths satisfied WFV2(∆, χ) in α, so they must satisfy WFV2(∆0 , χ0 ) in α0 .
+  paths satisfied WFV2(∆, χ) in α, so they must satisfy WFV2(∆0 , χ0 ) in α0 .
 
 • If pe = (−i, xj )φ · fI and pe0 6= (−i, xk )φ · f0 I then we know that:
 
-       (1) λ = φκ I κ by structure of pe and definition of visibility.
-       (2) Visibility of ι using the old temporary tp : ∆, χ, α ` ι : φκ I κ, (i, tp )φ · fI .
-       (3) Visibility of the pe0 path is unchanged: ∆, χ, α0 ` ι : λ0 , pe0
-       (4) By WFV1(∆, χ), (2) and (3) we have that φκ I κ ∼g λ0 .
-       (5) By (4) and lemma 40 we have that +(φκ I κ) ∼` λ0 and +λ0 ∼` φκ I κ.
-       (6) After substituting (5) for λ by (1) we have that +λ ∼` λ0 and λ0 ∼` λ as
-           required.
+(1) λ = φκ I κ by structure of pe and definition of visibility.
+(2) Visibility of ι using the old temporary tp : ∆, χ, α ` ι : φκ I κ, (i, tp )φ · fI .
+(3) Visibility of the pe0 path is unchanged: ∆, χ, α0 ` ι : λ0 , pe0
+(4) By WFV1(∆, χ), (2) and (3) we have that φκ I κ ∼g λ0 .
+(5) By (4) and lemma 40 we have that +(φκ I κ) ∼` λ0 and +λ0 ∼` φκ I κ.
+(6) After substituting (5) for λ by (1) we have that +λ ∼` λ0 and λ0 ∼` λ as
+
+required.
 
 • If the above cases (including commutativity) do not then either +λ ∼` λ0 or
-      χ0 , α ` Interferes(pe, pe0 ) hold trivially by WFV2(∆, χ), since these paths have
-      not been changed (by previous cases with commutativity, neither pe nor pe0 may
-      be of the form (−i, xj )φ · fI ).
+  χ0 , α ` Interferes(pe, pe0 ) hold trivially by WFV2(∆, χ), since these paths have
+  not been changed (by previous cases with commutativity, neither pe nor pe0 may
+  be of the form (−i, xj )φ · fI ).
 
 Lemma 38: ∀λ, κ, κ, κ0 , κ00 . if Sendable(κ) and +(φκ I κ) ∼` λ and +λ ∼` φκ I κ then λ I κ00 ∼g
 φκ I κ I κ0
@@ -3709,17 +3782,19 @@ We begin by a case analysis over the value of pe:
 
 • If pe = (−i, xj )φ · fI then we know that:
 
-        (1) λ = φκ I κ by structure of pe and definition of visibility.
-        (2) Visibility of ι using the old temporary tp : ∆, χ, α ` ι : φκ I κ, (i, tp )φ · fI .
-        (3) Visibility of the ta path is unchanged: ∆, χ, α0 ` ι : λ0 , (i, ta )
-        (4) By WFV1(∆, χ), (2) and (3) we have that φκ I κ ∼g λ0 .
-        (5) By (4) and lemma 41 we have that +(φκ I κ) ∼` +λ0 and
-            +(+λ0 ) ∼` φκ I κ.
-        (6) After substituting (5) for λ by (1) we have that +(+λ0 ) ∼` λ and +λ ∼` +λ0
-            as required.
+(1) λ = φκ I κ by structure of pe and definition of visibility.
+(2) Visibility of ι using the old temporary tp : ∆, χ, α ` ι : φκ I κ, (i, tp )φ · fI .
+(3) Visibility of the ta path is unchanged: ∆, χ, α0 ` ι : λ0 , (i, ta )
+(4) By WFV1(∆, χ), (2) and (3) we have that φκ I κ ∼g λ0 .
+(5) By (4) and lemma 41 we have that +(φκ I κ) ∼` +λ0 and
+
++(+λ0 ) ∼` φκ I κ.
+(6) After substituting (5) for λ by (1) we have that +(+λ0 ) ∼` λ and +λ ∼` +λ0
+
+as required.
 
 • If the above case does not hold then +(+λ0 ) ∼` λ and +λ ∼` +λ0 hold trivially
-      by WFV3(∆, χ), since these paths have not been changed.
+  by WFV3(∆, χ), since these paths have not been changed.
 
 ### 4.3.8 Case Seven: Rec
 
@@ -3783,16 +3858,16 @@ safety of the language, so we omit it from this model.
 
 ## 5.1 Syntax
 
-                     P   ∈   Program        ::=   NT ST CT AT
-                    NT   ∈   TraitDef       ::=   trait N MS BS I
-                    ST   ∈ InterfaceDef     ::=   interface S MS BS I
-                    CT   ∈   ClassDef       ::=   class C F K M I
-                    AT   ∈   ActorDef       ::=   actor A F K M B I
-                     I   ∈   ParentID       ::=   N|S
-                    RS   ∈ RunTypeID        ::=   A|C
-                    DS   ∈ DeclTypeID       ::=   A|C|N|S
-                    BS   ∈   BehvStub       ::=   be b(x : DT)
-                    MS   ∈   FuncStub       ::=   fun κ m(x : DT) : DT
+ P   ∈   Program        ::=   NT ST CT AT
+NT   ∈   TraitDef       ::=   trait N MS BS I
+ST   ∈ InterfaceDef     ::=   interface S MS BS I
+CT   ∈   ClassDef       ::=   class C F K M I
+AT   ∈   ActorDef       ::=   actor A F K M B I
+ I   ∈   ParentID       ::=   N|S
+RS   ∈ RunTypeID        ::=   A|C
+DS   ∈ DeclTypeID       ::=   A|C|N|S
+BS   ∈   BehvStub       ::=   be b(x : DT)
+MS   ∈   FuncStub       ::=   fun κ m(x : DT) : DT
 
                              Figure 75: Changes to syntax.
 
@@ -4261,19 +4336,19 @@ the aim of reducing the complexity of the model, we therefore first briefly cons
 alternate implementations.
 
 • The first alternate way of representing tuples is to consider them to be encoded
-      using a normal class with two fields, 1 and 2, however problems with this scheme
-      start to occur when considering how this would interact with capabilities. In order
-      to ensure that accessing elements of the tuple maintains the intended capability,
-      the tuple itself must have capability ref, however this prohibits ever being able
-      to send tuples, even if both elements themselves are sendable.
+  using a normal class with two fields, 1 and 2, however problems with this scheme
+  start to occur when considering how this would interact with capabilities. In order
+  to ensure that accessing elements of the tuple maintains the intended capability,
+  the tuple itself must have capability ref, however this prohibits ever being able
+  to send tuples, even if both elements themselves are sendable.
 
 • The second scheme is simply to separate all uses of tuples into a pair of uses (e.g. an
-      assignment to a tuple turns into a pair of assignments, a tuple function argument
-      turns into two arguments etc...). This accurately represents the capabilities of
-      the tuple class but does not handle the interaction of union types and tuples in
-      an obvious way (e.g. how to represent an object of type ((A, B)|C)]), and this
-      complexity would only grow further with the addition of intersection types and
-      generics.
+  assignment to a tuple turns into a pair of assignments, a tuple function argument
+  turns into two arguments etc...). This accurately represents the capabilities of
+  the tuple class but does not handle the interaction of union types and tuples in
+  an obvious way (e.g. how to represent an object of type ((A, B)|C)]), and this
+  complexity would only grow further with the addition of intersection types and
+  generics.
 
    Unfortunately as neither of these alternatives work in this instance and so we resort
 to modelling tuples as usual, after first extending visibility to include the declared type,
@@ -4281,9 +4356,9 @@ as mentioned previously.
 
 ## 7.2 Syntax
 
-                    DT ∈ DeclType ::= DS λ | (DT|DT) | (DT, DT)
-                     e ∈    Expr   ::= · · · | (e, e)
-                   E[·] ∈ ExprHole ::= · · · | (E[·], e) | (t, E[·])
+ DT ∈ DeclType ::= DS λ | (DT|DT) | (DT, DT)
+  e ∈    Expr   ::= · · · | (e, e)
+E[·] ∈ ExprHole ::= · · · | (E[·], e) | (t, E[·])
 
                              Figure 94: Changes to syntax.
 
@@ -4427,7 +4502,7 @@ follows:
  iso aliases. This could then be exploited in order to cause a data-race.
      This did in fact turn out to be an issue in the Pony language itself, as the below
  code illustrates:
-```
+```pony
   class C1
 
 actor Main
@@ -4505,11 +4580,11 @@ and that of the field, since we are simply inspecting the capabilities of the ty
 
                         Figure 104: Changes to subtyping of declared types.
 
-     Subtyping on tuples is defined in figure 104 as yet another addition to the rules we have
-     accumulated thus far. These are significantly simpler than unions since they cannot be
-     introduced or eliminated under subtyping: a tuple can only be a subtype of another
-     tuple, we simply require that both members of the tuple are pairwise subtypes of the
-     members of the other tuple.
+Subtyping on tuples is defined in figure 104 as yet another addition to the rules we have
+accumulated thus far. These are significantly simpler than unions since they cannot be
+introduced or eliminated under subtyping: a tuple can only be a subtype of another
+tuple, we simply require that both members of the tuple are pairwise subtypes of the
+members of the other tuple.
 
 ## 7.9 Viewpoint Adaptation
 
@@ -4637,9 +4712,9 @@ than permitting more programs.
 
    • χ, ι ` DT iff
 
-        1. If ι 6= τ then χ(ι) ↓1 = RS and ∃λ such that RS λ ≤ DT
-        2. If ι = τ then DT = (DT0 , DT00 ) and χ, χ(τ ) ↓1 ` DT0 
-           and χ, χ(τ ) ↓2 ` DT00 
+1. If ι 6= τ then χ(ι) ↓1 = RS and ∃λ such that RS λ ≤ DT
+2. If ι = τ then DT = (DT0 , DT00 ) and χ, χ(τ ) ↓1 ` DT0 
+   and χ, χ(τ ) ↓2 ` DT00 
 
                           Figure 109: Changes to well-formed heaps.
 
@@ -5105,9 +5180,9 @@ change is shown in figure 124.
 
    • χ, ι ` DT iff ` DT and either
 
-        1. If ι 6= τ then χ(ι) ↓1 = RS and ∃λ such that RS λ ≤ DT, or
-        2. If ι = τ then DT = (DT0 , DT00 ) and χ, χ(τ ) ↓1 ` DT0 
-           and χ, χ(τ ) ↓2 ` DT00 
+1. If ι 6= τ then χ(ι) ↓1 = RS and ∃λ such that RS λ ≤ DT, or
+2. If ι = τ then DT = (DT0 , DT00 ) and χ, χ(τ ) ↓1 ` DT0 
+   and χ, χ(τ ) ↓2 ` DT00 
 
                           Figure 125: Changes to well-formed heaps.
 
@@ -5127,42 +5202,42 @@ of areas of the model, gaining expressive power in others as well as exploring v
 extensions to the basic model not originally covered:
 
 • We revised the definition of capabilities and in section 3.3.1 introduced a new term
-      λ to encapsulate both a basic capability κ and an optional ephemeral modifier φ
-      to give us a total of eight capabilities rather than the six presented by the original
-      paper.
+  λ to encapsulate both a basic capability κ and an optional ephemeral modifier φ
+  to give us a total of eight capabilities rather than the six presented by the original
+  paper.
 
 • Using these new temporaries we showed it was possible to revise the definition
-      of subtyping in section 3.10 from that originally presented, most importantly to
-      ensure that iso ≤ trn did not hold. This enabled us to show a number of nice-to-have lemmas that did not originally hold.
+  of subtyping in section 3.10 from that originally presented, most importantly to
+  ensure that iso ≤ trn did not hold. This enabled us to show a number of nice-to-have lemmas that did not originally hold.
 
 • In section 3.11 we introduced two novel viewpoint adaptation operators, . and . ,
-      to replace the single original viewpoint adaptation operator presented in Pony S as
-      .. To ensure our definition of the operators were correct, we also presented a
-      number of requirements for each operator that they must adhere to in order to
-      be well-formed. Lastly we proved that our definitions did indeed adhere to these
-      requirements by exhaustively checking our definitions with Prolog.
+  to replace the single original viewpoint adaptation operator presented in Pony S as
+  .. To ensure our definition of the operators were correct, we also presented a
+  number of requirements for each operator that they must adhere to in order to
+  be well-formed. Lastly we proved that our definitions did indeed adhere to these
+  requirements by exhaustively checking our definitions with Prolog.
 
 • We expanded the original definition of the typing rules with the ability to perform
-      full subsumption in most cases (namely in cases where the aliasing judgement `A
-      is used) in section 3.12.
+  full subsumption in most cases (namely in cases where the aliasing judgement `A
+  is used) in section 3.12.
 
 • The concept of active and passive temporaries was presented in section 3.13 as
-      a way of reasoning about partially executed programs that did not break well-formedness guarantees (most importantly, well-formed visibility), and we presented
-      a version of the operational semantics highlighting how the revised temporaries
-      would apply.
+  a way of reasoning about partially executed programs that did not break well-formedness guarantees (most importantly, well-formed visibility), and we presented
+  a version of the operational semantics highlighting how the revised temporaries
+  would apply.
 
 • In section 3.15 we presented a significantly simplified definition of well-formed
-      visibility using the new temporaries. Our new definition has just a few cases which
-      are readily extensible to handle new extensions to the model simply by extending
-      the definitions of compatibility and the two viewpoint adaptation operators.
+  visibility using the new temporaries. Our new definition has just a few cases which
+  are readily extensible to handle new extensions to the model simply by extending
+  the definitions of compatibility and the two viewpoint adaptation operators.
 
 • Preservation of well-formed visibility was then proven in section 4.3 after showing
-      a large number of useful lemmas with the aid of Prolog to exhaustively check for
-      counterexamples in section 4.2.
+  a large number of useful lemmas with the aid of Prolog to exhaustively check for
+  counterexamples in section 4.2.
 
 • We extended our basic model Pony G with a number of extensions in order to show
-      the ease with which new functionality can be added. We examined the addition
-      of inheritance (section 5) as well as unions (section 6), tuples (section 7) and
+  the ease with which new functionality can be added. We examined the addition
+  of inheritance (section 5) as well as unions (section 6), tuples (section 7) and
 
       intersection types (section 8), and argued that our definitions of well-formedness
       are readily extended to handle these cases.
@@ -5397,7 +5472,7 @@ Md(DS λ, c) = (DT, x : DT, DT0 )   Md((DT1 |DT2 ), c) = ((DT3 |DT4 ), x : DT, (
 
 ## D.1 Basic Definitions
 
-```
+```prolog
   % Define the six basic capabilities (κ, see section 3.3)
   capability_kappa(K) :- member(K, [iso, trn, ref, val, box, tag]).
 
@@ -5603,7 +5678,7 @@ viewpoint_adaptation(box, tag, tag).
 ## D.2 Well-Formed Non-Extracting Viewpoint Adaptation
 
 See section 3.11.2 for full requirement definitions.
-```
+```prolog
 check_viewpoint_adaptation_r1 :-
   capability_lambda(K1),
   capability_kappa(K2),
@@ -5612,7 +5687,7 @@ check_viewpoint_adaptation_r1 :-
   \+immutable(K1rK2).
 ```
 
-```
+```prolog
 check_viewpoint_adaptation_r2 :-
   capability_lambda(K1),
   capability_kappa(K2),
@@ -5622,7 +5697,7 @@ check_viewpoint_adaptation_r2 :-
   \+compat_g(K1rK2a, K2b).
 ```
 
-```
+```prolog
   check_viewpoint_adaptation_r3 :-
     capability_lambda(K1),
 
@@ -5635,7 +5710,7 @@ check_viewpoint_adaptation_r2 :-
    \+compat_l(K1rK2a, K1brK2b).
 ```
 
-```
+```prolog
 check_viewpoint_adaptation_r4 :-
   capability_lambda(K1),
   capability_kappa(K2),
@@ -5649,7 +5724,7 @@ check_viewpoint_adaptation_r4 :-
   \+compat_g(K1crK2a, K1brK2b).
 ```
 
-```
+```prolog
 check_viewpoint_adaptation_r5 :-
   capability_lambda(K1),
   capability_kappa(K2),
@@ -5666,14 +5741,14 @@ check_viewpoint_adaptation_r5 :-
 ## D.3 Well-Formed Extracting Viewpoint Adaptation
 
 See section 3.11.3 for full requirement definitions.
-```
+```prolog
 check_write_viewpoint_adaptation_r1(K2, Kw) :-
   compat_g(K2, K2b),
   alias(Kw, Kwa),
   \+compat_g(Kwa, K2b).
 ```
 
-```
+```prolog
 check_write_viewpoint_adaptation_r2(K1, K2, Kw) :-
   (compat_l(K1, K1b); (K1b=K1, capability_kappa(K1))),
   compat_l(K2, K2b),
@@ -5686,7 +5761,7 @@ check_write_viewpoint_adaptation_r2(K1, K2, Kw) :-
 ## D.4 Lemmas
 
 See section 4.2 for the following lemma definitions.
-```
+```prolog
 lemma_subtyping_preserves_compatibility :- % lemma 1
   capability_lambda(K1),
   capability_lambda(K2),
@@ -5695,14 +5770,14 @@ lemma_subtyping_preserves_compatibility :- % lemma 1
   (compat_g(K1, K2), \+compat_g(K1s, K2))).
 ```
 
-```
+```prolog
 lemma_alias_is_subtype :- % lemma 2
   capability_lambda(K1),
   alias(K1, K1a),
   \+subtype(K1, K1a).
 ```
 
-```
+```prolog
 lemma_alias_with_ephemeral_is_subtype :- % lemma 3
   capability_lambda(K1),
   alias(K1, K1a),
@@ -5710,7 +5785,7 @@ lemma_alias_with_ephemeral_is_subtype :- % lemma 3
   \+subtype(K1, K1au).
 ```
 
-```
+```prolog
 lemma_subtyping_preserves_aliased_compatibility :- % lemma 5
   capability_lambda(K1),
   capability_lambda(K2),
@@ -5721,7 +5796,7 @@ lemma_subtyping_preserves_aliased_compatibility :- % lemma 5
   (compat_l(K1a, K2), \+compat_l(K1sa, K2))).
 ```
 
-```
+```prolog
 lemma_viewpoint_adaptation_preserves_subtyping :- % lemma 6
   capability_lambda(K1),
   capability_kappa(K2),
@@ -5733,7 +5808,7 @@ lemma_viewpoint_adaptation_preserves_subtyping :- % lemma 6
   \+((subtype(K1rK2, K1srK2), subtype(K1wK2, K1swK2))).
 ```
 
-```
+```prolog
 lemma_compat_global_preserved :- % lemma 8
   capability_lambda(K1),
   capability_lambda(K1b),
@@ -5745,7 +5820,7 @@ lemma_compat_global_preserved :- % lemma 8
   \+compat_g(K1oK2, K1boK2b).
 ```
 
-```
+```prolog
 lemma_treat_paths_as_ephemeral :- % lemma 17
   capability_lambda(K1),
   capability_kappa(K2),
@@ -5756,7 +5831,7 @@ lemma_treat_paths_as_ephemeral :- % lemma 17
   \+member(X, Res).
 ```
 
-```
+```prolog
  lemma_active_temporary_reduce_case2 :- % lemma 18
    capability_lambda(K1),
   capability_lambda(L1),
@@ -5777,7 +5852,7 @@ lemma_treat_paths_as_ephemeral :- % lemma 17
     compat_l(L1a, K1sax), compat_l(L1ua, K1sax))).
 ```
 
-```
+```prolog
 lemma_local_temp_self :- % lemma 21
   capability_kappa(K),
   unalias_or_id(K, Kx),
@@ -5787,7 +5862,7 @@ lemma_local_temp_self :- % lemma 21
   \+((compat_l(Kaa, Kx), compat_l(Kxa, Ka))).
 ```
 
-```
+```prolog
  lemma_fld_case1 :- % lemma 22
   capability_lambda(K1),
   capability_lambda(K1b),
@@ -5811,7 +5886,7 @@ lemma_local_temp_self :- % lemma 21
   \+((compat_l(K1rK2aa, K1bxoK2), compat_l(K1bxoK2a, K1rK2a))).
 ```
 
-```
+```prolog
 lemma_asnfld_assigned_value_pre :- % lemma 26
   capability_lambda(K1),
   capability_lambda(K1b),
@@ -5833,7 +5908,7 @@ lemma_asnfld_assigned_value_pre :- % lemma 26
   \+subtype(K2u, K1bxrK2s).
 ```
 
-```
+```prolog
 lemma_async_local_to_global :- % lemma 35
   member(K1, [’iso-’, iso, val, tag]),
   capability_lambda(K2),
@@ -5848,7 +5923,7 @@ lemma_async_local_to_global :- % lemma 35
   \+((compat_g(K1, K2), compat_g(K1u, K2))).
 ```
 
-```
+```prolog
 lemma_ephemeral_sendable_preserved :- % lemma 36
   member(K1, [’iso-’, iso, val, tag]),
   capability_kappa(K2),
@@ -5856,7 +5931,7 @@ lemma_ephemeral_sendable_preserved :- % lemma 36
   \+member(K1oK2, [’iso-’, iso, val, tag]).
 ```
 
-```
+```prolog
 lemma_async_global_to_local :- % lemma 39
   member(K1, [’iso-’, iso, val, tag]),
   capability_lambda(K2),
@@ -5872,7 +5947,7 @@ lemma_async_global_to_local :- % lemma 39
            compat_l(K2a, K1u))).
 
      See section 8.8.2 for the following lemma definitions.
-```
+```prolog
 lemma_alias_preserves_static_compat :- % lemma S1
   capability_lambda(K1),
   capability_lambda(K2),
@@ -5882,7 +5957,7 @@ lemma_alias_preserves_static_compat :- % lemma S1
   \+compat_s(K1a, K2a).
 ```
 
-```
+```prolog
 lemma_unalias_preserves_static_compat :- % lemma S2
   capability_lambda(K1),
   capability_lambda(K2),
