@@ -126,14 +126,13 @@ class LightSwitch
       // may be declared box (default)
 ```
 
-                                      Deny global read/     Deny global        Allow all
-                                        write aliases       write aliases    global aliases
-      Deny local read/write aliases          iso
-        Deny local write aliases            trn                 val
-         Allow all local aliases            ref                box               tag
-                                         (Mutable)          (Immutable)        (Opaque)
+|                                 | Deny global read/write aliases (Mutable) | Deny global write aliases (Immutable) | Allow all global aliases (Opaque) |
+|---------------------------------|------------------------------------------|---------------------------------------|-----------------------------------|
+| Deny local read/write aliases   | *iso*                                    |                                       |                                   |
+| Deny local write aliases        | trn                                      | *val*                                 |                                   |
+| Allow all local aliases         | ref                                      | box                                   | *tag*                             |
 
- Table 1: Capability matrix, reproduced from [4]. Capabilities in italics are sendable.
+*Table 1: Capability matrix, reproduced from [4]. Sendable capabilities are italicised.*
 
 ```pony
 actor LightSwitchToggler
@@ -188,17 +187,20 @@ either an actor or an object without distinguishing which. We use arrows to illu
 the existence of fields (f) or local variables (x) in actors and objects, annotated with
 their corresponding capability.
 
-                        α                                               α
+```mermaid
+flowchart TD
+  subgraph Heap1["Heap 1"]
+    a1["α"] -- "x, val" --> i1a["ι₁"]
+    i1a -- "f, ref" --> i2a["ι₂"]
+  end
+  subgraph Heap2["Heap 2"]
+    a2["α"] -- "x, ref" --> i1b["ι₁"]
+    i1b -- "f, iso" --> i2b["ι₂"]
+  end
+```
 
-                             x, val                                          x, ref
-
-                        ι1                                              ι1
-
-                             f, ref                                          f, iso
-
-                        ι2                                              ι2
-
-            Figure 1: Example Heap 1.                       Figure 2: Example Heap 2.
+*Figure 1: Example Heap 1. α has variable `x : val` pointing to ι₁, which has field `f : ref` pointing to ι₂.*
+*Figure 2: Example Heap 2. Same structure but `x : ref` and `f : iso`.*
 
 In figure 1 we have a variable x of capability val, which in turn has a field of capability
 ref. If the program attempts to access x.f, we need some method for determining the
@@ -213,17 +215,16 @@ inspection we may think that we once again end up with the type of the receiver 
 however we can actually do better than that in this case. Since a field read gives back a
 temporary rather than a named local variable we can in fact give back an iso temporary.
 
-                                                Field
-                       Origin   iso   trn    ref   val   box    tag
+| Origin \ Field | iso | trn | ref | val | box | tag |
+|----------------|-----|-----|-----|-----|-----|-----|
+| iso            | iso | tag | tag | val | tag | tag |
+| trn            | iso | trn | box | val | box | tag |
+| ref            | iso | trn | ref | val | box | tag |
+| val            | val | val | val | val | val | tag |
+| box            | tag | box | box | val | box | tag |
+| tag            | ⊥   | ⊥   | ⊥   | ⊥   | ⊥   | ⊥   |
 
-iso     iso   tag    tag   val   tag    tag
-trn     iso   trn    box   val   box    tag
-ref     iso   trn    ref   val   box    tag
-val     val   val    val   val   val    tag
-box     tag   box    box   val   box    tag
-tag      ⊥     ⊥      ⊥     ⊥     ⊥      ⊥
-
-                 Table 2: Viewpoint adaptation, reproduced from [4].
+*Table 2: Viewpoint adaptation, reproduced from [4]. Origin (row) viewed through a field of capability (column) yields the result.*
 
 The full table of viewpoint adaptation operators is given in table 2, note how since
 we cannot read or write to fields of tag objects, we simply say that tag . κ is undefined.
@@ -258,18 +259,18 @@ formal model:
      the provided elements, and is commonly used together with the None class to
      represent optional values that may or may not be present.
 
-      • Tuples are supported in Pony in order to allow ad-hoc collections of objects (for
-        example, in order to allow for multiple return values from a method call).
+   • Tuples are supported in Pony in order to allow ad-hoc collections of objects (for
+     example, in order to allow for multiple return values from a method call).
 
-      • Generics are heavily used throughout Pony’s standard library and the ability to
-        set default values on generic type parameters.
+   • Generics are heavily used throughout Pony’s standard library and the ability to
+     set default values on generic type parameters.
 
-      • Partial application of functions is supported in Pony, allowing users to supply some
-        number of functions to the function before invoking it later with the remaining
-        arguments.
+   • Partial application of functions is supported in Pony, allowing users to supply some
+     number of functions to the function before invoking it later with the remaining
+     arguments.
 
-      • Pony supports delegates, where if a function is not found to be defined in a class,
-        it instead attempts to call the method in the specified delegate.
+   • Pony supports delegates, where if a function is not found to be defined in a class,
+     it instead attempts to call the method in the specified delegate.
 
 ## 2.3 Covariance and Contravariance
 
@@ -729,13 +730,13 @@ be explicitly specified at the declaration site and use-site explicitly).
 There are many important extensions to the basic model of generics that can be
 potentially omitted to make initial modelling of generics simpler:
 
-      • Bounds on generics (e.g. the (Hashable box & Comparable[K] box) example
-        previously) could be omitted in order to eliminate the complexity caused by ensuring that these bounds are satisfied, which will allow the modelling of lists and
-        other simple generic collections
+   • Bounds on generics (e.g. the (Hashable box & Comparable[K] box) example
+     previously) could be omitted in order to eliminate the complexity caused by ensuring that these bounds are satisfied, which will allow the modelling of lists and
+     other simple generic collections
 
-      • Default values on generic type parameters could also be omitted to simplify the
-        modelling of usage of generic types, and should be easily be re-incorporated at a
-        later time.
+   • Default values on generic type parameters could also be omitted to simplify the
+     modelling of usage of generic types, and should be easily be re-incorporated at a
+     later time.
 
    One potential issue with modelling generics is the need to allow for generic viewpoint
 adaptation. Pony allows specifying expressions such as this->A to allow the code to
@@ -926,10 +927,9 @@ given the heap, an actor and its associated stack frames.
 
 The remaining rules handle execution within the stack frames (σ) of a single actor:
 
-   • The ExprHole rule allows us to focus on and evaluate a part e of a larger overall
-     expression E[e]. For example we may have that x1 = x2.f. We must first evaluate
-     the field lookup, so we invoke the ExprHole rule with e defined as x2.f, which
-
+• The ExprHole rule allows us to focus on and evaluate a part e of a larger overall
+  expression E[e]. For example we may have that x1 = x2.f. We must first evaluate
+  the field lookup, so we invoke the ExprHole rule with e defined as x2.f, which
   in turn would invoke ExprHole yet again to evaluate the local variable x2 to a
   temporary.
 
@@ -972,9 +972,9 @@ The remaining rules handle execution within the stack frames (σ) of a single ac
   but with the additional step of constructing the new instance in the heap and
   initialising its fields with the constant null.
 
-   • The only rule we have yet to consider is that of Rec, which simply discards a
-     recover block surrounding a temporary when the expression within the block
-     has finished evaluating. Recovery will be discussed in more detail later (see section 3.9).
+• The only rule we have yet to consider is that of Rec, which simply discards a
+  recover block surrounding a temporary when the expression within the block
+  has finished evaluating. Recovery will be discussed in more detail later (see section 3.9).
 
 ### 3.2.1 Temporaries
 
@@ -1055,14 +1055,13 @@ variables, as we discussed above in section 3.2.1).
 
                                             Figure 6: Execution.
 
-                                   Deny global read/     Deny global       Allow all
-                                     write aliases       write aliases   global aliases
-   Deny local read/write aliases         iso
-     Deny local write aliases            trn                val
-      Allow all local aliases            ref                box             tag
-                                      (Mutable)          (Immutable)      (Opaque)
+|                                 | Deny global read/write aliases (Mutable) | Deny global write aliases (Immutable) | Allow all global aliases (Opaque) |
+|---------------------------------|------------------------------------------|---------------------------------------|-----------------------------------|
+| Deny local read/write aliases   | *iso*                                    |                                       |                                   |
+| Deny local write aliases        | trn                                      | *val*                                 |                                   |
+| Allow all local aliases         | ref                                      | box                                   | *tag*                             |
 
-        Table 3: Capability matrix. Capabilities on the diagonal are sendable.
+*Table 3: Capability matrix. Sendable capabilities (the diagonal: iso, val, tag) are italicised.*
 
 ## 3.3 Capabilities
 
@@ -1070,42 +1069,42 @@ The six basic capabilities in Pony G are modelled after the operations that are 
 them both locally in the current actor and globally over many actors. The summary of
 these properties are displayed in table 3.
 
-   • iso aliases deny read and write aliases both locally and globally, and as a result we
-     are able to guarantee that there is only a single stable way (i.e. through a named
-     variable rather than a temporary) of accessing the object in the entire program.
-     We are able to read or write from the object, since there is no possibility of data-races, and we are able to give up our isolated ownership of the object in order to
-     either send it to other actors or convert it to any other capability.
+• iso aliases deny read and write aliases both locally and globally, and as a result we
+  are able to guarantee that there is only a single stable way (i.e. through a named
+  variable rather than a temporary) of accessing the object in the entire program.
+  We are able to read or write from the object, since there is no possibility of data-races, and we are able to give up our isolated ownership of the object in order to
+  either send it to other actors or convert it to any other capability.
 
-   • trn aliases deny read and write aliases globally, but only write aliases locally. As
-     with iso, no other actors will be able to read or write to the object so we are free
-     to mutate it, however we may not send a mutable alias to other actors since this
-     would allow us to read the object through our permitted local read aliases while
-     another actor mutates the object through the mutable alias we sent to them.
+• trn aliases deny read and write aliases globally, but only write aliases locally. As
+  with iso, no other actors will be able to read or write to the object so we are free
+  to mutate it, however we may not send a mutable alias to other actors since this
+  would allow us to read the object through our permitted local read aliases while
+  another actor mutates the object through the mutable alias we sent to them.
 
-   • ref permits similar operations to trn except in this case we are permitted to
-     make any number of mutable references within the local actor. The caveat here
-     is that there is no way to easily convert this into a form suitable for sending to
-     other actors, since there could be any number of mutable references remaining
-     that could result in data-races.
+• ref permits similar operations to trn except in this case we are permitted to
+  make any number of mutable references within the local actor. The caveat here
+  is that there is no way to easily convert this into a form suitable for sending to
+  other actors, since there could be any number of mutable references remaining
+  that could result in data-races.
 
-   • val aliases deny the existence of mutable aliases both globally and locally. Since
-     we allow aliases in other actors we must be immutable and since we guarantee
-     that there are no other mutable references, we can easily send this to other actors
-     without needing to consider the possibility of introducing data-races.
+• val aliases deny the existence of mutable aliases both globally and locally. Since
+  we allow aliases in other actors we must be immutable and since we guarantee
+  that there are no other mutable references, we can easily send this to other actors
+  without needing to consider the possibility of introducing data-races.
 
-   • box aliases are similar to val in that they are also immutable and deny mutable
-     aliases globally in other actors, however in this case we allow there to exist local
-     mutable aliases in the same actor, and for this reason we do not allow box aliases
-     to be sent to other actors. As an example consider an object with two aliases with
-     capabilities ref and box in the same actor. Neither properties have been violated
-     since both allow mutable and immutable local aliases. If the latter capability were
-     to have been val, we would have violated the constraint that val denies local
-     mutable references (i.e. ref in this case).
+• box aliases are similar to val in that they are also immutable and deny mutable
+  aliases globally in other actors, however in this case we allow there to exist local
+  mutable aliases in the same actor, and for this reason we do not allow box aliases
+  to be sent to other actors. As an example consider an object with two aliases with
+  capabilities ref and box in the same actor. Neither properties have been violated
+  since both allow mutable and immutable local aliases. If the latter capability were
+  to have been val, we would have violated the constraint that val denies local
+  mutable references (i.e. ref in this case).
 
-   • Finally, tag aliases allow any number of aliases both globally and locally but
-     as a result it is not safe to even read from these aliases, they are opaque values.
-     Behaviours may be invoked on tag objects since they are executed asynchronously
-     by the receiver.
+• Finally, tag aliases allow any number of aliases both globally and locally but
+  as a result it is not safe to even read from these aliases, they are opaque values.
+  Behaviours may be invoked on tag objects since they are executed asynchronously
+  by the receiver.
 
 Note that the upper diagonal of table 3 is unfilled as it does not make sense to have
 a capability that permits more operations in other actors than it does in the local actor.
@@ -1118,14 +1117,14 @@ Although the above six capabilities cover the vast majority of our use cases, th
 two more cases of interest if we consider the capabilities of unnamed aliases (temporary
 objects) such as those returned from constructors. We have two cases to consider:
 
-   • An object with zero stable (non-temporary) aliases in the entire program. This is
-     almost equivalent to the guarantee provided by iso, but with one alias removed.
-     We therefore call this iso−, where the ephemeral modifier − indicates that an
-     alias has been removed.
+• An object with zero stable (non-temporary) aliases in the entire program. This is
+  almost equivalent to the guarantee provided by iso, but with one alias removed.
+  We therefore call this iso−, where the ephemeral modifier − indicates that an
+  alias has been removed.
 
-   • An object with zero stable mutable aliases in the entire program. In this case this
-     is almost equivalent to the guarantee we provided for trn, but once again with
-     one alias removed. We therefore call this trn−.
+• An object with zero stable mutable aliases in the entire program. In this case this
+  is almost equivalent to the guarantee we provided for trn, but once again with
+  one alias removed. We therefore call this trn−.
 
 We do not give these capabilities proper names as they are only of interest in a few
 cases and cannot be used as the capability of any named variable or field.
@@ -1165,21 +1164,16 @@ We start by simply defining local and global compatibility for the six basic cap
 
 ### 3.4.1 Local Compatibility
 
-                                                                      κ0
-                                        κ ∼` κ0
-                                                    iso   trn   ref        val   box   tag
+| κ \ κ' | iso | trn | ref | val | box | tag |
+|--------|-----|-----|-----|-----|-----|-----|
+| iso    |     |     |     |     |     | ✓   |
+| trn    |     |     |     |     | ✓   | ✓   |
+| ref    |     |     | ✓   |     | ✓   | ✓   |
+| val    |     |     |     | ✓   | ✓   | ✓   |
+| box    |     | ✓   | ✓   | ✓   | ✓   | ✓   |
+| tag    | ✓   | ✓   | ✓   | ✓   | ✓   | ✓   |
 
-                                             iso                                       
-                 α
-                                             trn                                      
-                                             ref                                     
-                                        κ
-         κ               κ0
-                                             val                                     
-                                             box                                   
-                 ι                           tag                                  
-
-  Figure 8: Local compatibility.            Table 4: Locally compatible capabilities.
+*Table 4: Locally compatible capabilities (κ ∼ₗ κ'). Symmetric. Reconstructed from `compat_l/2` in Appendix D.1.*
 
 We begin by defining local compatibility. Figure 8 represents the situation where
 there are two paths from a single actor α to an object ι. Assuming these paths are
@@ -1188,49 +1182,43 @@ two paths may have to ensure we cannot cause race conditions to occur or break t
 guarantees given by the capabilities themselves. A summary of this definition is given
 in table 4.
 
-   • iso obviously cannot be locally compatible with anything besides tag, since we
-     guarantee that we hold the only stable and readable alias to the object in the
-     entire program.
+• iso obviously cannot be locally compatible with anything besides tag, since we
+  guarantee that we hold the only stable and readable alias to the object in the
+  entire program.
 
-   • trn for the same reason cannot be compatible with iso, trn or ref since we
-     guarantee that we hold the only mutable alias in the entire program. Since we
-     are mutable we must also forbid other val aliases existing, else these could be
+• trn for the same reason cannot be compatible with iso, trn or ref since we
+  guarantee that we hold the only mutable alias in the entire program. Since we
+  are mutable we must also forbid other val aliases existing, else these could be
+  sent to other actors causing a data-race to occur. We therefore only allow local
+  compatibility with box and tag in this case.
 
-        sent to other actors causing a data-race to occur. We therefore only allow local
-        compatibility with box and tag in this case.
+• ref must be compatible with itself, since we allow any number of mutable aliases
+  locally. Additionally for the same reasons as trn, we allow local compatibility
+  with box and tag but not val.
 
-   • ref must be compatible with itself, since we allow any number of mutable aliases
-     locally. Additionally for the same reasons as trn, we allow local compatibility
-     with box and tag but not val.
+• val is both sendable and immutable. In order to ensure data-races cannot occur,
+  we must ensure that no other aliases to this object are mutable, which leaves us
+  locally compatible with val itself, as well as box and tag.
 
-   • val is both sendable and immutable. In order to ensure data-races cannot occur,
-     we must ensure that no other aliases to this object are mutable, which leaves us
-     locally compatible with val itself, as well as box and tag.
+• box is also immutable like val, however since we are not sendable we do not require
+  that no mutable references exist. This means that in addition to the capabilities
+  locally compatible with val, we also allow trn and ref in this case.
 
-   • box is also immutable like val, however since we are not sendable we do not require
-     that no mutable references exist. This means that in addition to the capabilities
-     locally compatible with val, we also allow trn and ref in this case.
-
-   • tag does not make any guarantees, and so we are able to simply make it locally
-     compatible with everything!
+• tag does not make any guarantees, and so we are able to simply make it locally
+  compatible with everything!
 
 ### 3.4.2 Global Compatibility
 
-                                                                       κ0
-                                        κ ∼g κ0
-                                                     iso   trn   ref        val   box   tag
+| κ \ κ' | iso | trn | ref | val | box | tag |
+|--------|-----|-----|-----|-----|-----|-----|
+| iso    |     |     |     |     |     | ✓   |
+| trn    |     |     |     |     |     | ✓   |
+| ref    |     |     |     |     |     | ✓   |
+| val    |     |     |     | ✓   | ✓   | ✓   |
+| box    |     |     |     | ✓   | ✓   | ✓   |
+| tag    | ✓   | ✓   | ✓   | ✓   | ✓   | ✓   |
 
-                                              iso                                       
-              α         α0
-                                              trn                                       
-                                              ref                                       
-                                        κ
-          κ                  κ0
-                                              val                                     
-                                              box                                     
-                   ι                          tag                                  
-
- Figure 9: Global compatibility.            Table 5: Globally compatible capabilities.
+*Table 5: Globally compatible capabilities (κ ∼g κ'). Symmetric. Reconstructed from `compat_g/2` in Appendix D.1.*
 
 We now define global compatibility in a manner similar to that used to define local
 compatibility. In this case (shown in figure 9), we now assume that we have two paths
@@ -1281,13 +1269,19 @@ an object ι in a heap χ simply if they have compatible capabilities.
 
 ## 3.5 Aliasing
 
-                             α                        α
+```mermaid
+flowchart LR
+  subgraph Before
+    a1["α"] -- "κ" --> i1["ι"]
+  end
+  subgraph After
+    a2["α"] -- "κ" --> i2["ι"]
+    a2 -- "+κ" --> i2
+  end
+  Before -.->|"+"| After
+```
 
-                         κ              =⇒        κ          +κ
-
-                             ι                         ι
-
-                                  Figure 12: Aliasing.
+*Figure 12: Aliasing. Before: actor α has one path to object ι with capability κ. After: a new alias `+κ` is added, so α has two paths to ι.*
 
 We now define the aliasing operator +, to give us the minimum compatible capability
 when a new alias to an object has been made. An example of this is shown in figure 12,
@@ -1334,13 +1328,18 @@ type and applying the aliasing operator, this can be seen in figure 13.
 
 ## 3.6 Unaliasing
 
-                              α                       α
+```mermaid
+flowchart LR
+  subgraph Before
+    a1["α"] -- "κ" --> i1["ι"]
+  end
+  subgraph After
+    a2["α"] -. "−κ" .-> i2["ι"]
+  end
+  Before -.->|"destructive read"| After
+```
 
-                          κ              =⇒                   −κ
-
-                              ι                        ι
-
-                                  Figure 14: Unaliasing.
+*Figure 14: Unaliasing. Before: actor α has a stable path with capability κ to ι. After: that path is removed; a temporary path with capability `−κ` remains (drawn dashed to indicate it's a temporary, not a stable alias).*
 
 When overwriting a local variable in a destructive read (e.g. x = e, see section 3.2,
 AsnLocal), the old value of the variable is returned as a temporary. In this case we
@@ -1386,21 +1385,18 @@ Pony S .
 
 ## 3.8 Safe-to-Write
 
-                                                          κ
-                         λ/κ
-                                   iso   trn        ref       val   box   tag
+| λ \ κ | iso | trn | ref | val | box | tag |
+|-------|-----|-----|-----|-----|-----|-----|
+| iso⁻  | ✓   | ✓   | ✓   | ✓   | ✓   | ✓   |
+| iso   | ✓   |     |     | ✓   |     | ✓   |
+| trn⁻  | ✓   | ✓   | ✓   | ✓   | ✓   | ✓   |
+| trn   | ✓   | ✓   |     | ✓   |     | ✓   |
+| ref   | ✓   | ✓   | ✓   | ✓   | ✓   | ✓   |
+| val   |     |     |     |     |     |     |
+| box   |     |     |     |     |     |     |
+| tag   |     |     |     |     |     |     |
 
-                          iso−                                       
-                          iso                                           
-                          trn−                                       
-                          trn                                          
-                     λ
-                          ref                                        
-                          val
-                          box
-                          tag
-
-                          Table 6: Safe-to-write on capabilities.
+*Table 6: Safe-to-write on capabilities. Reconstructed from `safe_to_write/2` in Appendix D.1. Empty rows for val/box/tag reflect that immutable / opaque sources cannot be written through.*
 
 In Pony G we have five mutable capabilities, however it is not safe to write to a field of
 any capability within any mutable object. Consider a case where we have a ref variable
@@ -1592,27 +1588,18 @@ the actor α sees the field object ι0 as λ . κ, where the operator . denotes 
 viewpoint adaptation. This scenario is shown in figure 22. Note the use of a dashed
 line once again to indicate that the path is only a temporary, a proper alias would be
 
-                                                                             κ
-                                           λ.κ
-                                                         iso    trn       ref       val   box   tag
+| λ \ κ | iso  | trn  | ref  | val | box | tag |
+|-------|------|------|------|-----|-----|-----|
+| iso⁻  | iso⁻ | iso⁻ | iso⁻ | val | val | tag |
+| iso   | iso  | iso  | iso  | val | tag | tag |
+| trn⁻  | iso⁻ | trn⁻ | trn⁻ | val | val | tag |
+| trn   | iso  | trn  | trn  | val | box | tag |
+| ref   | iso  | trn  | ref  | val | box | tag |
+| val   | val  | val  | val  | val | val | tag |
+| box   | tag  | box  | box  | val | box | tag |
+| tag   | ⊥    | ⊥    | ⊥    | ⊥   | ⊥   | ⊥   |
 
-                                            iso−        iso−   iso−      iso−       val   val   tag
-                   α
-                                             iso         iso    iso       iso       val   tag   tag
-
-               λ                            trn−        iso−   trn−      trn−       val   val   tag
-                                             trn         iso    trn       trn       val   box   tag
-                                       λ
-                   ι
-                           λ.κ               ref         iso    trn       ref       val   box   tag
-                                             val         val    val       val       val   val   tag
-               κ
-                                             box         tag    box       box       val   box   tag
-                   ι0                        tag         ⊥       ⊥         ⊥        ⊥     ⊥     ⊥
-
-  Figure 22: Non-extracting                               Table 7: Non-extracting
-
-viewpoint adaptation.                               viewpoint adaptation table.
+*Table 7: Non-extracting viewpoint adaptation (λ . κ). Reconstructed from `viewpoint_adaptation/3` in Appendix D.1.*
 
 created with capability +(λ . κ). The definition of non-extracting viewpoint adaptation
 is presented in table 7.
@@ -1737,27 +1724,18 @@ a table format. Note how in this case we may in fact return temporary capabiliti
 since we can end up in situations where no stable aliases to the field exist after we have
 overwritten them.
 
-                                                                      κ
-                                      λ.κ
-                                                     iso    trn     ref    val    box   tag
+| λ \ κ | iso  | trn  | ref  | val | box | tag |
+|-------|------|------|------|-----|-----|-----|
+| iso⁻  | iso⁻ | iso⁻ | iso⁻ | val | val | tag |
+| iso   | iso⁻ | val  | tag  | val | tag | tag |
+| trn⁻  | iso⁻ | trn⁻ | trn⁻ | val | val | tag |
+| trn   | iso⁻ | val  | box  | val | box | tag |
+| ref   | iso⁻ | trn⁻ | ref  | val | box | tag |
+| val   | ⊥    | ⊥    | ⊥    | ⊥   | ⊥   | ⊥   |
+| box   | ⊥    | ⊥    | ⊥    | ⊥   | ⊥   | ⊥   |
+| tag   | ⊥    | ⊥    | ⊥    | ⊥   | ⊥   | ⊥   |
 
-                                        iso−        iso−   iso−    iso−    val    val   tag
-                 α
-                                        iso         iso−    val     tag    val    tag   tag
-
-             λ                          trn−        iso−   trn−    trn−    val    val   tag
-                                        trn         iso−    val     box    val    box   tag
-                                  λ
-                 ι
-                        λ.κ             ref         iso−   trn−     ref    val    box   tag
-                                        val          ⊥       ⊥       ⊥      ⊥     ⊥     ⊥
-             κ
-                                        box          ⊥       ⊥       ⊥      ⊥     ⊥     ⊥
-                 ι0                     tag          ⊥       ⊥       ⊥      ⊥     ⊥     ⊥
-
-Figure 28: Extracting                               Table 8: Extracting
-
-viewpoint adaptation.                           viewpoint adaptation table.
+*Table 8: Extracting viewpoint adaptation (+(λ . κ)).*
 
 We now present the requirements governing the definition of extracting viewpoint
 adaptation. The requirements presented resemble closely rules two and three in the
