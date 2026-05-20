@@ -126,7 +126,7 @@ Has full (8-persona) and lightweight (5-persona) modes. Stage 1 (planning) produ
 
 Property-based and generative testing patterns. Load it with `/pony-pbt-patterns` when writing property-based tests, generators, or generative test suites.
 
-Covers the valid/invalid/mixed generator triad, compositional generator hierarchies, deriving generators from validation rules, and coverage strategies. Maps directly onto PonyCheck.
+Built on one idea — chance is not coverage, so a generator must bias toward where bugs live. Covers biasing toward important values, swarm testing (varying which operations are enabled so emergent state reaches the extremes), the valid/invalid/mixed boundary triad, compositional generators, and multi-angle oracles. Maps directly onto PonyCheck.
 
 #### pony-debug
 

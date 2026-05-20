@@ -56,8 +56,7 @@ to find those invariants and recommend properties.
 - Read `~/.claude/CLAUDE.md` and project CLAUDE.md
 - Read the candidate test strategy from Stage 1 synthesis
 - Read the code under test — you need to identify invariants
-- Load `/pony-pbt-patterns` for generator triads, compositional hierarchies, and
-  coverage strategies
+- Load `/pony-pbt-patterns` for generator design and coverage patterns
 - If a Pony project, load `/pony-ref`
 - Read the "Properties and Edge Cases" and "Magic Values Are Unverified
   Assumptions" disciplines from the pony-test-design SKILL.md for the full context
