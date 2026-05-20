@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file. Entries
 are grouped by date (UTC) with newest first.
 
+## 2026-05-20
+
+- ADDED: Incorporate swarm testing techniques into property-based testing skill ([PR #35](https://github.com/ponylang/llm-skills/pull/35))
+
 ## 2026-04-07
 
 - CHANGED: Design personas must explore before committing; orchestrator gates quality ([PR #31](https://github.com/ponylang/llm-skills/pull/31))
