@@ -619,11 +619,11 @@ should own a capability — the external boundary. This discipline asks the
 internal question: within the application, does each piece of logic live in the
 right layer?
 
-CLAUDE.md principle 8 defines three layers: domain logic (pure business rules,
+Layered applications have three layers: domain logic (pure business rules,
 zero infrastructure dependencies), orchestration (combines domain logic with
 infrastructure — databases, caches, queues), and presentation (adapts
 orchestration for a specific protocol — HTTP, GraphQL, CLI). This discipline
-operationalizes that principle as design-time questions.
+operationalizes that separation as design-time questions.
 
 **Scope**: This discipline applies when the skill is used for application-level
 design — systems with distinct domain, orchestration, and presentation concerns.

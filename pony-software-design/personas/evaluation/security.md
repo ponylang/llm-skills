@@ -50,7 +50,7 @@ bugs in the code.
 
 ## Context Loading
 
-- Read `~/.claude/CLAUDE.md` and project CLAUDE.md
+- Read the code-design principles in `references/principles.md` (alongside this skill) and the project's `CLAUDE.md` if it has one
 - Read the candidate design from Stage 1 synthesis
 - Identify the language and platform to focus on relevant threat models
 - If a Pony project, load `/pony-ref` — FFI boundaries, capability-based
