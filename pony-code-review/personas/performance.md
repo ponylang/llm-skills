@@ -24,6 +24,6 @@ You evaluate runtime efficiency and resource usage. You look at two levels: arch
 
 ## Context Loading
 
-- Read `~/.claude/CLAUDE.md` and project CLAUDE.md
+- Review against the code-review principles provided in your prompt, and the project's `CLAUDE.md` if it has one
 - If a Pony project, load `/pony-ref` — the performance cheat sheet is especially relevant to your focus, but the rest provides essential context: capabilities affect what optimizations are possible, actor patterns affect concurrency design, and common gotchas include performance-relevant pitfalls. Don't tunnel-vision on the cheat sheet alone.
 - Identify hot paths from the call graph before judging severity

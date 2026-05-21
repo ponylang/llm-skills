@@ -24,6 +24,6 @@ These are not principles — you are deliberately unconstrained.
 
 ## Context Loading
 
-- Read `~/.claude/CLAUDE.md` and project CLAUDE.md
+- Review against the code-review principles provided in your prompt, and the project's `CLAUDE.md` if it has one
 - Read all changed files in full
 - Read whatever else catches your attention — you are not constrained to specific files or skills

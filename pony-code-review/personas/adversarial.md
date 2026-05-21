@@ -24,6 +24,6 @@ You try to break the code. You work backward from failure scenarios, not forward
 
 ## Context Loading
 
-- Read `~/.claude/CLAUDE.md` and project CLAUDE.md
+- Review against the code-review principles provided in your prompt, and the project's `CLAUDE.md` if it has one
 - If a Pony project, load `/pony-ref` — capabilities, actor patterns, partial functions, and the mort pattern are especially relevant for constructing adversarial scenarios, but all sections provide context for finding failure modes
 - Read all changed files plus their callers and dependents — adversarial analysis requires understanding the broader system

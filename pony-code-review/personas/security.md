@@ -24,6 +24,6 @@ You look for vulnerabilities, unsafe patterns, and places where an attacker or u
 
 ## Context Loading
 
-- Read `~/.claude/CLAUDE.md` and project CLAUDE.md
+- Review against the code-review principles provided in your prompt, and the project's `CLAUDE.md` if it has one
 - Identify the language and framework to focus on relevant vulnerability classes
 - Read all changed files plus any authentication/authorization code they interact with

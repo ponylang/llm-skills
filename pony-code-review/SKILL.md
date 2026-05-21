@@ -84,7 +84,7 @@ When principles conflict, these values set the priority. We value the left side 
 4. **Spawn 8 persona agents in parallel** as Tasks with subagent_type="general-purpose" and model="opus". Each agent's prompt includes:
 
    - The persona document, read from the corresponding file in `personas/`. When a persona's context loading references an external skill (e.g., `/pony-test-design`, `/pony-pbt-patterns`, `/pony-ref`), read that skill's content and include it in the agent prompt.
-   - Instructions to read `~/.claude/CLAUDE.md` and project CLAUDE.md (if one exists — not all projects have one; if absent, note it and proceed with global CLAUDE.md only) and follow those principles, including loading any skills they reference.
+   - The code-review principles: read `references/principles.md` (alongside this skill) and include its content in the agent prompt, the same way referenced skills are injected above. Also instruct the agent to read the project `CLAUDE.md` if one exists (not all projects have one; if absent, note it and proceed) and to follow its conventions, including loading any skills it references.
    - The review target: base branch, diff command, PR URL, and any related issue/discussion URLs.
    - Instructions to read all changed files in full (not just diffs), plus supporting files needed for context.
    - For Correctness, Adversarial, and Tests personas: the captured build output and test results from step 2.
@@ -177,7 +177,7 @@ Pick whichever is most relevant to the change. If multiple conditions apply, pic
 4. **Spawn 3 persona agents in parallel** as Tasks with subagent_type="general-purpose" and model="opus". Each agent's prompt includes:
 
    - The persona document, read from the corresponding file in `personas/`. When a persona's context loading references an external skill (e.g., `/pony-test-design`, `/pony-pbt-patterns`, `/pony-ref`), read that skill's content and include it in the agent prompt.
-   - Instructions to read `~/.claude/CLAUDE.md` and project CLAUDE.md (if one exists — not all projects have one; if absent, note it and proceed with global CLAUDE.md only) and follow those principles, including loading any skills they reference.
+   - The code-review principles: read `references/principles.md` (alongside this skill) and include its content in the agent prompt, the same way referenced skills are injected above. Also instruct the agent to read the project `CLAUDE.md` if one exists (not all projects have one; if absent, note it and proceed) and to follow its conventions, including loading any skills it references.
    - The review target: base branch, diff command, PR URL, and any related issue/discussion URLs.
    - Instructions to read all changed files in full (not just diffs), plus supporting files needed for context.
    - The captured build output and test results from step 2 — always provided to Correctness and Adversarial. Also provided to Tests when it is the context-dependent persona.
@@ -295,5 +295,5 @@ The persona documents are in `personas/`. Full mode uses all 8; lightweight uses
 | `security.md` | Trust boundaries, injection, auth, resource bounds |
 | `performance.md` | Architectural bottlenecks, then local waste |
 | `tests.md` | Test quality, missing tests, counterfactual reasoning |
-| `principles.md` | Systematic CLAUDE.md audit with evidence |
+| `principles.md` | Systematic principles audit with evidence |
 | `wildcard.md` | Chaos agent — finds what the others miss |
