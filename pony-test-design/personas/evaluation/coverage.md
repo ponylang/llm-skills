@@ -46,7 +46,7 @@ provides false confidence — the parts that aren't tested are where bugs hide.
 
 ## Context Loading
 
-- Read `~/.claude/CLAUDE.md` and project CLAUDE.md
+- Read the project's `CLAUDE.md` if it has one, for project-specific conventions
 - Read the candidate test strategy from Stage 1 synthesis
 - Read the code under test — you need the decision space to assess coverage
 - If a Pony project, load `/pony-ref`
