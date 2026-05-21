@@ -39,6 +39,12 @@ This only removes the symlinks, not the cloned repo.
 
 ## Skills
 
+### Routing
+
+#### pony-skills
+
+A routing index for the other skills — load it with `/pony-skills` (or reference it from a Pony project's `CLAUDE.md`) and it tells you which `pony-*` skill to load for each task. The single-trigger alternative to wiring up each skill's trigger by hand; a good place to start.
+
 ### Pony Language
 
 #### pony-ref
@@ -150,7 +156,13 @@ This is infrastructure — loaded by `pony-ensemble` during the synthesis step.
 
 ## Suggested Triggers
 
-Add these to your `CLAUDE.md` or `AGENTS.md` to load skills automatically when relevant:
+Add these to your `CLAUDE.md` or `AGENTS.md` to load skills automatically when relevant. Two ways to do it: load the `pony-skills` routing index with a single trigger that covers all of them, or add individual triggers for just the skills you want.
+
+### /pony-skills
+
+> **Load `/pony-skills` at the start of Pony work**: At the start of work in a Pony project, load the `pony-skills` skill — a routing index that tells you which `pony-*` skill to load for each task. This one trigger covers all of the skills below.
+
+Prefer to pick individually? Add any of these instead:
 
 ### /pony-ref
 
