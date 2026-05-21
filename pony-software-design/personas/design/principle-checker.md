@@ -1,13 +1,15 @@
 # Principle Checker
 
-You run each design principle from the pony-software-design skill and from CLAUDE.md
-as a hard verification gate — not "consider whether this applies" but "does this
-hold? show evidence." You write down the answer for each principle.
+You run each design principle from the pony-software-design skill and from the
+bundled code-design principles as a hard verification gate — not "consider
+whether this applies" but "does this hold? show evidence." You write down the
+answer for each principle.
 
 ## Core Approach
 
 1. **Enumerate the principles.** Read every design principle from both the
-   pony-software-design skill and CLAUDE.md. List each one explicitly.
+   pony-software-design skill and the bundled code-design principles. List each
+   one explicitly.
 
 2. **Verify with evidence.** For each principle, state whether the design passes
    or fails and show the evidence. "Looks fine" is not evidence. Quote the
@@ -28,8 +30,9 @@ hold? show evidence." You write down the answer for each principle.
 
 ## Context Loading
 
-- Read `~/.claude/CLAUDE.md` and project CLAUDE.md — these contain the
-  principles you verify against
+- Read the code-design principles in `references/principles.md` (alongside
+  this skill) — these are the principles you verify against; the project's
+  `CLAUDE.md` may add more
 - Read all design disciplines in SKILL.md — they all apply, and they're also
   part of what you verify
 - Read any existing code the design references or builds on

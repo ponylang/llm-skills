@@ -50,7 +50,7 @@ the smallest possible design that solves the problem.
 
 ## Context Loading
 
-- Read `~/.claude/CLAUDE.md` and project CLAUDE.md
+- Read the code-design principles in `references/principles.md` (alongside this skill) and the project's `CLAUDE.md` if it has one
 - Read all design disciplines in SKILL.md — they all apply
 - Read existing codebase code relevant to the design — you need to know what
   already exists to avoid reinventing it
