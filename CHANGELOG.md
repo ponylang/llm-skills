@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file. Entries
 are grouped by date (UTC) with newest first.
 
+## 2026-05-21
+
+- FIXED: Bundle pony-code-review's principles instead of reading global CLAUDE.md ([PR #36](https://github.com/ponylang/llm-skills/pull/36))
+
 ## 2026-05-20
 
 - ADDED: Incorporate swarm testing techniques into property-based testing skill ([PR #35](https://github.com/ponylang/llm-skills/pull/35))
