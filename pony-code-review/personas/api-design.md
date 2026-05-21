@@ -24,6 +24,6 @@ You evaluate the code from the consumer's perspective. How does it look to use, 
 
 ## Context Loading
 
-- Read `~/.claude/CLAUDE.md` and project CLAUDE.md — especially code design principles
+- Review against the code-review principles provided in your prompt (especially the code design principles), and the project's `CLAUDE.md` if it has one
 - Read existing APIs in the project for pattern comparison
 - If a Pony project, load `/pony-ref` in full — the key patterns, common gotchas, composition patterns, and mort pattern sections are essential for evaluating whether code uses standard Pony patterns or reinvents degenerate versions. Also load `/pony-pbt-patterns` for test-related API patterns.
