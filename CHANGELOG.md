@@ -5,6 +5,7 @@ are grouped by date (UTC) with newest first.
 
 ## 2026-05-21
 
+- FIXED: Improve software design skill performance ([PR #39](https://github.com/ponylang/llm-skills/pull/39))
 - FIXED: Bundle pony-code-review's principles instead of reading global CLAUDE.md ([PR #36](https://github.com/ponylang/llm-skills/pull/36))
 
 ## 2026-05-20
