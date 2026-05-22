@@ -11,11 +11,11 @@ Produce higher-confidence outputs through decorrelated reasoning paths. Multiple
 ## Process
 
 1. Spawn one agent per attention focus in parallel, each as a Task with subagent_type="general-purpose" and model="opus". Each agent's prompt must include:
-   - Instructions to read ~/.claude/CLAUDE.md (and project CLAUDE.md if applicable) and follow those principles, including loading any skills they reference
+   - Instructions to read the project CLAUDE.md if applicable and follow its conventions, including loading any skills it references
    - The task description
    - An attention focus — a short directive that shifts where the agent goes deeper (e.g., "pay particular attention to security implications"). This is a spotlight, not blinders — the agent still covers everything
    - The agent output format (below)
-   - Instructions to run a reviewer loop per CLAUDE.md before returning
+   - Instructions to run a reviewer loop before returning — a reviewer checks the agent's output for quality and coherence before it goes to the orchestrator
    - Instructions that this is an ensemble agent — return output and any local file paths to the orchestrator. Do not take external actions (publishing to GitHub Discussions, creating PRs, pushing branches, etc.)
 2. Triage agent outputs before synthesis. Read each agent's output and check:
    - Did the agent address the actual task, or did its attention focus pull it off-topic?
