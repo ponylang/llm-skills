@@ -2,7 +2,7 @@
 
 These are the general code-design principles this skill works from — the design personas use them as background, and the principle-checker verifies a design against them. They are a project-agnostic baseline, alongside this skill's own design disciplines (in `SKILL.md`).
 
-If the project being designed for has its own `CLAUDE.md` or other stated conventions, those apply too and take precedence where they conflict with this baseline.
+If the project being designed for has its own `AGENTS.md` or other stated conventions, those apply too and take precedence where they conflict with this baseline.
 
 ## Principles
 

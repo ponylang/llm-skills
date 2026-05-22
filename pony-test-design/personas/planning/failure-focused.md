@@ -43,8 +43,8 @@ paths.
 
 ## Context Loading
 
-- Read the project's `CLAUDE.md` if it has one, for project-specific conventions
+- Read the project's `AGENTS.md` if it has one, for project-specific conventions
 - Read all pony-test-design disciplines in SKILL.md — they all apply
 - Read the code under test — you need to understand what can go wrong
 - Read any error types or error handling patterns in the codebase
-- If a Pony project, load `/pony-ref`
+- If a Pony project, load `pony-ref`

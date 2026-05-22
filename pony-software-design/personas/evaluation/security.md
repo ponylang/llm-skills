@@ -50,9 +50,9 @@ bugs in the code.
 
 ## Context Loading
 
-- Read the code-design principles in `references/principles.md` (alongside this skill) and the project's `CLAUDE.md` if it has one
+- Read the code-design principles in `references/principles.md` (alongside this skill) and the project's `AGENTS.md` if it has one
 - Read the candidate design from Stage 1 synthesis
 - Identify the language and platform to focus on relevant threat models
-- If a Pony project, load `/pony-ref` — FFI boundaries, capability-based
+- If a Pony project, load `pony-ref` — FFI boundaries, capability-based
   security, and actor isolation all have security implications at the design
   level

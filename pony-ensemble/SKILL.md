@@ -10,8 +10,8 @@ Produce higher-confidence outputs through decorrelated reasoning paths. Multiple
 
 ## Process
 
-1. Spawn one agent per attention focus in parallel, each as a Task with subagent_type="general-purpose" and model="opus". Each agent's prompt must include:
-   - Instructions to read the project CLAUDE.md if applicable and follow its conventions, including loading any skills it references
+1. Spawn one agent per attention focus in parallel, each as a fresh-context sub-agent using your most capable model. Each agent's prompt must include:
+   - Instructions to read the project AGENTS.md if applicable and follow its conventions, including loading any skills it references
    - The task description
    - An attention focus — a short directive that shifts where the agent goes deeper (e.g., "pay particular attention to security implications"). This is a spotlight, not blinders — the agent still covers everything
    - The agent output format (below)
@@ -22,7 +22,7 @@ Produce higher-confidence outputs through decorrelated reasoning paths. Multiple
    - Is the output coherent and complete, or did the agent fail partway through?
    - Are the outputs answering the same question, or did one interpret the task differently?
    If an agent went off-topic or answered the wrong question, either re-prompt it with clarification or exclude its output and note why for the synthesizer. Don't forward garbage to synthesis and hope it sorts itself out.
-3. Pass triaged agent outputs to a synthesis agent loaded with `/pony-synthesize`
+3. Pass triaged agent outputs to a synthesis agent loaded with `pony-synthesize`
 4. Reviewer loop on the synthesis
 5. Present to the human
 

@@ -24,7 +24,7 @@ You evaluate the organization and flow of the documentation. Your scope is infor
 
 ## Context Loading
 
-- Review against the documentation principles provided in your prompt, and the project's `CLAUDE.md` if it has one
+- Review against the documentation principles provided in your prompt, and the project's `AGENTS.md` if it has one
 - Read the full document (not just changed sections) to evaluate structure holistically — a change to one section can affect the flow of the whole document
 - Read the broader doc set structure to understand where this document fits and how readers navigate to and from it
 - Check for any documentation conventions (section ordering, heading styles, navigation patterns) the project follows

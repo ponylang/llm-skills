@@ -24,6 +24,6 @@ You verify the code correctly implements its specification for valid inputs and 
 
 ## Context Loading
 
-- Review against the code-review principles provided in your prompt, and the project's `CLAUDE.md` if it has one
-- If a Pony project, load `/pony-ref` — the correctness pitfalls, capabilities table, and stdlib pitfalls sections are especially relevant, but the rest provides necessary context for evaluating correctness in Pony
+- Review against the code-review principles provided in your prompt, and the project's `AGENTS.md` if it has one
+- If a Pony project, load `pony-ref` — the correctness pitfalls, capabilities table, and stdlib pitfalls sections are especially relevant, but the rest provides necessary context for evaluating correctness in Pony
 - Read the full source of all changed files, not just diffs — correctness depends on surrounding context

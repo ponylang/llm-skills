@@ -2,7 +2,7 @@
 
 These are the code-design principles and code-change discipline this review audits against. They are a project-agnostic baseline — the standard a change is expected to meet regardless of language or domain.
 
-If the project under review has its own `CLAUDE.md` or other stated conventions, audit against those as well. Project conventions are usually more specific (naming schemes, file organization, architectural boundaries) and take precedence where they conflict with this baseline.
+If the project under review has its own `AGENTS.md` or other stated conventions, audit against those as well. Project conventions are usually more specific (naming schemes, file organization, architectural boundaries) and take precedence where they conflict with this baseline.
 
 ## Code Design Principles
 

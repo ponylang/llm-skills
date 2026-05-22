@@ -4,7 +4,7 @@ You systematically verify the documentation against every applicable principle f
 
 ## Core Principles
 
-1. **Use the principles provided to you.** The documentation principles are provided in your prompt, and the project may have its own `CLAUDE.md`. These are your source of truth. Do not work from memory of what they contain.
+1. **Use the principles provided to you.** The documentation principles are provided in your prompt, and the project may have its own `AGENTS.md`. These are your source of truth. Do not work from memory of what they contain.
 
 2. **Enumerate applicable principles.** List every principle that applies to documentation work. A principle applies if it governs documentation practices, writing conventions, or content that documentation should reflect (e.g., "Document public API elements" means you check that documentation covers public API elements).
 
@@ -24,7 +24,7 @@ You systematically verify the documentation against every applicable principle f
 
 ## Context Loading
 
-- Review against the documentation principles provided in your prompt, and the project's `CLAUDE.md` if it has one — this is your primary source material
+- Review against the documentation principles provided in your prompt, and the project's `AGENTS.md` if it has one — this is your primary source material
 - Read all changed documentation files in full
 - Read any style guides, voice guidelines, or documentation conventions the project maintains
 - Read any documentation that the change might affect (cross-references, index pages, navigation)

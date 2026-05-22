@@ -24,7 +24,7 @@ You trace the reader's path through the documentation and identify where they wo
 
 ## Context Loading
 
-- Review against the documentation principles provided in your prompt, and the project's `CLAUDE.md` if it has one
+- Review against the documentation principles provided in your prompt, and the project's `AGENTS.md` if it has one
 - Read the full documentation set (not just changed files) to understand what context exists elsewhere — a concept might be explained in a different page
 - Read source code when checking enumeration completeness (e.g., are all config options documented?)
-- If a Pony project, load `/pony-ref` — the capabilities model, common gotchas, and stdlib pitfalls often require documentation that beginners wouldn't know to look for
+- If a Pony project, load `pony-ref` — the capabilities model, common gotchas, and stdlib pitfalls often require documentation that beginners wouldn't know to look for

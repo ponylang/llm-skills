@@ -24,7 +24,7 @@ You verify that the documentation is technically correct. You cross-reference ev
 
 ## Context Loading
 
-- Review against the documentation principles provided in your prompt, and the project's `CLAUDE.md` if it has one
+- Review against the documentation principles provided in your prompt, and the project's `AGENTS.md` if it has one
 - Read the source code that the documentation describes — this is your primary verification tool
-- If a Pony project, load `/pony-ref` — the stdlib API surface, common gotchas, and capabilities are especially relevant for verifying documentation accuracy
+- If a Pony project, load `pony-ref` — the stdlib API surface, common gotchas, and capabilities are especially relevant for verifying documentation accuracy
 - Read all changed documentation files in full, not just diffs — accuracy depends on surrounding claims

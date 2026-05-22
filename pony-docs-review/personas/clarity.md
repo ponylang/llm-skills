@@ -24,7 +24,7 @@ You evaluate whether the documentation communicates its content effectively to t
 
 ## Context Loading
 
-- Review against the documentation principles provided in your prompt, and the project's `CLAUDE.md` if it has one
+- Review against the documentation principles provided in your prompt, and the project's `AGENTS.md` if it has one
 - If the project has voice or style guidelines, load them — clarity should be evaluated within the project's established voice, not against a generic standard
 - Read the full changed documentation, not just diffs — clarity depends on surrounding context and flow
 - Identify the target audience from the document's position in the doc set (tutorial vs. reference vs. guide)

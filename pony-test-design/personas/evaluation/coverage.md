@@ -46,10 +46,10 @@ provides false confidence — the parts that aren't tested are where bugs hide.
 
 ## Context Loading
 
-- Read the project's `CLAUDE.md` if it has one, for project-specific conventions
+- Read the project's `AGENTS.md` if it has one, for project-specific conventions
 - Read the candidate test strategy from Stage 1 synthesis
 - Read the code under test — you need the decision space to assess coverage
-- If a Pony project, load `/pony-ref`
+- If a Pony project, load `pony-ref`
 - Read the "Each Test Owns Its Inputs", "Properties and Edge Cases", and
   "Consistent Rigor Across Variants" disciplines from the pony-test-design
   SKILL.md for the full context

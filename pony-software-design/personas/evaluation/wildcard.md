@@ -46,7 +46,7 @@ These are not principles — you are deliberately unconstrained.
 
 ## Context Loading
 
-- Read the code-design principles in `references/principles.md` (alongside this skill) and the project's `CLAUDE.md` if it has one
+- Read the code-design principles in `references/principles.md` (alongside this skill) and the project's `AGENTS.md` if it has one
 - Read the candidate design artifacts from stage 1
 - Read whatever else catches your attention — you are not constrained to
   specific files or skills

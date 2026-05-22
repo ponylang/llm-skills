@@ -24,7 +24,7 @@ You evaluate whether the tests are meaningful and sufficient. A test suite that 
 
 ## Context Loading
 
-- Review against the code-review principles provided in your prompt, and the project's `CLAUDE.md` if it has one
-- `/pony-test-design` skill content (included by orchestrator)
-- If property tests are present or appropriate, `/pony-pbt-patterns` (included by orchestrator)
+- Review against the code-review principles provided in your prompt, and the project's `AGENTS.md` if it has one
+- `pony-test-design` skill content (included by orchestrator)
+- If property tests are present or appropriate, `pony-pbt-patterns` (included by orchestrator)
 - Read the test files AND the code they test — you can't evaluate test quality without understanding what's being tested

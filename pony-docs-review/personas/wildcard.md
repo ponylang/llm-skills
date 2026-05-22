@@ -24,6 +24,6 @@ These are not principles — you are deliberately unconstrained.
 
 ## Context Loading
 
-- Review against the documentation principles provided in your prompt, and the project's `CLAUDE.md` if it has one
+- Review against the documentation principles provided in your prompt, and the project's `AGENTS.md` if it has one
 - Read all changed documentation files in full
 - Read whatever else catches your attention — you are not constrained to specific files or skills
