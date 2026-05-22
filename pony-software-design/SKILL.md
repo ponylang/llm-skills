@@ -58,7 +58,7 @@ pattern-match — the disciplines become post-hoc rationalizations for a
 retrieved design rather than actual constraints on the exploration.
 
 The full design process runs in two stages with a feedback loop. Load
-`/pony-ensemble` for the mechanical process; the personas defined in this skill
+`pony-ensemble` for the mechanical process; the personas defined in this skill
 replace the generic attention focuses.
 
 ### Relationship to Ensemble Workflow
@@ -283,7 +283,7 @@ the tensions.
 
 Lightweight mode uses fewer personas and a single pass. It keeps all three
 design personas but reduces evaluation to two personas and drops the
-feedback loop. Load `/pony-ensemble` for the mechanical process.
+feedback loop. Load `pony-ensemble` for the mechanical process.
 
 ### Orchestrator pre-spawn: understand the problem
 
@@ -1267,7 +1267,7 @@ When designing Pony APIs, libraries, or framework features:
   rather than using flags or optional fields. The actor becomes a thin shell
   that delegates to the current state object — state transitions replace
   the object, and the old state's resources are released automatically. See
-  the state machine pattern in `/pony-ref`. Marker primitives with scattered
+  the state machine pattern in `pony-ref`. Marker primitives with scattered
   `match _state` / `if _state is` checks are a step above boolean flags but
   still fragment behavior across the actor's methods — use them only for
   simple guards within a single behavior, not for routing different behavior

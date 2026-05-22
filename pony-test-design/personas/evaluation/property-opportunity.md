@@ -29,7 +29,7 @@ to find those invariants and recommend properties.
    whether a useful generator is practical. Some domains have simple
    generators (integers, strings, lists). Others require complex generators
    that are themselves a source of bugs. A property with a bad generator is
-   worse than a good example. Load `/pony-pbt-patterns` for generator strategies.
+   worse than a good example. Load `pony-pbt-patterns` for generator strategies.
 
 5. **Check the valid/invalid/mixed triad.** For any test that validates input,
    check whether the strategy includes the full triad: valid inputs always
@@ -53,10 +53,10 @@ to find those invariants and recommend properties.
 
 ## Context Loading
 
-- Read the project's `CLAUDE.md` if it has one, for project-specific conventions
+- Read the project's `AGENTS.md` if it has one, for project-specific conventions
 - Read the candidate test strategy from Stage 1 synthesis
 - Read the code under test — you need to identify invariants
-- Load `/pony-pbt-patterns` for generator design and coverage patterns
-- If a Pony project, load `/pony-ref`
+- Load `pony-pbt-patterns` for generator design and coverage patterns
+- If a Pony project, load `pony-ref`
 - Read the "Properties and Edge Cases" and "Magic Values Are Unverified
   Assumptions" disciplines from the pony-test-design SKILL.md for the full context

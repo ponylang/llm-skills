@@ -1,6 +1,6 @@
 ---
 name: pony-ref
-description: Load the Pony language reference (capabilities, PonyCheck, stdlib pitfalls, mort pattern). Use /pony-ref to load before Pony coding sessions.
+description: Load the Pony language reference (capabilities, PonyCheck, stdlib pitfalls, mort pattern). Load it before Pony coding sessions.
 disable-model-invocation: false
 ---
 
@@ -175,7 +175,7 @@ fun gen(): Generator[String] =>
         "my value"
     end)
 ```
-Do NOT try `primitive MyGen is GenObj[String]` or `class MyGen is GenObj[String]` — this is a common Claude mistake that produces confusing compiler errors ("can't find definition of 'T'"), which then gets misattributed to a compiler bug. It's a usage error. Return either a bare value or `(value, shrink_iterator)` tuple from `generate()`.
+Do NOT try `primitive MyGen is GenObj[String]` or `class MyGen is GenObj[String]` — this is a common agent mistake that produces confusing compiler errors ("can't find definition of 'T'"), which then gets misattributed to a compiler bug. It's a usage error. Return either a bare value or `(value, shrink_iterator)` tuple from `generate()`.
 
 **Generator composition**: `.filter()`, `.map()`, `.flat_map()`, `.union()`, plus `Generators.zip2/3/4`, `Generators.map2/3/4`, `Generators.frequency` (weighted selection).
 

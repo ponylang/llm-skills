@@ -24,7 +24,7 @@ You evaluate the documentation from the reader's perspective as a holistic journ
 
 ## Context Loading
 
-- Review against the documentation principles provided in your prompt, and the project's `CLAUDE.md` if it has one
+- Review against the documentation principles provided in your prompt, and the project's `AGENTS.md` if it has one
 - Read the full document and any prerequisite documents the reader would encounter first — the experience includes the path the reader took to get here
 - Identify the target audience and their expected background from the document's position in the doc set
-- If a Pony project, load `/pony-ref` — reference capabilities are a particularly challenging concept for new Pony users, and documentation that introduces them needs careful experience design
+- If a Pony project, load `pony-ref` — reference capabilities are a particularly challenging concept for new Pony users, and documentation that introduces them needs careful experience design

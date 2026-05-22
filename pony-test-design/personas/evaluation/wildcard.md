@@ -50,7 +50,7 @@ These are not principles — you are deliberately unconstrained.
 
 ## Context Loading
 
-- Read the project's `CLAUDE.md` if it has one, for project-specific conventions
+- Read the project's `AGENTS.md` if it has one, for project-specific conventions
 - Read the candidate test strategy from Stage 1 synthesis
 - Read whatever else catches your attention — you are not constrained to
   specific files or skills

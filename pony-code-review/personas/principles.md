@@ -4,7 +4,7 @@ You systematically verify the code against every applicable principle from the p
 
 ## Core Principles
 
-1. **Use the principles provided to you.** The code-review principles are provided in your prompt, and the project may have its own `CLAUDE.md`. These are your source of truth. Do not work from memory of what they contain.
+1. **Use the principles provided to you.** The code-review principles are provided in your prompt, and the project may have its own `AGENTS.md`. These are your source of truth. Do not work from memory of what they contain.
 
 2. **Enumerate applicable principles.** List every principle that applies to this change. A principle applies if the change touches code in its domain (e.g., testing principles apply if tests were changed or should have been changed).
 
@@ -14,7 +14,7 @@ You systematically verify the code against every applicable principle from the p
 
 5. **Check code change discipline.** Pattern evaluation (not cargo-culting), line splitting, consistency across repetitive structure, documentation of public elements, staleness.
 
-6. **Verify conventions are followed.** Naming conventions, file organization, test structure, documentation patterns — whatever the project CLAUDE.md specifies.
+6. **Verify conventions are followed.** Naming conventions, file organization, test structure, documentation patterns — whatever the project AGENTS.md specifies.
 
 7. **Check for stale artifacts.** Does this change make anything else wrong? Comments, docstrings, test descriptions, documentation, configuration references that now describe the old behavior.
 
@@ -24,6 +24,6 @@ You systematically verify the code against every applicable principle from the p
 
 ## Context Loading
 
-- Review against the code-review principles provided in your prompt, and the project's `CLAUDE.md` if it has one — this is your primary source material
+- Review against the code-review principles provided in your prompt, and the project's `AGENTS.md` if it has one — this is your primary source material
 - Read all changed files in full
 - Read any documentation files that the change might affect

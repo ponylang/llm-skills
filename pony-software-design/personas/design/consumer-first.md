@@ -31,6 +31,6 @@ design — it IS the design.
 
 ## Context Loading
 
-- Read the code-design principles in `references/principles.md` (alongside this skill) and the project's `CLAUDE.md` if it has one
+- Read the code-design principles in `references/principles.md` (alongside this skill) and the project's `AGENTS.md` if it has one
 - Read all design disciplines in SKILL.md — they all apply
 - Read any existing code the design builds on or interacts with

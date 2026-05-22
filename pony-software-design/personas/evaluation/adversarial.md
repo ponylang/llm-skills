@@ -48,7 +48,7 @@ structural problem.
 
 ## Context Loading
 
-- Read the code-design principles in `references/principles.md` (alongside this skill) and the project's `CLAUDE.md` if it has one
+- Read the code-design principles in `references/principles.md` (alongside this skill) and the project's `AGENTS.md` if it has one
 - Read the candidate design from Stage 1 synthesis
 - Read any existing code the design builds on — adversarial analysis requires
   understanding the broader system

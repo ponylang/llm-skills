@@ -24,7 +24,7 @@ You verify that the documentation is internally consistent and consistent with t
 
 ## Context Loading
 
-- Review against the documentation principles provided in your prompt, and the project's `CLAUDE.md` if it has one
+- Review against the documentation principles provided in your prompt, and the project's `AGENTS.md` if it has one
 - Read existing documentation in the same doc set — this is your primary comparison material. You need to know what conventions exist before you can verify compliance.
 - Check for any explicit style guides, documentation templates, or formatting standards the project maintains
 - Read the full changed documentation, not just diffs — consistency issues often span sections

@@ -1,6 +1,6 @@
 # Documentation Principles
 
-These are the principles this review audits documentation against — a project-agnostic baseline. If the project under review has its own `CLAUDE.md`, style guide, or documentation conventions, audit against those as well; they are usually more specific and take precedence where they conflict with this baseline.
+These are the principles this review audits documentation against — a project-agnostic baseline. If the project under review has its own `AGENTS.md`, style guide, or documentation conventions, audit against those as well; they are usually more specific and take precedence where they conflict with this baseline.
 
 ## Principles
 

@@ -32,7 +32,7 @@ answer for each principle.
 
 - Read the code-design principles in `references/principles.md` (alongside
   this skill) — these are the principles you verify against; the project's
-  `CLAUDE.md` may add more
+  `AGENTS.md` may add more
 - Read all design disciplines in SKILL.md — they all apply, and they're also
   part of what you verify
 - Read any existing code the design references or builds on

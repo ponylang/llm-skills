@@ -56,8 +56,8 @@ bring is the outside-in perspective.
 
 ## Context Loading
 
-- Read the project's `CLAUDE.md` if it has one, for project-specific conventions
+- Read the project's `AGENTS.md` if it has one, for project-specific conventions
 - Read all pony-test-design disciplines in SKILL.md — they all apply
 - Read the public API of the code under test — types, signatures, docstrings
 - Do NOT read the implementation until after planning (step 7)
-- If a Pony project, load `/pony-ref`
+- If a Pony project, load `pony-ref`

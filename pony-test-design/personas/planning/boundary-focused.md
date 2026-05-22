@@ -38,7 +38,7 @@ actually does, not what it's supposed to do.
 
 ## Context Loading
 
-- Read the project's `CLAUDE.md` if it has one, for project-specific conventions
+- Read the project's `AGENTS.md` if it has one, for project-specific conventions
 - Read all pony-test-design disciplines in SKILL.md — they all apply
 - Read the code under test — you need the implementation to map boundaries
-- If a Pony project, load `/pony-ref`
+- If a Pony project, load `pony-ref`

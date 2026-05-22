@@ -17,7 +17,7 @@ The job of a good generator is therefore not to be *random* — it is to **struc
 
 This bias matters wherever the code *branches* on a value or *accumulates* state across operations. For a property that holds uniformly across its whole domain — an algebraic law, an encode/decode round-trip — there are no edges to seek out and broad uniform generation is already right. Bias toward where bugs live without starving the ordinary middle, where plenty of logic bugs also sit.
 
-The two scales are cross-cutting lenses, not the document's organizing axis. The patterns below are grouped by the goal you have at the moment: making the generator reach the space chance won't (A), probing a validation boundary precisely (B), and building generators and oracles you can trust (C). They map onto PonyCheck — see `/pony-ref` for its generator API and gotchas.
+The two scales are cross-cutting lenses, not the document's organizing axis. The patterns below are grouped by the goal you have at the moment: making the generator reach the space chance won't (A), probing a validation boundary precisely (B), and building generators and oracles you can trust (C). They map onto PonyCheck — see `pony-ref` for its generator API and gotchas.
 
 ## A. Reach the space chance won't
 

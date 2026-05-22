@@ -44,7 +44,7 @@ patterns. You're looking for performance problems baked into the architecture.
 
 ## Context Loading
 
-- Read the code-design principles in `references/principles.md` (alongside this skill) and the project's `CLAUDE.md` if it has one
+- Read the code-design principles in `references/principles.md` (alongside this skill) and the project's `AGENTS.md` if it has one
 - Read the candidate design from Stage 1 synthesis
-- If a Pony project, load `/pony-ref` — the performance cheat sheet, actor
+- If a Pony project, load `pony-ref` — the performance cheat sheet, actor
   model patterns, and capabilities all affect performance design decisions

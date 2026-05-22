@@ -6,11 +6,15 @@ Skills for working with [Pony](https://www.ponylang.io) in any LLM coding harnes
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
 
+## Compatible with
+
+- [OpenAI Codex](https://developers.openai.com/codex) — Codex loads the same `SKILL.md` format from `~/.agents/skills`, where `install.py` installs them.
+
 **About the `pony-` prefix:** All skills in this repo use a `pony-` prefix as an org namespace to avoid name collisions with skills from other sources. Some skills (like `pony-ref`) are Pony-language-specific. Others (like `pony-ensemble` and `pony-code-review`) are language-agnostic methodology skills that work on any codebase — the prefix is about where they come from, not what languages they apply to.
 
 ## Installation
 
-Clone the repo and run the install script. It symlinks each skill into your harness's skills directory so they stay up to date when you pull.
+Clone the repo and run the install script. It detects which harnesses you have installed and symlinks each skill into their skills directory, so the skills stay up to date when you pull.
 
 ```bash
 git clone https://github.com/ponylang/llm-skills.git
@@ -18,7 +22,11 @@ cd llm-skills
 python install.py
 ```
 
+With no arguments, `install.py` installs for every harness it detects: Claude Code (into `~/.claude/skills/`) and Codex (into `~/.agents/skills/`). To target a specific harness regardless of what's detected, pass `--claude` and/or `--codex`.
+
 That's it. Start a new session and the skills are available.
+
+**Invoking a skill:** In Claude Code, load a skill with a slash command like `/pony-ref`. In Codex, skills load automatically based on their description, or you can mention one explicitly with `$pony-ref`.
 
 To update later:
 
@@ -35,7 +43,7 @@ No re-install needed — the symlinks point to your clone, so pulling new conten
 python install.py --uninstall
 ```
 
-This only removes the symlinks, not the cloned repo.
+This removes the symlinks from the detected harnesses (or from the harness you select with `--claude`/`--codex`), not the cloned repo.
 
 ## Skills
 
@@ -43,13 +51,13 @@ This only removes the symlinks, not the cloned repo.
 
 #### pony-skills
 
-A routing index for the other skills — load it with `/pony-skills` (or reference it from a Pony project's `CLAUDE.md`) and it tells you which `pony-*` skill to load for each task. The single-trigger alternative to wiring up each skill's trigger by hand; a good place to start.
+A routing index for the other skills — load it (or reference it from a Pony project's `CLAUDE.md` or `AGENTS.md`) and it tells you which `pony-*` skill to load for each task. The single-trigger alternative to wiring up each skill's trigger by hand; a good place to start.
 
 ### Pony Language
 
 #### pony-ref
 
-The Pony language reference. Load it with `/pony-ref` at the start of a Pony coding session or when you hit a question about capabilities, the type system, the runtime, or testing.
+The Pony language reference. Load it at the start of a Pony coding session or when you hit a question about capabilities, the type system, the runtime, or testing.
 
 What's in the quick reference (loaded into context automatically):
 
@@ -72,7 +80,7 @@ What's in the `references/` directory (read on demand for deeper questions):
 
 #### pony-examples-readme
 
-Conventions for writing `examples/README.md` files in ponylang projects. Load it with `/pony-examples-readme` when adding, updating, or reorganizing examples.
+Conventions for writing `examples/README.md` files in ponylang projects. Load it when adding, updating, or reorganizing examples.
 
 What's in the quick reference:
 
@@ -83,7 +91,7 @@ What's in the quick reference:
 
 #### pony-library-readme
 
-Conventions for writing Pony library project READMEs. Load it with `/pony-library-readme` when writing or updating a library's top-level README.
+Conventions for writing Pony library project READMEs. Load it when writing or updating a library's top-level README.
 
 What's in the quick reference:
 
@@ -93,7 +101,7 @@ What's in the quick reference:
 
 #### pony-release-notes
 
-How to write release notes and manage CHANGELOG entries in ponylang projects. Load it with `/pony-release-notes` when writing release notes, updating CHANGELOG, or preparing a PR with user-facing changes.
+How to write release notes and manage CHANGELOG entries in ponylang projects. Load it when writing release notes, updating CHANGELOG, or preparing a PR with user-facing changes.
 
 What's in the quick reference:
 
@@ -112,35 +120,35 @@ This skill assumes the target repo has the following GitHub Actions installed an
 
 #### pony-software-design
 
-Disciplines for software design work — APIs, type systems, features, system boundaries. Load it with `/pony-software-design` when designing new interfaces or deciding where ownership boundaries fall. Counters the tendency to retrieve familiar patterns instead of discovering what the problem needs.
+Disciplines for software design work — APIs, type systems, features, system boundaries. Load it when designing new interfaces or deciding where ownership boundaries fall. Counters the tendency to retrieve familiar patterns instead of discovering what the problem needs.
 
 Has full (8-persona) and lightweight (5-persona) modes. Full mode runs design (3 personas) and evaluation (5 personas) stages with a feedback loop. Lightweight mode keeps all design personas but reduces evaluation to 2 personas in a single pass.
 
 #### pony-code-review
 
-Ensemble code review with specialized reviewer personas. Load it with `/pony-code-review` when conducting a code review of a PR, branch, or local changes.
+Ensemble code review with specialized reviewer personas. Load it when conducting a code review of a PR, branch, or local changes.
 
 Has full (8-persona, iterative re-review) and lightweight (3-persona, single pass) modes. Personas cover correctness, security, performance, API design, test quality, adversarial scenarios, design principles, and wildcard concerns.
 
 #### pony-docs-review
 
-Ensemble documentation review — the prose counterpart to `pony-code-review`. Load it with `/pony-docs-review` when reviewing a documentation-only change (tutorials, READMEs, reference pages). Has full (8-persona, iterative re-review) and lightweight (3-persona, single pass) modes; personas cover accuracy, completeness, clarity, structure, consistency, reader experience, principles, and wildcard concerns.
+Ensemble documentation review — the prose counterpart to `pony-code-review`. Load it when reviewing a documentation-only change (tutorials, READMEs, reference pages). Has full (8-persona, iterative re-review) and lightweight (3-persona, single pass) modes; personas cover accuracy, completeness, clarity, structure, consistency, reader experience, principles, and wildcard concerns.
 
 #### pony-test-design
 
-Two-stage ensemble for planning meaningful tests. Load it with `/pony-test-design` when writing tests for new features or reviewing test quality. Counters the tendency to write tests that exercise the stdlib instead of your code.
+Two-stage ensemble for planning meaningful tests. Load it when writing tests for new features or reviewing test quality. Counters the tendency to write tests that exercise the stdlib instead of your code.
 
 Has full (8-persona) and lightweight (5-persona) modes. Stage 1 (planning) produces a test strategy from three different analytical angles. Stage 2 (evaluation) stress-tests the strategy for coverage gaps, weak assertions, and missed property-testing opportunities.
 
 #### pony-pbt-patterns
 
-Property-based and generative testing patterns. Load it with `/pony-pbt-patterns` when writing property-based tests, generators, or generative test suites.
+Property-based and generative testing patterns. Load it when writing property-based tests, generators, or generative test suites.
 
 Built on one idea — chance is not coverage, so a generator must bias toward where bugs live. Covers biasing toward important values, swarm testing (varying which operations are enabled so emergent state reaches the extremes), the valid/invalid/mixed boundary triad, compositional generators, and multi-angle oracles. Maps directly onto PonyCheck.
 
 #### pony-debug
 
-Structured debugging protocol with checkpoints. Load it with `/pony-debug` when debugging non-trivial issues — before forming any hypothesis about the cause.
+Structured debugging protocol with checkpoints. Load it when debugging non-trivial issues — before forming any hypothesis about the cause.
 
 Provides an OODA-loop investigation process: characterize the failure, gather context, build a minimal reproduction, then iterate through hypothesis/experiment/observe cycles until all symptoms are explained. Especially valuable for Pony's subtle failure modes (capability violations, FFI issues, actor lifecycle problems, CI timeouts from undisposed resources).
 
@@ -148,13 +156,13 @@ Provides an OODA-loop investigation process: characterize the failure, gather co
 
 #### pony-ensemble
 
-The mechanical process for producing higher-confidence outputs through decorrelated reasoning paths. Load it with `/pony-ensemble` when you want the ensemble approach. Multiple agents work the same problem with slightly different attention focuses, then a synthesizer integrates their outputs.
+The mechanical process for producing higher-confidence outputs through decorrelated reasoning paths. Load it when you want the ensemble approach. Multiple agents work the same problem with slightly different attention focuses, then a synthesizer integrates their outputs.
 
 This is infrastructure — `pony-software-design`, `pony-code-review`, and `pony-test-design` all build on it with domain-specific customizations.
 
 #### pony-synthesize
 
-Fixed instructions for the ensemble synthesizer — integrates multiple agent outputs into a single higher-quality result. Load it with `/pony-synthesize` as part of the ensemble workflow.
+Fixed instructions for the ensemble synthesizer — integrates multiple agent outputs into a single higher-quality result. Load it as part of the ensemble workflow.
 
 This is infrastructure — loaded by `pony-ensemble` during the synthesis step.
 
@@ -162,48 +170,48 @@ This is infrastructure — loaded by `pony-ensemble` during the synthesis step.
 
 Add these to your `CLAUDE.md` or `AGENTS.md` to load skills automatically when relevant. Two ways to do it: load the `pony-skills` routing index with a single trigger that covers all of them, or add individual triggers for just the skills you want.
 
-### /pony-skills
+### pony-skills trigger
 
-> **Load `/pony-skills` at the start of Pony work**: At the start of work in a Pony project, load the `pony-skills` skill — a routing index that tells you which `pony-*` skill to load for each task. This one trigger covers all of the skills below.
+> **Load `pony-skills` at the start of Pony work**: At the start of work in a Pony project, load the `pony-skills` skill — a routing index that tells you which `pony-*` skill to load for each task. This one trigger covers all of the skills below.
 
 Prefer to pick individually? Add any of these instead:
 
-### /pony-ref
+### pony-ref trigger
 
-> **Load `/pony-ref` proactively when working on Pony code**: At the start of any conversation where the working directory is a Pony project (contains `corral.json` or `*.pony` files), load `/pony-ref` before doing any work. Also load it mid-conversation when hitting capabilities, type system, runtime, or testing questions.
+> **Load `pony-ref` proactively when working on Pony code**: At the start of any conversation where the working directory is a Pony project (contains `corral.json` or `*.pony` files), load `pony-ref` before doing any work. Also load it mid-conversation when hitting capabilities, type system, runtime, or testing questions.
 
-### /pony-examples-readme
+### pony-examples-readme trigger
 
-> **Load `/pony-examples-readme` when working on examples**: Load it when adding, updating, or reorganizing examples in a Pony project, or when writing an `examples/README.md`.
+> **Load `pony-examples-readme` when working on examples**: Load it when adding, updating, or reorganizing examples in a Pony project, or when writing an `examples/README.md`.
 
-### /pony-library-readme
+### pony-library-readme trigger
 
-> **Load `/pony-library-readme` for library READMEs**: Load it when writing or updating a `README.md` for a Pony library project.
+> **Load `pony-library-readme` for library READMEs**: Load it when writing or updating a `README.md` for a Pony library project.
 
-### /pony-release-notes
+### pony-release-notes trigger
 
-> **Load `/pony-release-notes` for release notes and CHANGELOG**: Load it when writing release notes, updating CHANGELOG, or preparing a PR that includes user-facing changes in a Pony project.
+> **Load `pony-release-notes` for release notes and CHANGELOG**: Load it when writing release notes, updating CHANGELOG, or preparing a PR that includes user-facing changes in a Pony project.
 
-### /pony-software-design
+### pony-software-design trigger
 
-> **Load `/pony-software-design` for design work**: When the task involves designing APIs, type systems, features, or system boundaries — not just implementing an existing design — load `/pony-software-design` before starting. This includes any work where you're deciding what types to create, what a public interface looks like, or where ownership boundaries fall.
+> **Load `pony-software-design` for design work**: When the task involves designing APIs, type systems, features, or system boundaries — not just implementing an existing design — load `pony-software-design` before starting. This includes any work where you're deciding what types to create, what a public interface looks like, or where ownership boundaries fall.
 
-### /pony-code-review
+### pony-code-review trigger
 
-> **Load `/pony-code-review` for code reviews**: When conducting a code review of a PR, branch, or local changes, load `/pony-code-review`. Not for one-line config changes or typo fixes.
+> **Load `pony-code-review` for code reviews**: When conducting a code review of a PR, branch, or local changes, load `pony-code-review`. Not for one-line config changes or typo fixes.
 
-### /pony-docs-review
+### pony-docs-review trigger
 
-> **Load `/pony-docs-review` for documentation reviews**: When reviewing a documentation-only change (tutorials, READMEs, reference pages), load `/pony-docs-review`. Not for one-line typo or formatting fixes.
+> **Load `pony-docs-review` for documentation reviews**: When reviewing a documentation-only change (tutorials, READMEs, reference pages), load `pony-docs-review`. Not for one-line typo or formatting fixes.
 
-### /pony-test-design
+### pony-test-design trigger
 
-> **Load `/pony-test-design` when writing tests**: Before writing tests for new features or reviewing test quality, load `/pony-test-design`.
+> **Load `pony-test-design` when writing tests**: Before writing tests for new features or reviewing test quality, load `pony-test-design`.
 
-### /pony-pbt-patterns
+### pony-pbt-patterns trigger
 
-> **Load `/pony-pbt-patterns` when writing property-based tests**: Load it when writing property-based tests, generators, or generative test suites, especially with PonyCheck.
+> **Load `pony-pbt-patterns` when writing property-based tests**: Load it when writing property-based tests, generators, or generative test suites, especially with PonyCheck.
 
-### /pony-debug
+### pony-debug trigger
 
-> **Load `/pony-debug` when you start debugging**: Before forming any hypothesis about the cause of a non-trivial issue, load `/pony-debug`. It provides a structured protocol with checkpoints.
+> **Load `pony-debug` when you start debugging**: Before forming any hypothesis about the cause of a non-trivial issue, load `pony-debug`. It provides a structured protocol with checkpoints.

@@ -41,13 +41,13 @@ These modes apply to both full and lightweight:
 
 ## Relationship to Ensemble Workflow
 
-Use the ensemble workflow with review-specific customizations. Load `/pony-ensemble` for the mechanical process. This skill replaces the generic attention focuses with review personas (8 for full mode, 3 for lightweight) and replaces the generic agent output format with the review-specific format defined below.
+Use the ensemble workflow with review-specific customizations. Load `pony-ensemble` for the mechanical process. This skill replaces the generic attention focuses with review personas (8 for full mode, 3 for lightweight) and replaces the generic agent output format with the review-specific format defined below.
 
 The Adversarial persona satisfies the ensemble's "fix reviews require an adversarial focus" requirement — when the review target is a fix, the Adversarial persona naturally focuses on showing the fix is incomplete per its identity statement.
 
 Persona agents write detailed evidence to files and return structured summaries to the orchestrator. The synthesizer works from summaries and digs into evidence files only when it needs to examine a finding more closely. This prevents context overload during synthesis.
 
-The pony-synthesize skill's output format (Integrated Result, Synthesis Rationale, etc.) is not a natural fit for code review. The orchestrator instructs the synthesizer to produce output in the review-specific final format (below) rather than the generic synthesizer format. No changes to `/pony-synthesize` itself.
+The pony-synthesize skill's output format (Integrated Result, Synthesis Rationale, etc.) is not a natural fit for code review. The orchestrator instructs the synthesizer to produce output in the review-specific final format (below) rather than the generic synthesizer format. No changes to `pony-synthesize` itself.
 
 ## Design Values
 
@@ -81,10 +81,10 @@ When principles conflict, these values set the priority. We value the left side 
 
 3. **Create a temporary directory for evidence files.** Use `~/tmp/code-review-<timestamp>/`. Each persona will write its detailed evidence to a file in this directory. Generate the file path for each persona (e.g., `correctness-evidence.md`) and pass it in the prompt.
 
-4. **Spawn 8 persona agents in parallel** as Tasks with subagent_type="general-purpose" and model="opus". Each agent's prompt includes:
+4. **Spawn 8 persona agents in parallel**, each as a fresh-context sub-agent using your most capable model. Each agent's prompt includes:
 
-   - The persona document, read from the corresponding file in `personas/`. When a persona's context loading references an external skill (e.g., `/pony-test-design`, `/pony-pbt-patterns`, `/pony-ref`), read that skill's content and include it in the agent prompt.
-   - The code-review principles: read `references/principles.md` (alongside this skill) and include its content in the agent prompt, the same way referenced skills are injected above. Also instruct the agent to read the project `CLAUDE.md` if one exists (not all projects have one; if absent, note it and proceed) and to follow its conventions, including loading any skills it references.
+   - The persona document, read from the corresponding file in `personas/`. When a persona's context loading references an external skill (e.g., `pony-test-design`, `pony-pbt-patterns`, `pony-ref`), read that skill's content and include it in the agent prompt.
+   - The code-review principles: read `references/principles.md` (alongside this skill) and include its content in the agent prompt, the same way referenced skills are injected above. Also instruct the agent to read the project `AGENTS.md` if one exists (not all projects have one; if absent, note it and proceed) and to follow its conventions, including loading any skills it references.
    - The review target: base branch, diff command, PR URL, and any related issue/discussion URLs.
    - Instructions to read all changed files in full (not just diffs), plus supporting files needed for context.
    - For Correctness, Adversarial, and Tests personas: the captured build output and test results from step 2.
@@ -96,7 +96,7 @@ When principles conflict, these values set the priority. We value the left side 
 
 5. **Triage agent outputs** per ensemble protocol — check that each persona addressed the actual code and stayed coherent.
 
-6. **Pass triaged persona summaries to a synthesis agent** loaded with `/pony-synthesize`, plus the review-specific synthesis focus (below). Provide the paths to each persona's evidence file so the synthesizer can dig in when needed. Instruct the synthesizer to produce its output in the final review format (below) rather than the generic synthesizer format. If this is a re-review (iterative mode), include the full review history: for each prior round, what was found, what was fixed, what was parked. The synthesizer uses this to verify fixes, avoid re-flagging parked items, and detect convergence failures.
+6. **Pass triaged persona summaries to a synthesis agent** loaded with `pony-synthesize`, plus the review-specific synthesis focus (below). Provide the paths to each persona's evidence file so the synthesizer can dig in when needed. Instruct the synthesizer to produce its output in the final review format (below) rather than the generic synthesizer format. If this is a re-review (iterative mode), include the full review history: for each prior round, what was found, what was fixed, what was parked. The synthesizer uses this to verify fixes, avoid re-flagging parked items, and detect convergence failures.
 
 7. **Reviewer loop on the synthesis** — the reviewer verifies that no persona findings were dropped, severity changes from individual findings are justified, and cross-persona patterns were correctly identified.
 
@@ -139,7 +139,7 @@ The loop ends when no findings remain except parked and out-of-scope items. At t
 
 ## Process: Lightweight Mode
 
-Lightweight mode runs 3 personas in a single pass with no iterative re-review. Load `/pony-ensemble` for the mechanical process.
+Lightweight mode runs 3 personas in a single pass with no iterative re-review. Load `pony-ensemble` for the mechanical process.
 
 ### Personas
 
@@ -174,10 +174,10 @@ Pick whichever is most relevant to the change. If multiple conditions apply, pic
 
 3. **Create a temporary directory for evidence files.** Use `~/tmp/code-review-<timestamp>/`. Same convention as full mode.
 
-4. **Spawn 3 persona agents in parallel** as Tasks with subagent_type="general-purpose" and model="opus". Each agent's prompt includes:
+4. **Spawn 3 persona agents in parallel**, each as a fresh-context sub-agent using your most capable model. Each agent's prompt includes:
 
-   - The persona document, read from the corresponding file in `personas/`. When a persona's context loading references an external skill (e.g., `/pony-test-design`, `/pony-pbt-patterns`, `/pony-ref`), read that skill's content and include it in the agent prompt.
-   - The code-review principles: read `references/principles.md` (alongside this skill) and include its content in the agent prompt, the same way referenced skills are injected above. Also instruct the agent to read the project `CLAUDE.md` if one exists (not all projects have one; if absent, note it and proceed) and to follow its conventions, including loading any skills it references.
+   - The persona document, read from the corresponding file in `personas/`. When a persona's context loading references an external skill (e.g., `pony-test-design`, `pony-pbt-patterns`, `pony-ref`), read that skill's content and include it in the agent prompt.
+   - The code-review principles: read `references/principles.md` (alongside this skill) and include its content in the agent prompt, the same way referenced skills are injected above. Also instruct the agent to read the project `AGENTS.md` if one exists (not all projects have one; if absent, note it and proceed) and to follow its conventions, including loading any skills it references.
    - The review target: base branch, diff command, PR URL, and any related issue/discussion URLs.
    - Instructions to read all changed files in full (not just diffs), plus supporting files needed for context.
    - The captured build output and test results from step 2 — always provided to Correctness and Adversarial. Also provided to Tests when it is the context-dependent persona.
@@ -191,7 +191,7 @@ Pick whichever is most relevant to the change. If multiple conditions apply, pic
 
 5. **Triage agent outputs** per ensemble protocol — check that each persona addressed the actual code and stayed coherent.
 
-6. **Pass triaged persona summaries to a synthesis agent** loaded with `/pony-synthesize`, plus the lightweight synthesis focus (below). Provide the paths to each persona's evidence file so the synthesizer can dig in when needed. Instruct the synthesizer to produce its output in the final review format (below) rather than the generic synthesizer format — same override as full mode.
+6. **Pass triaged persona summaries to a synthesis agent** loaded with `pony-synthesize`, plus the lightweight synthesis focus (below). Provide the paths to each persona's evidence file so the synthesizer can dig in when needed. Instruct the synthesizer to produce its output in the final review format (below) rather than the generic synthesizer format — same override as full mode.
 
 7. **Reviewer loop on the synthesis** — same checks as full mode: verify no persona findings were dropped, severity changes from individual findings are justified, and cross-persona patterns were correctly identified.
 

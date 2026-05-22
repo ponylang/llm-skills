@@ -47,7 +47,7 @@ makes it bounded and why fewer evaluation personas are sufficient.
 
 ## Process: full mode
 
-Test planning runs in two stages with a feedback loop. Load `/pony-ensemble` for
+Test planning runs in two stages with a feedback loop. Load `pony-ensemble` for
 the mechanical process; the personas defined in this skill replace the generic
 attention focuses.
 
@@ -188,7 +188,7 @@ supports the concern.
 
 Instruct the synthesizer that evaluation findings are independent concerns
 from different analytical lenses, not alternative approaches to the same
-problem. The dominance heuristic from `/pony-synthesize` ("when one agent's output
+problem. The dominance heuristic from `pony-synthesize` ("when one agent's output
 is clearly superior, use it") does not apply — a specificity finding and a
 coverage finding aren't competing, they're additive. Collect all findings for
 categorization.
@@ -274,7 +274,7 @@ rejections, and the tensions.
 
 Lightweight mode uses fewer personas and a single pass. It keeps all three
 planning personas but reduces evaluation to two personas and drops the
-feedback loop. Load `/pony-ensemble` for the mechanical process.
+feedback loop. Load `pony-ensemble` for the mechanical process.
 
 ### Stage 1: Planning
 
@@ -393,7 +393,7 @@ Each test should define its own inputs inline. This makes tests independent — 
 
 ### 4. Properties and Edge Cases
 
-Favor property-based tests over example-based unit tests. An example-based test says "this specific input produces this exact output." A property test says "across many inputs, this invariant holds." Examples test one point; properties test the rule. When a PBT framework isn't available, write the property loop manually — iterate over inputs, collect results, assert the invariant. Load `/pony-pbt-patterns` for generator design and coverage patterns when writing PBT.
+Favor property-based tests over example-based unit tests. An example-based test says "this specific input produces this exact output." A property test says "across many inputs, this invariant holds." Examples test one point; properties test the rule. When a PBT framework isn't available, write the property loop manually — iterate over inputs, collect results, assert the invariant. Load `pony-pbt-patterns` for generator design and coverage patterns when writing PBT.
 
 Use example-based tests for edge cases and boundary conditions. Edges are where bugs live: zero, empty, one element, maximum value, off-by-one at a threshold, the exact boundary between valid and invalid. These deserve explicit tests with known inputs and exact expected outputs because you're testing a specific decision point, not general behavior. Properties and edge-case examples complement each other — properties cover the space, examples nail the borders.
 
