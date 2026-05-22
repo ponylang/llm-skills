@@ -229,6 +229,8 @@ Implementation: uses `@fprintf`/`@exit`/`@pony_os_stderr` FFI, takes `SourceLoc 
 
 For deeper type system and runtime questions, read files in the `references/` directory alongside this skill. Start with `type-system-synopsis.md` for a distilled overview, then consult specific papers as needed.
 
+The academic papers are provided as both a PDF and a same-named Markdown file (e.g., `deny-capabilities.pdf` and `deny-capabilities.md`). **If you can read PDFs, read the PDF** — it is the authoritative source. The Markdown files are automated text conversions kept as a fallback for full-text search and for tools that cannot read PDFs; their tables, figures, formal notation, and charts are scrambled by the conversion, so never rely on the Markdown for those.
+
 ### C-FFI
 
 For C interop questions (calling C from Pony, passing pointers, callbacks, structs for FFI, error handling across the boundary), read `references/tutorial-llms-full.txt` (search for "C-FFI"). For FFI initialization and resource cleanup patterns, read `references/patterns-llms-full.txt` (search for "FFI Global Initializer", "FFI Resource Lifecycle", or "Static Constructor").
@@ -287,14 +289,19 @@ live websites.
 
 ### Papers Index
 
-| Paper | File | Key topics |
-|-------|------|------------|
-| Steed, "A Principled Design of Capabilities in Pony" (2016) | `a-principled-design-of-capabilities.md` | The active formalization (PonyG). Extracting viewpoint adaptation, active/passive temporaries, uniform well-formedness, Prolog-verified lemmas. Found data-race bug in intersection types. |
-| Clebsch et al., "Deny Capabilities for Safe, Fast Actors" (2015) | `deny-capabilities.md` | The foundational paper (PonyS). Deny-properties matrix, all six capabilities, viewpoint adaptation, safe-to-write, aliasing, recovery, core safety invariants. |
-| Clebsch et al., "Deny Capabilities" (extended version with proofs) | `deny-capabilities-with-proof.md` | Extended version of the above with full proofs. |
-| Lietar, "Formalizing Generics for Pony" (2017) | `formalizing-generics.md` | Extends PonyG with generics (PonyPL). Partial reification technique. Found compiler unsoundness bugs. |
-| Clebsch, "Co-Designing a Type System and a Runtime" (PhD thesis, 2017) | `co-designing-type-system-and-runtime.md` | Comprehensive formalization: type system + ORCA + MAC. Deep viewpoint adaptation. Proves preservation and data-race freedom. |
-| Clebsch et al., "Orca: GC and Type System Co-Design" (OOPSLA 2017) | `orca-gc.md` | How type system guarantees enable per-actor GC without stop-the-world, read/write barriers, or synchronization. |
-| Clebsch et al., "Fully Concurrent Garbage Collection of Actors on Many-Core Machines" | `fully-concurrent-gc.md` | MAC protocol for concurrent actor GC. |
-| Clebsch & Blessing, "Ownership and Reference Counting based Garbage Collection in the Actor World" | `ownership-gc.md` | OGC/Pony-ORCA: ownership and reference counting for actor GC. |
-| Clebsch et al., "A String of Ponies" | `a-string-of-ponies.md` | Transparent distributed programming with actors. |
+Each paper has a `.pdf` (authoritative — **prefer it if you can read PDFs**) and a
+same-named `.md` text fallback in `references/`. The `.md` conversion garbles
+tables, figures, formal notation, and charts, so consult the `.pdf` for any of
+those. The table lists each paper's basename.
+
+| Paper | Basename in `references/` | Key topics |
+|-------|---------------------------|------------|
+| Steed, "A Principled Design of Capabilities in Pony" (2016) | `a-principled-design-of-capabilities` | The active formalization (PonyG). Extracting viewpoint adaptation, active/passive temporaries, uniform well-formedness, Prolog-verified lemmas. Found data-race bug in intersection types. |
+| Clebsch et al., "Deny Capabilities for Safe, Fast Actors" (2015) | `deny-capabilities` | The foundational paper (PonyS). Deny-properties matrix, all six capabilities, viewpoint adaptation, safe-to-write, aliasing, recovery, core safety invariants. |
+| Clebsch et al., "Deny Capabilities" (extended version with proofs) | `deny-capabilities-with-proof` | Extended version of the above with full proofs. |
+| Lietar, "Formalizing Generics for Pony" (2017) | `formalizing-generics` | Extends PonyG with generics (PonyPL). Partial reification technique. Found compiler unsoundness bugs. |
+| Clebsch, "Co-Designing a Type System and a Runtime" (PhD thesis, 2017) | `co-designing-type-system-and-runtime` | Comprehensive formalization: type system + ORCA + MAC. Deep viewpoint adaptation. Proves preservation and data-race freedom. |
+| Clebsch et al., "Orca: GC and Type System Co-Design" (OOPSLA 2017) | `orca-gc` | How type system guarantees enable per-actor GC without stop-the-world, read/write barriers, or synchronization. |
+| Clebsch et al., "Fully Concurrent Garbage Collection of Actors on Many-Core Machines" | `fully-concurrent-gc` | MAC protocol for concurrent actor GC. |
+| Clebsch & Blessing, "Ownership and Reference Counting based Garbage Collection in the Actor World" | `ownership-gc` | OGC/Pony-ORCA: ownership and reference counting for actor GC. |
+| Clebsch et al., "A String of Ponies" | `a-string-of-ponies` | Transparent distributed programming with actors. |

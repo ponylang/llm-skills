@@ -1,3 +1,11 @@
+> **Prefer the PDF if you can read it.** This file is an automated
+> text conversion of [`a-string-of-ponies.pdf`](a-string-of-ponies.pdf) (same
+> directory). It is reliable for prose and full-text search, but its
+> tables, figures, formal/mathematical notation, and benchmark charts
+> are scrambled or garbled by the conversion — read the PDF for any of
+> those. This markdown exists as a fallback for tools and agents that
+> cannot read PDFs.
+
 Imperial College of Science, Technology and Medicine
 Department of Computing
 

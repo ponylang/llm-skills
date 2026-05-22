@@ -1,3 +1,11 @@
+> **Prefer the PDF if you can read it.** This file is an automated
+> text conversion of [`orca-gc.pdf`](orca-gc.pdf) (same
+> directory). It is reliable for prose and full-text search, but its
+> tables, figures, formal/mathematical notation, and benchmark charts
+> are scrambled or garbled by the conversion — read the PDF for any of
+> those. This markdown exists as a fallback for tools and agents that
+> cannot read PDFs.
+
 Orca: GC and Type System Co-Design for Actor Languages
 SYLVAN CLEBSCH, Microsoft Research Cambridge, United Kingdom
 JULIANA FRANCO, Imperial College London, United Kingdom
