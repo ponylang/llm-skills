@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file. Entries
 are grouped by date (UTC) with newest first.
 
+## 2026-05-22
+
+- ADDED: Documentation review skill ([PR #41](https://github.com/ponylang/llm-skills/pull/41))
+
 ## 2026-05-21
 
 - ADDED: Meta-skill that adds routing for agents to all the skills ([PR #40](https://github.com/ponylang/llm-skills/pull/40))
