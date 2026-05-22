@@ -122,6 +122,10 @@ Ensemble code review with specialized reviewer personas. Load it with `/pony-cod
 
 Has full (8-persona, iterative re-review) and lightweight (3-persona, single pass) modes. Personas cover correctness, security, performance, API design, test quality, adversarial scenarios, design principles, and wildcard concerns.
 
+#### pony-docs-review
+
+Ensemble documentation review — the prose counterpart to `pony-code-review`. Load it with `/pony-docs-review` when reviewing a documentation-only change (tutorials, READMEs, reference pages). Has full (8-persona, iterative re-review) and lightweight (3-persona, single pass) modes; personas cover accuracy, completeness, clarity, structure, consistency, reader experience, principles, and wildcard concerns.
+
 #### pony-test-design
 
 Two-stage ensemble for planning meaningful tests. Load it with `/pony-test-design` when writing tests for new features or reviewing test quality. Counters the tendency to write tests that exercise the stdlib instead of your code.
@@ -187,6 +191,10 @@ Prefer to pick individually? Add any of these instead:
 ### /pony-code-review
 
 > **Load `/pony-code-review` for code reviews**: When conducting a code review of a PR, branch, or local changes, load `/pony-code-review`. Not for one-line config changes or typo fixes.
+
+### /pony-docs-review
+
+> **Load `/pony-docs-review` for documentation reviews**: When reviewing a documentation-only change (tutorials, READMEs, reference pages), load `/pony-docs-review`. Not for one-line typo or formatting fixes.
 
 ### /pony-test-design
 

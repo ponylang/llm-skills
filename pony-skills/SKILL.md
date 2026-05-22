@@ -13,6 +13,7 @@ When one of these applies, load the named skill.
 | Working on Pony at all — before you start, and for questions about capabilities, the type system, the runtime, or testing | `pony-ref` |
 | Designing APIs, types, features, or system boundaries (not just implementing an existing design) | `pony-software-design` |
 | Reviewing code, or before opening a PR | `pony-code-review` |
+| Reviewing a documentation-only change | `pony-docs-review` |
 | Writing tests, or assessing test quality | `pony-test-design` |
 | Writing property-based or generative tests | `pony-pbt-patterns` |
 | Before forming a hypothesis about a non-trivial bug | `pony-debug` |
