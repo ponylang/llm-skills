@@ -5,6 +5,7 @@ are grouped by date (UTC) with newest first.
 
 ## 2026-05-22
 
+- ADDED: OpenAI Codex support ([PR #44](https://github.com/ponylang/llm-skills/pull/44))
 - ADDED: PDF versions of the pony-ref reference papers ([PR #43](https://github.com/ponylang/llm-skills/pull/43))
 - ADDED: Documentation review skill ([PR #41](https://github.com/ponylang/llm-skills/pull/41))
 
