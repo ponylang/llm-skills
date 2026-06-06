@@ -10,7 +10,7 @@ Skills for working with [Pony](https://www.ponylang.io) in any LLM coding harnes
 
 - [OpenAI Codex](https://developers.openai.com/codex) — Codex loads the same `SKILL.md` format from `~/.agents/skills`, where `install.py` installs them.
 
-**About the `pony-` prefix:** All skills in this repo use a `pony-` prefix as an org namespace to avoid name collisions with skills from other sources. Some skills (like `pony-ref`) are Pony-language-specific. Others (like `pony-ensemble` and `pony-code-review`) are language-agnostic methodology skills that work on any codebase — the prefix is about where they come from, not what languages they apply to.
+**About the `pony-` prefix:** All skills in this repo use a `pony-` prefix as an org namespace to avoid name collisions with skills from other sources. Some skills (like `pony-ref` and `pony-ffi-audit`) are Pony-language-specific. Others (like `pony-ensemble` and `pony-code-review`) are language-agnostic methodology skills that work on any codebase — the prefix is about where they come from, not what languages they apply to.
 
 ## Installation
 
@@ -75,6 +75,25 @@ What's in the `references/` directory (read on demand for deeper questions):
 - **Runtime/GC synopsis** — ORCA object GC, MAC actor cycle collection, per-actor heaps, causal messaging, the scheduler. Includes an "Implementation Divergences" section documenting where the current ponyc runtime has evolved beyond the papers.
 - **Academic papers** — the full text of all nine Pony papers covering the type system, garbage collection, generics, and distributed programming.
 - **Website content** — snapshots of the Pony tutorial, patterns cookbook, and main website (via their llms.txt files). Covers language fundamentals, idiomatic patterns, tooling guides, and FAQ.
+
+#### pony-ffi-audit
+
+Audit methodology for finding dangerous FFI usage in Pony codebases. Load it when auditing a project's C-FFI calls for reference capability violations.
+
+Pony's FFI declarations are trusted by the compiler — if you declare a parameter as `tag` but C writes through it, nothing catches the violation at compile time. This skill provides a systematic methodology for finding those gaps.
+
+What's in the quick reference (loaded into context automatically):
+
+- The FFI trust boundary and refcap mutation rules
+- Step-by-step audit methodology (find calls, determine mutation, check caps, classify)
+- How to identify which arguments a C function mutates (common C functions, OpenSSL, PCRE2, Windows APIs)
+- Known patterns: `.cpointer()`/`.cstring()` returning `tag`, structs declared `tag`, FFI-allocated buffers with wrong cap, runtime event handles, finalizer `box`
+- Escape hatches: `addressof` and `USize` coercion bypasses
+- Fix strategies for each pattern category
+
+What's in the `references/` directory (read on demand):
+
+- **Example audit** — a condensed real-world audit showing the reporting format, classification, and summary structure across multiple projects and all pattern categories.
 
 ### Project Conventions
 
@@ -179,6 +198,10 @@ Prefer to pick individually? Add any of these instead:
 ### pony-ref trigger
 
 > **Load `pony-ref` proactively when working on Pony code**: At the start of any conversation where the working directory is a Pony project (contains `corral.json` or `*.pony` files), load `pony-ref` before doing any work. Also load it mid-conversation when hitting capabilities, type system, runtime, or testing questions.
+
+### pony-ffi-audit trigger
+
+> **Load `pony-ffi-audit` before auditing FFI calls**: Load it before auditing a Pony project's C-FFI calls for reference capability violations, mutation through `tag` references, or other FFI trust boundary issues.
 
 ### pony-examples-readme trigger
 
