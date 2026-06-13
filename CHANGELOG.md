@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file. Entries
 are grouped by date (UTC) with newest first.
 
+## 2026-06-13
+
+- CHANGED: Clarify literal-path requirement in pony-code-review tmp dir step ([PR #51](https://github.com/ponylang/llm-skills/pull/51))
+
 ## 2026-05-22
 
 - ADDED: OpenAI Codex support ([PR #44](https://github.com/ponylang/llm-skills/pull/44))
