@@ -79,7 +79,7 @@ When principles conflict, these values set the priority. We value the left side 
 
 2. **Build and run tests once.** Capture the build output and test results. These results are provided to persona agents that need them — no agent runs tests itself. If the build fails or tests fail, proceed with the review anyway — provide the failure output to all personas and note whether the failure is pre-existing or introduced by the change.
 
-3. **Create a temporary directory for evidence files.** Use `~/tmp/code-review-<timestamp>/`. Each persona will write its detailed evidence to a file in this directory. Generate the file path for each persona (e.g., `correctness-evidence.md`) and pass it in the prompt.
+3. **Create a temporary directory for evidence files.** Use `~/tmp/code-review-<timestamp>/`, where `<timestamp>` is seconds-precision (e.g., `2026-06-05-143052`). Pick a concrete path up front — substitute a real timestamp for `<timestamp>` and reuse that literal path verbatim in every subsequent step. Each shell command runs in a fresh process, so don't try to recompute the path. Each persona will write its detailed evidence to a file in this directory. Generate the file path for each persona (e.g., `correctness-evidence.md`) and pass it in the prompt.
 
 4. **Spawn 8 persona agents in parallel**, each as a fresh-context sub-agent using your most capable model. Each agent's prompt includes:
 
