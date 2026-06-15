@@ -40,6 +40,24 @@ The Pony community while small is very helpful and inviting. We think you’ll f
 
 The easiest way to install Pony is through [ponyup](https://github.com/ponylang/ponyup), Pony’s toolchain manager. Ponyup handles installing and updating the Pony compiler and related tools.
 
+## Supported platforms
+
+| OS \\ CPU         | `amd64`     | `arm64`       | `arm32`   | `riscv64` |
+| ----------------- | ----------- | ------------- | --------- | --------- |
+| **Linux**         | ✅ Released | ✅ Released   | 🧪 Tested | 🧪 Tested |
+| **macOS**         | ✅ Released | ✅ Released   | —         | —         |
+| **Windows**       | ✅ Released | ✅ Released   | —         | —         |
+| **FreeBSD**       | 🧪 Tested   | ✗ Unsupported | —         | —         |
+| **OpenBSD**       | 🧪 Tested   | ✗ Unsupported | —         | —         |
+| **DragonFly BSD** | 🧪 Tested   | —             | —         | —         |
+
+- ✅ **Released** — official prebuilt binaries; also tested in CI
+- 🧪 **Tested** — tested in CI; build from source (no prebuilt binary)
+- ✗ **Unsupported** — no support
+- — **Not applicable** — combination doesn’t exist
+
+Platforms marked 🧪 Tested have no prebuilt binary; you’ll need to [build ponyc from source](https://github.com/ponylang/ponyc/blob/main/BUILD.md).
+
 ## Install ponyup
 
 On Linux or macOS, run:
@@ -60,7 +78,7 @@ Prebuilt packages are only available for certain platforms. Check the [ponyc INS
 
 ## Additional dependencies
 
-On Linux, the Pony compiler requires a C compiler and may need additional libraries depending on your distribution. See the [ponyc installation instructions](https://github.com/ponylang/ponyc/blob/main/README.md#installation) for distro-specific details.
+On Linux, the Pony compiler requires a C compiler and may need additional libraries depending on your distribution. See the [ponyc installation instructions](https://github.com/ponylang/ponyc/blob/main/INSTALL.md) for distro-specific details.
 
 ## More information
 
@@ -1354,7 +1372,7 @@ Cannot be combined with `thread_sanitizer`.
 
 Not available on OpenBSD or DragonFly BSD
 
-OpenBSD’s base toolchain ships no AddressSanitizer runtime, and DragonFly BSD’s `gcc13` toolchain doesn’t build one either, so `use=address_sanitizer` can’t be built on either. `gmake configure use=address_sanitizer` is rejected on OpenBSD with an error.
+OpenBSD’s base toolchain ships no AddressSanitizer runtime, and DragonFly BSD’s `gcc13` toolchain doesn’t build one either, so `use=address_sanitizer` can’t be built on either. `gmake configure use=address_sanitizer` is rejected on both OpenBSD and DragonFly with an error.
 
 ## Thread Sanitizer
 
@@ -1371,7 +1389,7 @@ Cannot be combined with `address_sanitizer`.
 
 Not available on OpenBSD or DragonFly BSD
 
-OpenBSD’s base toolchain ships no ThreadSanitizer runtime, and DragonFly BSD’s `gcc13` toolchain doesn’t build one either, so `use=thread_sanitizer` can’t be built on either. `gmake configure use=thread_sanitizer` is rejected on OpenBSD with an error.
+OpenBSD’s base toolchain ships no ThreadSanitizer runtime, and DragonFly BSD’s `gcc13` toolchain doesn’t build one either, so `use=thread_sanitizer` can’t be built on either. `gmake configure use=thread_sanitizer` is rejected on both OpenBSD and DragonFly with an error.
 
 ## Undefined Behavior Sanitizer
 
@@ -1388,7 +1406,7 @@ Can be combined with `address_sanitizer` or `thread_sanitizer`.
 
 Not available on OpenBSD or DragonFly BSD
 
-OpenBSD ships only the minimal UndefinedBehaviorSanitizer runtime, not the standalone runtime ponyc links against; DragonFly BSD’s `gcc13` toolchain doesn’t build the UBSan runtime at all. Either way, `use=undefined_behavior_sanitizer` can’t be built there. `gmake configure use=undefined_behavior_sanitizer` is rejected on OpenBSD with an error.
+OpenBSD ships only the minimal UndefinedBehaviorSanitizer runtime, not the standalone runtime ponyc links against; DragonFly BSD’s `gcc13` toolchain doesn’t build the UBSan runtime at all. Either way, `use=undefined_behavior_sanitizer` can’t be built there. `gmake configure use=undefined_behavior_sanitizer` is rejected on both OpenBSD and DragonFly with an error.
 
 ## Coverage
 
@@ -1411,7 +1429,7 @@ DragonFly builds ponyc only with GCC, and GCC’s `-fprofile-arcs` stamps a `__g
 
 ## DTrace / SystemTap
 
-The Pony runtime includes [USDT](https://illumos.org/books/dtrace/chp-usdt.html) (Userland Statically Defined Tracing) probes. They’re consumed by SystemTap on Linux and by DTrace on FreeBSD. No other platform is supported: macOS removed DTrace, and neither DragonFly BSD nor OpenBSD ships a DTrace-compatible probe-generation tool (OpenBSD’s `btrace` is a separate tracer with no USDT support).
+The Pony runtime includes [USDT](https://illumos.org/books/dtrace/chp-usdt.html) (Userland Statically Defined Tracing) probes. They’re consumed by SystemTap on Linux and by DTrace on FreeBSD. No other platform is supported: macOS removed DTrace, and neither DragonFly BSD nor OpenBSD ships a DTrace-compatible probe-generation tool (OpenBSD’s `btrace` is a separate tracer with no USDT support). On DragonFly BSD and OpenBSD, `gmake configure use=dtrace` is rejected with an error rather than failing later in the build.
 
 Building requires a `dtrace`-compatible tool on your `PATH`:
 
@@ -4036,7 +4054,7 @@ For production code, write a function that takes two `ReadSeq` arguments and com
 
 ## What are Pony’s supported CPU platforms?
 
-See [supported platforms](https://github.com/ponylang/ponyc?tab=readme-ov-file#supported-platforms) in the [ponyc](https://github.com/ponylang/ponyc) [README](https://github.com/ponylang/ponyc?tab=readme-ov-file).
+See [supported platforms](https://www.ponylang.io/learn/installing-pony/#supported-platforms).
 
 ## I get a “requires dynamic” error when compiling, how do I solve it?
 
