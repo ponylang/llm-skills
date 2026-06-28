@@ -134,6 +134,12 @@ Has full (8-persona, iterative re-review) and lightweight (3-persona, single pas
 
 Ensemble documentation review — the prose counterpart to `pony-code-review`. Load it when reviewing a documentation-only change (tutorials, READMEs, reference pages). Has full (8-persona, iterative re-review) and lightweight (3-persona, single pass) modes; personas cover accuracy, completeness, clarity, structure, consistency, reader experience, principles, and wildcard concerns.
 
+#### pony-vet-suspected-issues
+
+How to handle a problem you find outside the change you're working on — the bug you noticed in passing, or the out-of-scope finding a review turned up. Load it when you spot one, or when a PR is open and you have some to work through.
+
+Instead of filing an issue on the spot, you capture it as a suspected issue and vet it after the PR is open: verify it, find its real scope, check for duplicates, and review the draft before filing — or discard it. `pony-code-review` and `pony-docs-review` route their out-of-scope findings here.
+
 #### pony-test-design
 
 Two-stage ensemble for planning meaningful tests. Load it when writing tests for new features or reviewing test quality. Counters the tendency to write tests that exercise the stdlib instead of your code.
@@ -203,6 +209,10 @@ Prefer to pick individually? Add any of these instead:
 ### pony-docs-review trigger
 
 > **Load `pony-docs-review` for documentation reviews**: When reviewing a documentation-only change (tutorials, READMEs, reference pages), load `pony-docs-review`. Not for one-line typo or formatting fixes.
+
+### pony-vet-suspected-issues trigger
+
+> **Load `pony-vet-suspected-issues` for problems found outside the current change**: When you spot a bug or gap outside the change you're working on, or a review surfaces an out-of-scope finding, capture it as a suspected issue and vet it after the PR is open before filing — don't file on the spot. Load `pony-vet-suspected-issues`.
 
 ### pony-test-design trigger
 
