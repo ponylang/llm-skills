@@ -128,7 +128,7 @@ Has full (8-persona) and lightweight (5-persona) modes. Full mode runs design (3
 
 Ensemble code review with specialized reviewer personas. Load it when conducting a code review of a PR, branch, or local changes.
 
-Has full (8-persona, iterative re-review) and lightweight (3-persona, single pass) modes. Personas cover correctness, security, performance, API design, test quality, adversarial scenarios, design principles, and wildcard concerns.
+Has full (9-persona, iterative re-review) and lightweight (3-persona, single pass) modes. Personas cover correctness, security, performance, API design, test quality, adversarial scenarios, design principles, comment and docstring economy, and wildcard concerns.
 
 #### pony-docs-review
 
