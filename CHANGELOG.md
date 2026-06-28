@@ -5,6 +5,7 @@ are grouped by date (UTC) with newest first.
 
 ## 2026-06-28
 
+- ADDED: New pony-code-review editor persona ([PR #53](https://github.com/ponylang/llm-skills/pull/53))
 - ADDED: Add pony-vet-suspected-issues skill ([PR #52](https://github.com/ponylang/llm-skills/pull/52))
 
 ## 2026-06-13
