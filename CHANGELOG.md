@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file. Entries
 are grouped by date (UTC) with newest first.
 
+## 2026-06-28
+
+- ADDED: Add pony-vet-suspected-issues skill ([PR #52](https://github.com/ponylang/llm-skills/pull/52))
+
 ## 2026-06-13
 
 - CHANGED: Clarify literal-path requirement in pony-code-review tmp dir step ([PR #51](https://github.com/ponylang/llm-skills/pull/51))
