@@ -5286,6 +5286,8 @@ To learn more about testing in Pony in general, there’s a [testing section](ht
 
 Pony supports integration with other native languages through the Foreign Function Interface (FFI). The FFI library provides a stable and portable API and high-level programming interface allowing Pony to integrate with native libraries easily.
 
+Native code can reach your program two ways: you can link a library, or you can write a small piece of C yourself and let ponyc compile it for you as a [C shim](https://tutorial.ponylang.io/c-ffi/c-shims.html).
+
 Note that calling C (or other low-level languages) is inherently dangerous. C code fundamentally has access to all memory in the process and can change any of it, either deliberately or due to bugs. This is one of the language’s most useful, but also most dangerous, features. Calling well written, bug-free, C code will have no ill effects on your program. However, calling buggy or malicious C code or calling C incorrectly can cause your Pony program to go wrong, including corrupting data and crashing. Consequently, all of the Pony guarantees regarding not crashing, memory safety and concurrent correctness can be voided by calling FFI functions.
 
 # Calling C from Pony
@@ -5678,125 +5680,162 @@ By default the Pony compiler will look for the libraries to link in the standard
 
 If you are integrating with existing libraries, that is all you need to do.
 
-# C ABI
+## Linking a C++ library
 
-The FFI support in Pony uses the C application binary interface (ABI) to interface with native code. The C ABI is a calling convention, one of many, that allow objects from different programming languages to be used together.
+If the library you are linking was built as C++, its function names are mangled and Pony will not be able to find them. The library must export the functions you call with `extern "C"` so that their names are not mangled. For libraries built as C, this is not a concern.
 
-## Writing a C library for Pony
+## Bringing along your own C
 
-Writing your own C library for use by Pony is almost as easy as using existing libraries.
+The mechanics above apply to any library you link, whether it’s third-party or one you build yourself. If instead you only need a small piece of C to bridge Pony to a C API — glue code rather than a library — you don’t have to build a library at all: drop the `.c` next to your Pony code and ponyc compiles it as a [C shim](https://tutorial.ponylang.io/c-ffi/c-shims.html).
 
-Let’s look at a complete example of a C function we may wish to provide to Pony. Let’s consider a pure Pony implementation of a [Jump Consistent Hash](https://arxiv.org/abs/1406.2294):
+# C Shims
 
-```
-// Jump consistent hashing in Pony, with an inline pseudo random generator
-// https://arxiv.org/abs/1406.2294
+Sometimes the easiest way to call C from Pony is a small piece of C of your own that bridges the gap: a wrapper that flattens a macro into a function, fixes up a calling convention, or adapts a struct-heavy API into something the FFI can call directly. ponyc can compile that C for you.
 
-fun jch(key: U64, buckets: U32): I32 =>
-  var k = key
-  var b = I64(0)
-  var j = I64(0)
+A `.c` file placed in a package’s directory — next to its `.pony` files — is a *C shim*. ponyc discovers it, compiles it with an embedded copy of clang, and links the resulting object directly into your program. There is no second build system, no separate compiler invocation, and no library to link with `use "lib:..."`.
 
-  while j < buckets.i64() do
-    b = j
-    k = (k * 2862933555777941757) + 1
-    j = ((b + 1).f64() * (I64(1 << 31).f64() / ((k >> 33) + 1).f64())).i64()
-  end
-```
+A shim is for that kind of glue — code that helps your Pony talk to C — not for writing a C library. If you’re writing a library’s worth of C, build it as a library and link it like any other: see [Linking to C Libraries](https://tutorial.ponylang.io/c-ffi/linking-c.html).
 
-Let’s say we wish to compare the pure Pony performance to an existing C function with the following header:
+## A minimal shim
+
+Put a `.c` file next to your Pony code:
 
 ```
-#ifndef __JCH_H_
-#define __JCH_H_
+// answer.c
+#include <stdint.h>
 
-extern "C"
+int32_t answer(void)
 {
-  int32_t jch_chash(uint64_t key, uint32_t num_buckets);
+  return 42;
+}
+```
+
+Declare the function’s FFI signature and call it, exactly as you would for any other C function (see [Calling C from Pony](https://tutorial.ponylang.io/c-ffi/calling-c.html)):
+
+```
+// main.pony
+use @answer[I32]()
+
+actor Main
+  new create(env: Env) =>
+    env.out.print(@answer().string())
+```
+
+Compile with `ponyc` as usual. The shim is discovered, compiled, and linked automatically — the build reports a `Compiling C shims` step — and the program prints `42`. There is nothing else to set up.
+
+## ponyc headers on the include path
+
+A shim can `#include <pony.h>` and call runtime APIs with no configuration. ponyc puts its own headers on the include path by default and locates them relative to the running compiler, the same way it finds the standard library. A shim that talks to the runtime keeps working across toolchain updates without hard-coding an installation path.
+
+## Configuring the compile
+
+The minimal shim above needed no configuration. When a shim needs a preprocessor macro or an external header, two `use` schemes supply them; each affects only the package it appears in, and both accept guards, just like platform-specific linking.
+
+`use "cdefine:NAME"` or `use "cdefine:NAME=VALUE"` defines a C preprocessor macro (clang’s `-D`). The macro name must be a plain C identifier; function-like macros such as `cdefine:CALLBACK(x)=...` are rejected — define a plain macro and let your C code do the rest. Defining the same name twice in one package is an error, even when the values match. Platform-specific values belong behind guards, where only the active target’s definition counts:
+
+```
+use "cdefine:USE_EPOLL" if linux
+```
+
+`cdefine:` is unrelated to ponyc’s own `--define`/`-D` flag, which drives Pony’s `ifdef`. One sets a C preprocessor macro for your shims; the other selects Pony build flags.
+
+`use "cincludedir:PATH"` adds an include search directory (clang’s `-I`). A relative path is resolved against the package’s directory.
+
+A `cdefine:` or `cincludedir:` in a package that has no `.c` files is an error: it could never take effect. If you hit this, the scheme is probably in the wrong package — move it to the one that holds the `.c` it was meant to configure.
+
+### Putting it together
+
+This program defines a macro with `cdefine:` and adds a header directory with `cincludedir:`:
+
+```
+// main.pony
+use "cdefine:ANSWER=42"
+use "cincludedir:./include"
+
+use @answer[I32]()
+use @version[I32]()
+
+actor Main
+  new create(env: Env) =>
+    env.out.print("answer: " + @answer().string())
+    env.out.print("version: " + @version().string())
+```
+
+The shim reads both — the macro from `cdefine:`, and a constant from a header found via `cincludedir:`:
+
+```
+// answer.c
+#include <stdint.h>
+#include "version.h"
+
+int32_t answer(void)
+{
+  return ANSWER;
 }
 
+int32_t version(void)
+{
+  return VERSION;
+}
+```
+
+```
+// include/version.h
+#define VERSION 7
+```
+
+These files sit together, with the header in the `include/` directory named by `cincludedir:`:
+
+```
+main.pony
+answer.c
+include/version.h
+```
+
+Building and running prints `answer: 42` and `version: 7`. `answer` returns the macro set by `cdefine:`; `version` returns the constant from the header found via `cincludedir:`.
+
+That is everything you need to write and build a shim. The rest of this page is reference material — how shims are discovered and linked, how `--safe` applies, and which platforms are supported.
+
+## How shims are discovered
+
+ponyc scans only the top directory of each package — not its subdirectories — in sorted order for reproducible builds. Only `.c` files are treated as shims; C++ sources (`.cpp`, `.cc`) are not compiled this way, so for C++ you build a library and link it (see [Linking to C Libraries](https://tutorial.ponylang.io/c-ffi/linking-c.html)).
+
+Every `.c` in the package directory is compiled on every platform: the shim sources themselves have no per-file guard. A shim that should only exist on one platform wraps its whole body in `#ifdef` so it compiles to an empty object elsewhere:
+
+```
+#ifdef __linux__
+// ... the platform-specific shim ...
 #endif
 ```
 
-Note the use of `extern "C"`. If the library is built as C++ then we need to tell the compiler not to mangle the function name, otherwise, Pony won’t be able to find it. For libraries built as C, this is not needed, of course.
+## How shims are linked
 
-The implementation of the previous header would be something like:
+Shim objects are linked directly into your program, not archived into a library first. Two consequences are worth knowing:
 
-```
-#include <stdint.h>
+- C constructors (`__attribute__((constructor))`) in a shim run at program start, like any directly linked object.
+- Two shims that define the same symbol fail the link with a duplicate-definition error. But if a shim defines a symbol that a `use "lib:..."` library also provides, the shim wins silently — the library’s version is never pulled in.
 
-// A fast, minimal memory, consistent hash algorithm
-// https://arxiv.org/abs/1406.2294
-int32_t jch_chash(uint64_t key, uint32_t num_buckets)
-{
-  int b = -1;
-  uint64_t j = 0;
+## Replacing a hand-built library
 
-  do {
-    b = j;
-    key = key * 2862933555777941757ULL + 1;
-    j = (b + 1) * ((double)(1LL << 31) / ((double)(key >> 33) + 1));
-  } while(j < num_buckets);
+ponyc compiling a `.c` as a shim can silently shadow a library you built by hand. If you previously compiled a `.c` next to your Pony code into a library and linked it with `use "lib:..."`, ponyc now compiles that same file as a shim, and the shim object wins over your hand-built library. Either drop the manual build and the `use "lib:..."` that linked it — the shim path replaces both — or move the `.c` out of the package directory. Only the package’s top directory is scanned, so a subdirectory is enough to keep it out.
 
-  return (int32_t)b;
-}
-```
+## Restricting C with `--safe`
 
-We need to compile the native code to a shared library. This example is for MacOS. The exact details may vary on other platforms.
+A C shim is the package doing C, so `--safe` governs it exactly like a C FFI call: compiling a shim requires the package to be allowed to do C FFI. A `.c` in a package that isn’t on the `--safe` list is an error — the same reason you would get one for an FFI call there. The file may sit in the package; `--safe` gates compiling it.
 
-```
-clang -fPIC -Wall -Wextra -O3 -g -MM jch.c >jch.d
-clang -fPIC -Wall -Wextra -O3 -g  -c -o jch.o jch.c
-clang -shared -lm -o libjch.dylib jch.o
-```
+This matters for dependencies, too. A package you depend on can ship a `.c`, and ponyc compiles and links it into your program just like your own shim — so `--safe` is also how you control whether a dependency’s C is built into your program.
 
-The Pony code to use this new C library is just like the code we’ve already seen for using C libraries.
+## Platform support
 
-```
-"""
-This is an example of Pony integrating with native code via the built-in FFI
-support
-"""
+Windows targets are not supported yet. A package containing a `.c` fails on Windows with `C shims are not yet supported when targeting Windows: MSVC include discovery is not implemented`, until that discovery lands. This includes any dependency you pull in that ships a shim.
 
-use "lib:jch"
-use "collections"
-use @jch_chash[I32](hash: U64, bucket_size: U32)
+On macOS, shims resolve system headers through the SDK’s `usr/include`; framework-style includes (clang’s `-F`) are not supported.
 
-actor Main
-  var _env: Env
+## Build artifacts
 
-  new create(env: Env) =>
-    _env = env
+Shims are recompiled on every build. Their object files live in the output directory during the build and are cleaned up after a successful link. Under a non-link mode (`--pass c`, `--pass obj`, and similar) or after a failed link they stay behind, and renaming or deleting a shim source can leave an old object in the output directory. They are plain files, safe to delete.
 
-    let bucket_size: U32 = 1000000
-
-    _env.out.print("C implementation:")
-    for i in Range[U64](1, 20) do
-      let hash = @jch_chash(i, bucket_size)
-      _env.out.print(i.string() + ": " + hash.string())
-    end
-
-    _env.out.print("Pony implementation:")
-    for i in Range[U64](1, 20) do
-      let hash = jch(i, bucket_size)
-      _env.out.print(i.string() + ": " + hash.string())
-    end
-
-  fun jch(key: U64, buckets: U32): I32 =>
-    var k = key
-    var b = I64(0)
-    var j = I64(0)
-
-    while j < buckets.i64() do
-      b = j
-      k = (k * 2862933555777941757) + 1
-      j = ((b + 1).f64() * (I64(1 << 31).f64() / ((k >> 33) + 1).f64())).i64()
-    end
-
-    b.i32()
-```
-
-We can now use ponyc to compile a native executable integrating Pony and our C library. And that’s all we need to do.
+Because ponyc now carries clang inside it, the compiler binary is noticeably larger than before.
 
 # Callbacks
 

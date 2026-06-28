@@ -88,7 +88,7 @@ The Pony Tutorial is a comprehensive guide to the Pony programming language, an 
 - [Overview](https://tutorial.ponylang.io/c-ffi/index.md)
 - [Calling C from Pony](https://tutorial.ponylang.io/c-ffi/calling-c.md)
 - [Linking to C Libraries](https://tutorial.ponylang.io/c-ffi/linking-c.md)
-- [C ABI](https://tutorial.ponylang.io/c-ffi/c-abi.md)
+- [C Shims](https://tutorial.ponylang.io/c-ffi/c-shims.md)
 - [Callbacks](https://tutorial.ponylang.io/c-ffi/callbacks.md)
 
 ## Runtime Basics
