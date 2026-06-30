@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file. Entries
 are grouped by date (UTC) with newest first.
 
+## 2026-06-30
+
+- CHANGED: Added persona to lightweight code review ([PR #54](https://github.com/ponylang/llm-skills/pull/54))
+
 ## 2026-06-28
 
 - ADDED: New pony-code-review editor persona ([PR #53](https://github.com/ponylang/llm-skills/pull/53))
