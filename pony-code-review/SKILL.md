@@ -1,12 +1,12 @@
 ---
 name: pony-code-review
-description: Ensemble code review with specialized reviewer personas. Has full (9-persona) and lightweight (3-persona) modes. Load when conducting a code review of a PR, branch, or local changes.
+description: Ensemble code review with specialized reviewer personas. Has full (9-persona) and lightweight (4-persona) modes. Load when conducting a code review of a PR, branch, or local changes.
 disable-model-invocation: false
 ---
 
 # Code Review
 
-Ensemble code review that synthesizes findings from specialized reviewer personas. Has two modes: full (9 personas, iterative re-review) and lightweight (3 personas, single pass). Not for one-line config changes or typo fixes — ask permission to skip review for those.
+Ensemble code review that synthesizes findings from specialized reviewer personas. Has two modes: full (9 personas, iterative re-review) and lightweight (4 personas, single pass). Not for one-line config changes or typo fixes — ask permission to skip review for those.
 
 ## Mode Selection
 
@@ -29,7 +29,7 @@ The skill has two modes: **full** and **lightweight**. The orchestrator selects 
 
 When in doubt, use full mode. Lightweight is appropriate when the change is clearly bounded — the orchestrator should be able to state what makes it bounded and why fewer personas are sufficient.
 
-Note: the pony-software-design skill's lightweight mode follows a similar pattern (mode selection, single pass, escalation) but reduces differently — it has two stages and shrinks only the evaluation stage (5→2 personas). Code-review has a single stage, so the reduction is in persona count (9→3). The shared pattern is the mode selection and escalation structure.
+Note: the pony-software-design skill's lightweight mode follows a similar pattern (mode selection, single pass, escalation) but reduces differently — it has two stages and shrinks only the evaluation stage (5→2 personas). Code-review has a single stage, so the reduction is in persona count (9→4). The shared pattern is the mode selection and escalation structure.
 
 ## Invocation Modes
 
@@ -41,7 +41,7 @@ These modes apply to both full and lightweight:
 
 ## Relationship to Ensemble Workflow
 
-Use the ensemble workflow with review-specific customizations. Load `pony-ensemble` for the mechanical process. This skill replaces the generic attention focuses with review personas (9 for full mode, 3 for lightweight) and replaces the generic agent output format with the review-specific format defined below.
+Use the ensemble workflow with review-specific customizations. Load `pony-ensemble` for the mechanical process. This skill replaces the generic attention focuses with review personas (9 for full mode, 4 for lightweight) and replaces the generic agent output format with the review-specific format defined below.
 
 The Adversarial persona satisfies the ensemble's "fix reviews require an adversarial focus" requirement — when the review target is a fix, the Adversarial persona naturally focuses on showing the fix is incomplete per its identity statement.
 
@@ -139,16 +139,19 @@ The loop ends when no findings remain except parked and out-of-scope items (the 
 
 ## Process: Lightweight Mode
 
-Lightweight mode runs 3 personas in a single pass with no iterative re-review. Load `pony-ensemble` for the mechanical process.
+Lightweight mode runs 4 personas in a single pass with no iterative re-review. Load `pony-ensemble` for the mechanical process.
 
 ### Personas
 
-**Core pair (always run):**
+**Core trio (always run):**
 
 | File | Focus |
 |------|-------|
 | `correctness.md` | Logic, edge cases, completeness for valid inputs |
 | `adversarial.md` | Concrete break scenarios, backward from failure |
+| `editor.md` | Comment and docstring economy, leaked-artifact sweep |
+
+Editor runs on every lightweight review: verbose or stale comments and leaked review artifacts creep into small changes as readily as big ones, and the persona calibrates its own severity — most concision nits are Low — so it won't flood a small review.
 
 **Context-dependent slot (pick 1):**
 
@@ -164,8 +167,7 @@ Pick whichever is most relevant to the change. If multiple conditions apply, pic
 **Not included in lightweight:**
 
 - **Principles** — a fresh-context principle check adds diminishing value on small changes. If the change is large enough to benefit from it, it's large enough for full mode.
-- **Editor** — comment and docstring economy is low-severity on a small, bounded change, and lightweight runs no leaked-artifact sweep either. Both are acceptable to forgo here: a bounded change rarely touches user-facing docs. A change that *does* touch README, CHANGELOG, or public-API docstrings — where a leaked artifact would ship — is a signal toward full mode, not a reason to add the persona to lightweight.
-- **Wildcard** — the wildcard's value scales with change complexity and the number of other personas whose territory it needs to look beyond. With only 3 focused personas on a small change, there's insufficient covered territory for the wildcard to add meaningful signal.
+- **Wildcard** — the wildcard's value scales with change complexity and the number of other personas whose territory it needs to look beyond. With only 4 focused personas on a small change, there's insufficient covered territory for the wildcard to add meaningful signal.
 
 ### Steps
 
@@ -175,7 +177,7 @@ Pick whichever is most relevant to the change. If multiple conditions apply, pic
 
 3. **Create a temporary directory for evidence files.** Use `~/tmp/code-review-<timestamp>/`. Same convention as full mode.
 
-4. **Spawn 3 persona agents in parallel**, each as a fresh-context sub-agent using your most capable model. Each agent's prompt includes:
+4. **Spawn 4 persona agents in parallel**, each as a fresh-context sub-agent using your most capable model. Each agent's prompt includes:
 
    - The persona document, read from the corresponding file in `personas/`. When a persona's context loading references an external skill (e.g., `pony-test-design`, `pony-pbt-patterns`, `pony-ref`), read that skill's content and include it in the agent prompt.
    - The code-review principles: read `references/principles.md` (alongside this skill) and include its content in the agent prompt, the same way referenced skills are injected above. Also instruct the agent to read the project `AGENTS.md` if one exists (not all projects have one; if absent, note it and proceed) and to follow its conventions, including loading any skills it references.
@@ -234,8 +236,9 @@ The synthesizer should pay special attention to:
 - **Adversarial findings the correctness reviewer missed**: These are high-value — the correctness reviewer was looking forward from the code and didn't see the failure path.
 - **Cross-persona corroboration**: When multiple personas independently flag the same issue from different angles, that's high confidence.
 - **Test gaps matching other findings**: When Tests is the context-dependent persona and identifies coverage gaps that align with issues found by Adversarial or Correctness, those are the highest-priority test additions.
+- **Editor findings**: Same as full mode — most are Low (concision, tidiness), but a leaked internal review artifact or a stale comment that actively misleads in a published or user-facing file is a real defect, not just style.
 - **Pre-existing issues**: Same as full mode — never silently discard them. Flag as pre-existing for "out of scope" triage.
-- **Finding density signal**: If the 3 personas collectively produce more findings than expected for the change size, note this explicitly. A high density of findings on a small change suggests the change is more complex than it appeared and may warrant full mode. This is the synthesizer's primary escalation signal.
+- **Finding density signal**: If the 4 personas collectively produce more findings than expected for the change size, note this explicitly. A high density of findings on a small change suggests the change is more complex than it appeared and may warrant full mode. This is the synthesizer's primary escalation signal.
 - **When digging deeper**: Same as full mode — summaries by default, evidence files when needed.
 
 ## Final Output Format
@@ -287,7 +290,7 @@ Confidence calibration: **High** = verified by reading code or running tests. **
 
 ## Personas
 
-The persona documents are in `personas/`. Full mode uses all 9; lightweight uses Correctness + Adversarial + one context-dependent persona (see "Process: Lightweight Mode" for selection criteria).
+The persona documents are in `personas/`. Full mode uses all 9; lightweight uses Correctness + Adversarial + Editor + one context-dependent persona (see "Process: Lightweight Mode" for selection criteria).
 
 | File | Focus |
 |------|-------|
