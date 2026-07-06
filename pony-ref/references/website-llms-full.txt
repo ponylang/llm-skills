@@ -288,27 +288,28 @@ Cross-compiling a Pony program requires three things:
 
 ## Building the Cross-Compiled Runtime
 
-Until pre-built runtimes ship with ponyc releases, you need to build the runtime from the ponyc source. This requires a full build environment including LLVM (built via `make libs`).
+Until pre-built runtimes ship with ponyc releases, you need to build the runtime from the ponyc source. This needs the LLVM libraries built, but not a full native ponyc — you compile your program with your host `ponyc` (a ponyup install or a from-source build, as covered in [What You Need](https://www.ponylang.io/use/cross-compilation/#what-you-need) above).
 
 ```
 git clone https://github.com/ponylang/ponyc.git
 cd ponyc
-make libs build_flags=-j8
-make configure config=release
-make build config=release
+cmake -DJOBS=8 -P lib/build-libs.cmake
 ```
 
-Then build the cross-compiled runtime for your target:
+Then build the cross-compiled runtime for your target. There’s no preset for cross-builds, so configure a target-specific build directory directly, then build only the `libponyrt` and `crt_objects` targets:
 
 ```
-make cross-libponyrt config=release \
-  CC=<cross-compiler> CXX=<cross-c++> \
-  arch=<arch> \
-  cross_cflags="<target-cflags>" \
-  cross_lflags="<target-lflags>"
+cmake -B build/<arch>/build_release -S . \
+  -DCMAKE_CROSSCOMPILING=true -DCMAKE_SYSTEM_NAME=Linux \
+  -DCMAKE_SYSTEM_PROCESSOR=<arch> \
+  -DCMAKE_C_COMPILER=<cross-compiler> -DCMAKE_CXX_COMPILER=<cross-c++> \
+  -DPONY_CROSS_LIBPONYRT=true -DCMAKE_BUILD_TYPE=release \
+  -DCMAKE_C_FLAGS="<target-cflags>" -DCMAKE_CXX_FLAGS="<target-cflags>" \
+  -DPONY_ARCH=<arch> -DLL_FLAGS="<target-llc-flags>"
+cmake --build build/<arch>/build_release --config release --target libponyrt crt_objects
 ```
 
-The output goes into a directory named after the architecture (e.g., `build/rv64gc/release/`). You point `PONYPATH` at this directory when compiling your program.
+The build tree goes in `build/<arch>/build_release` and the compiled runtime in `build/<arch>/release` (for example, `build/rv64gc/release/`). To compile a program, run your host `ponyc` with `PONYPATH` pointed at that output directory.
 
 See the target-specific guides below for the exact commands for each supported target.
 
@@ -1290,7 +1291,7 @@ Pony supports generating test coverage reports through LLVM’s source-based cod
 
 # Custom ponyc Builds for Debugging
 
-ponyc supports several build-time options that instrument the compiler and runtime for debugging. These require building ponyc from source with specific flags. All options described here use the Unix/Makefile build system.
+ponyc supports several build-time options that instrument the compiler and runtime for debugging. These require building ponyc from source with specific options. All commands here are for the Unix build.
 
 ## Build Workflow
 
@@ -1301,27 +1302,27 @@ Every option follows the same pattern:
    ```
    git clone https://github.com/ponylang/ponyc.git
    cd ponyc
-   make libs
+   cmake -P lib/build-libs.cmake
    ```
 
 1. Configure with the desired option:
 
    ```
-   make configure use=<option>
+   cmake --preset release -DPONY_USES=<option>
    ```
 
 1. Build:
 
    ```
-   make build
+   cmake --build --preset release
    ```
 
-The resulting `ponyc` binary is in `build/release/` — or, when you pass `use=` options, a suffixed directory like `build/release-address_sanitizer` that lists the enabled options. Use it in place of your system `ponyc` to compile programs with the instrumentation enabled.
+The resulting `ponyc` binary is in `build/release/` — or, when you enable options with `PONY_USES`, a suffixed directory like `build/release-address_sanitizer` that lists the enabled options. The suffix always lists them in a fixed order set by the build, independent of the order you pass them, so the directory name may not match what you typed. Use it in place of your system `ponyc` to compile programs with the instrumentation enabled.
 
 To combine multiple options, separate them with commas:
 
 ```
-make configure use=address_sanitizer,undefined_behavior_sanitizer
+cmake --preset release -DPONY_USES=address_sanitizer,undefined_behavior_sanitizer
 ```
 
 Not all combinations are valid — see the individual sections below for compatibility notes.
@@ -1341,8 +1342,8 @@ apt-get install valgrind
 Build ponyc with Valgrind support:
 
 ```
-make configure use=valgrind
-make build
+cmake --preset release -DPONY_USES=valgrind
+cmake --build --preset release
 ```
 
 Compile your program with the instrumented ponyc, then run it under Valgrind:
@@ -1353,19 +1354,19 @@ valgrind ./my-program
 
 Not available on OpenBSD
 
-Valgrind has no OpenBSD port, so its development headers aren’t available and `use=valgrind` can’t be built there. `gmake configure use=valgrind` is rejected on OpenBSD with an error.
+Valgrind has no OpenBSD port, so its development headers aren’t available and `valgrind` can’t be built there. Configuring with `-DPONY_USES=valgrind` is rejected on OpenBSD with an error.
 
 Doesn’t run on DragonFly BSD
 
-`use=valgrind` builds on DragonFly and the Pony programs it compiles link, but DragonFly ships Valgrind 3.15, which is too old to run a Pony program; it hangs on the runtime’s memory arena. See [ponyc#5435](https://github.com/ponylang/ponyc/issues/5435).
+`valgrind` builds on DragonFly and the Pony programs it compiles link, but DragonFly ships Valgrind 3.15, which is too old to run a Pony program; it hangs on the runtime’s memory arena. See [ponyc#5435](https://github.com/ponylang/ponyc/issues/5435).
 
 ## Address Sanitizer
 
 [AddressSanitizer](https://clang.llvm.org/docs/AddressSanitizer.html) (ASan) detects memory errors at runtime: buffer overflows, use-after-free, double-free, and stack buffer overflows.
 
 ```
-make configure use=address_sanitizer
-make build
+cmake --preset release -DPONY_USES=address_sanitizer
+cmake --build --preset release
 ```
 
 Compile your program with the instrumented ponyc and run it normally. ASan reports errors to stderr as they occur.
@@ -1375,8 +1376,8 @@ Cannot be combined with `thread_sanitizer`.
 To catch errors in the Pony runtime’s own allocations, pair it with `pool_memalign`, which routes every runtime allocation through `posix_memalign`/`free` so ASan can surround each one with redzones:
 
 ```
-make configure use=pool_memalign,address_sanitizer
-make build
+cmake --preset release -DPONY_USES=pool_memalign,address_sanitizer
+cmake --build --preset release
 ```
 
 The instrumented `ponyc` isn’t LeakSanitizer-clean, so running it — during its own build, and whenever you use it to compile a program — needs `ASAN_OPTIONS` set in the environment. Without it the compiler reports its own leaks at exit, and on libc++ platforms aborts on false container overflows:
@@ -1384,7 +1385,7 @@ The instrumented `ponyc` isn’t LeakSanitizer-clean, so running it — during i
 - **Linux**: `ASAN_OPTIONS=detect_leaks=0`
 - **FreeBSD and macOS**: `ASAN_OPTIONS=detect_leaks=0:detect_container_overflow=0` — the extra flag suppresses false positives from libc++ container annotations when the instrumented compiler shares `std::vector`/`std::string` with the non-instrumented vendored LLVM.
 
-A `use=pool_memalign,address_sanitizer` build’s `ponyc` lands in `build/release-address_sanitizer-pool_memalign`, not `build/release`. For example, to compile a program on Linux:
+A `pool_memalign,address_sanitizer` build’s `ponyc` lands in `build/release-address_sanitizer-pool_memalign`, not `build/release`. For example, to compile a program on Linux:
 
 ```
 ASAN_OPTIONS=detect_leaks=0 ./build/release-address_sanitizer-pool_memalign/ponyc path/to/your/program
@@ -1394,15 +1395,15 @@ Both options concern `ponyc` itself, not the programs it compiles. A correct Pon
 
 Not available on OpenBSD or DragonFly BSD
 
-OpenBSD’s base toolchain ships no AddressSanitizer runtime, and DragonFly BSD’s `gcc13` toolchain doesn’t build one either, so `use=address_sanitizer` can’t be built on either. `gmake configure use=address_sanitizer` is rejected on both OpenBSD and DragonFly with an error.
+OpenBSD’s base toolchain ships no AddressSanitizer runtime, and DragonFly BSD’s `gcc13` toolchain doesn’t build one either, so `address_sanitizer` can’t be built on either. Configuring with `-DPONY_USES=address_sanitizer` is rejected on both OpenBSD and DragonFly with an error.
 
 ## Thread Sanitizer
 
 [ThreadSanitizer](https://clang.llvm.org/docs/ThreadSanitizer.html) (TSan) detects data races at runtime.
 
 ```
-make configure use=thread_sanitizer
-make build
+cmake --preset release -DPONY_USES=thread_sanitizer
+cmake --build --preset release
 ```
 
 Compile your program with the instrumented ponyc and run it normally. TSan reports data races to stderr.
@@ -1411,15 +1412,15 @@ Cannot be combined with `address_sanitizer`.
 
 Not available on OpenBSD or DragonFly BSD
 
-OpenBSD’s base toolchain ships no ThreadSanitizer runtime, and DragonFly BSD’s `gcc13` toolchain doesn’t build one either, so `use=thread_sanitizer` can’t be built on either. `gmake configure use=thread_sanitizer` is rejected on both OpenBSD and DragonFly with an error.
+OpenBSD’s base toolchain ships no ThreadSanitizer runtime, and DragonFly BSD’s `gcc13` toolchain doesn’t build one either, so `thread_sanitizer` can’t be built on either. Configuring with `-DPONY_USES=thread_sanitizer` is rejected on both OpenBSD and DragonFly with an error.
 
 ## Undefined Behavior Sanitizer
 
 [UndefinedBehaviorSanitizer](https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html) (UBSan) detects undefined behavior at runtime: signed integer overflow, null pointer dereference, misaligned memory access, and other categories.
 
 ```
-make configure use=undefined_behavior_sanitizer
-make build
+cmake --preset release -DPONY_USES=undefined_behavior_sanitizer
+cmake --build --preset release
 ```
 
 Compile your program with the instrumented ponyc and run it normally. UBSan reports violations to stderr.
@@ -1428,32 +1429,32 @@ Can be combined with `address_sanitizer` or `thread_sanitizer`.
 
 Not available on OpenBSD or DragonFly BSD
 
-OpenBSD ships only the minimal UndefinedBehaviorSanitizer runtime, not the standalone runtime ponyc links against; DragonFly BSD’s `gcc13` toolchain doesn’t build the UBSan runtime at all. Either way, `use=undefined_behavior_sanitizer` can’t be built there. `gmake configure use=undefined_behavior_sanitizer` is rejected on both OpenBSD and DragonFly with an error.
+OpenBSD ships only the minimal UndefinedBehaviorSanitizer runtime, not the standalone runtime ponyc links against; DragonFly BSD’s `gcc13` toolchain doesn’t build the UBSan runtime at all. Either way, `undefined_behavior_sanitizer` can’t be built there. Configuring with `-DPONY_USES=undefined_behavior_sanitizer` is rejected on both OpenBSD and DragonFly with an error.
 
 ## Coverage
 
 Instruments ponyc and the Pony runtime for source-level code coverage. It’s built for working on ponyc itself: run a coverage-instrumented ponyc and its test suite to see which parts of the compiler and runtime C code each run exercises. To measure coverage of your own Pony code instead, you don’t need a custom build — see [Coverage Reports](https://www.ponylang.io/use/testing/coverage-reports/index.md).
 
 ```
-make configure use=coverage
-make build
+cmake --preset release -DPONY_USES=coverage
+cmake --build --preset release
 ```
 
 The instrumentation comes from the host toolchain’s coverage support — `-fprofile-instr-generate -fcoverage-mapping` under Clang, `-fprofile-arcs -ftest-coverage` under GCC. A Clang build writes an LLVM profile (`default.profraw`) that you turn into a report with `llvm-profdata` and `llvm-cov`; a GCC build writes `.gcda` files for `gcov` or `lcov`. These report tools aren’t part of the ponyc build — install them separately. For the full workflow, see [Clang’s source-based coverage guide](https://clang.llvm.org/docs/SourceBasedCodeCoverage.html) or the [gcov documentation](https://gcc.gnu.org/onlinedocs/gcc/Gcov.html).
 
 Not available on OpenBSD
 
-OpenBSD’s base toolchain ships an incomplete profiling runtime, so a coverage-instrumented ponyc can’t be linked there. `gmake configure use=coverage` is rejected on OpenBSD with an error.
+OpenBSD’s base toolchain ships an incomplete profiling runtime, so a coverage-instrumented ponyc can’t be linked there. Configuring with `-DPONY_USES=coverage` is rejected on OpenBSD with an error.
 
 ## DTrace / SystemTap
 
-The Pony runtime includes [USDT](https://illumos.org/books/dtrace/chp-usdt.html) (Userland Statically Defined Tracing) probes. They’re consumed by SystemTap on Linux and by DTrace on FreeBSD. No other platform is supported: macOS removed DTrace, and neither DragonFly BSD nor OpenBSD ships a DTrace-compatible probe-generation tool (OpenBSD’s `btrace` is a separate tracer with no USDT support). On DragonFly BSD and OpenBSD, `gmake configure use=dtrace` is rejected with an error rather than failing later in the build.
+The Pony runtime includes [USDT](https://illumos.org/books/dtrace/chp-usdt.html) (Userland Statically Defined Tracing) probes. They’re consumed by SystemTap on Linux and by DTrace on FreeBSD. No other platform is supported: macOS removed DTrace, and neither DragonFly BSD nor OpenBSD ships a DTrace-compatible probe-generation tool (OpenBSD’s `btrace` is a separate tracer with no USDT support). On DragonFly BSD and OpenBSD, configuring with `-DPONY_USES=dtrace` is rejected with an error rather than failing later in the build.
 
 Building requires a `dtrace`-compatible tool on your `PATH`:
 
 ```
-make configure use=dtrace
-make build
+cmake --preset release -DPONY_USES=dtrace
+cmake --build --preset release
 ```
 
 The probes are defined under the `pony` provider and cover:
@@ -1475,7 +1476,7 @@ Statically linked programs (`ponyc --static`) build and run but do not expose th
 
 Runtime bitcode is incompatible with DTrace
 
-A ponyc built with `use=dtrace` cannot compile programs with `--runtimebc`, and rejects the combination with an error. Probe generation operates on native object files, not LLVM bitcode, so the bitcode runtime carries no probes — a `--runtimebc` binary would have none. Use the default static runtime to trace your program.
+A ponyc built with `dtrace` cannot compile programs with `--runtimebc`, and rejects the combination with an error. Probe generation operates on native object files, not LLVM bitcode, so the bitcode runtime carries no probes — a `--runtimebc` binary would have none. Use the default static runtime to trace your program.
 
 ## Runtime Statistics
 
@@ -1489,8 +1490,8 @@ Two options are available:
 For most debugging scenarios, enable both:
 
 ```
-make configure use=runtimestats,runtimestats_messages
-make build
+cmake --preset release -DPONY_USES=runtimestats,runtimestats_messages
+cmake --build --preset release
 ```
 
 For details on the available tracking functions and how to call them from Pony code, see [Tracking Memory Usage at Runtime](https://www.ponylang.io/use/debugging/track-memory-usage/index.md).
@@ -1500,8 +1501,8 @@ For details on the available tracking functions and how to call them from Pony c
 Runtime tracing records events from the Pony scheduler, actor lifecycle, and message passing. Events can be written to a trace file in the background, or stored in in-memory circular buffers that dump to stderr on abnormal termination (SIGILL, SIGSEGV, SIGBUS). Trace files use Chromium JSON format and can be viewed with [Perfetto](https://perfetto.dev/).
 
 ```
-make configure use=runtime_tracing
-make build
+cmake --preset release -DPONY_USES=runtime_tracing
+cmake --build --preset release
 ```
 
 For details on tracing options and usage, see [Tracing Pony Programs](https://www.ponylang.io/use/debugging/tracing/index.md).
@@ -1515,8 +1516,8 @@ A program run under systematic testing has to be deterministic, and keeping it t
 Systematic testing requires two options together:
 
 ```
-make configure use=scheduler_scaling_pthreads,systematic_testing
-make build
+cmake --preset release -DPONY_USES=scheduler_scaling_pthreads,systematic_testing
+cmake --build --preset release
 ```
 
 The `scheduler_scaling_pthreads` option is required because systematic testing needs pthread-based scheduler scaling rather than the default implementation.
@@ -1667,12 +1668,16 @@ The Pony runtime needs to be compiled for ARM. This requires the ponyc source tr
 From the ponyc source directory:
 
 ```
-make cross-libponyrt config=release \
-  CC=arm-linux-gnueabi-gcc \
-  CXX=arm-linux-gnueabi-g++ \
-  arch=armv7-a \
-  cross_cflags="-march=armv7-a -mtune=cortex-a9" \
-  cross_lflags="-O3;-march=arm"
+cmake -B build/armv7-a/build_release -S . \
+  -DCMAKE_CROSSCOMPILING=true -DCMAKE_SYSTEM_NAME=Linux \
+  -DCMAKE_SYSTEM_PROCESSOR=armv7-a \
+  -DCMAKE_C_COMPILER=arm-linux-gnueabi-gcc \
+  -DCMAKE_CXX_COMPILER=arm-linux-gnueabi-g++ \
+  -DPONY_CROSS_LIBPONYRT=true -DCMAKE_BUILD_TYPE=release \
+  -DCMAKE_C_FLAGS="-march=armv7-a -mtune=cortex-a9" \
+  -DCMAKE_CXX_FLAGS="-march=armv7-a -mtune=cortex-a9" \
+  -DPONY_ARCH=armv7-a -DLL_FLAGS="-O3;-march=arm"
+cmake --build build/armv7-a/build_release --config release --target libponyrt crt_objects
 ```
 
 The output lands in `build/armv7-a/release/`.
@@ -1741,12 +1746,16 @@ The Pony runtime needs to be compiled for ARM hard-float. This requires the pony
 From the ponyc source directory:
 
 ```
-make cross-libponyrt config=release \
-  CC=arm-linux-gnueabihf-gcc \
-  CXX=arm-linux-gnueabihf-g++ \
-  arch=armv7-a \
-  cross_cflags="-march=armv7-a -mtune=cortex-a9" \
-  cross_lflags="-O3;-march=arm"
+cmake -B build/armv7-a/build_release -S . \
+  -DCMAKE_CROSSCOMPILING=true -DCMAKE_SYSTEM_NAME=Linux \
+  -DCMAKE_SYSTEM_PROCESSOR=armv7-a \
+  -DCMAKE_C_COMPILER=arm-linux-gnueabihf-gcc \
+  -DCMAKE_CXX_COMPILER=arm-linux-gnueabihf-g++ \
+  -DPONY_CROSS_LIBPONYRT=true -DCMAKE_BUILD_TYPE=release \
+  -DCMAKE_C_FLAGS="-march=armv7-a -mtune=cortex-a9" \
+  -DCMAKE_CXX_FLAGS="-march=armv7-a -mtune=cortex-a9" \
+  -DPONY_ARCH=armv7-a -DLL_FLAGS="-O3;-march=arm"
+cmake --build build/armv7-a/build_release --config release --target libponyrt crt_objects
 ```
 
 The output lands in `build/armv7-a/release/`.
@@ -1817,12 +1826,16 @@ The Pony runtime needs to be compiled for RISC-V. This requires the ponyc source
 From the ponyc source directory:
 
 ```
-make cross-libponyrt config=release \
-  CC=riscv64-linux-gnu-gcc-10 \
-  CXX=riscv64-linux-gnu-g++-10 \
-  arch=rv64gc \
-  cross_cflags="-march=rv64gc -mtune=rocket" \
-  cross_lflags="-march=riscv64"
+cmake -B build/rv64gc/build_release -S . \
+  -DCMAKE_CROSSCOMPILING=true -DCMAKE_SYSTEM_NAME=Linux \
+  -DCMAKE_SYSTEM_PROCESSOR=rv64gc \
+  -DCMAKE_C_COMPILER=riscv64-linux-gnu-gcc-10 \
+  -DCMAKE_CXX_COMPILER=riscv64-linux-gnu-g++-10 \
+  -DPONY_CROSS_LIBPONYRT=true -DCMAKE_BUILD_TYPE=release \
+  -DCMAKE_C_FLAGS="-march=rv64gc -mtune=rocket" \
+  -DCMAKE_CXX_FLAGS="-march=rv64gc -mtune=rocket" \
+  -DPONY_ARCH=rv64gc -DLL_FLAGS="-march=riscv64"
+cmake --build build/rv64gc/build_release --config release --target libponyrt crt_objects
 ```
 
 The output lands in `build/rv64gc/release/`.
@@ -2148,11 +2161,11 @@ Once a trace has been captured, it can be viewed with the [perfetto trace viewer
 Tracing is not enabled by default. You need to build ponyc from source with the `runtime_tracing` option:
 
 ```
-make configure use=runtime_tracing
-make build
+cmake --preset release -DPONY_USES=runtime_tracing
+cmake --build --preset release
 ```
 
-The resulting `ponyc` binary is in `build/release/`. Use it in place of your system `ponyc` to compile programs with tracing enabled.
+The resulting `ponyc` binary is in `build/release-runtime_tracing/` — enabling an option suffixes the output directory with the option name. Use it in place of your system `ponyc` to compile programs with tracing enabled.
 
 For full source build instructions, see [Custom ponyc Builds for Debugging](https://www.ponylang.io/use/compiler/custom-ponyc-builds/index.md).
 
@@ -2224,11 +2237,11 @@ or,
 Memory tracking is not enabled by default. You need to build ponyc from source with the `runtimestats` and `runtimestats_messages` options:
 
 ```
-make configure use=runtimestats,runtimestats_messages
-make build
+cmake --preset release -DPONY_USES=runtimestats,runtimestats_messages
+cmake --build --preset release
 ```
 
-The resulting `ponyc` binary is in `build/release/`. Use it in place of your system `ponyc` to compile programs with memory tracking enabled.
+The resulting `ponyc` binary is in `build/release-runtimestats-runtimestats_messages/` — enabling options suffixes the output directory with the option names. Use it in place of your system `ponyc` to compile programs with memory tracking enabled.
 
 For full source build instructions, see [Custom ponyc Builds for Debugging](https://www.ponylang.io/use/compiler/custom-ponyc-builds/index.md).
 
@@ -4092,11 +4105,7 @@ For example:
 ponyc --pic examples/helloworld
 ```
 
-As of Pony 0.17.0, if you are building `ponyc` from source, you can have `--pic` automatically set for you. When building `ponyc`, run the following `make` command and your generated `ponyc` binary will always supply `--pic` without you having to set it.
-
-```
-make default_pic=true
-```
+A `ponyc` built from source applies `--pic` by default, so you don’t need to set it yourself when using such a compiler.
 
 ## On Windows I get `fatal error LNK1112: module machine type 'x86' conflicts with target machine type 'x64'`
 
