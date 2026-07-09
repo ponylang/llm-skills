@@ -8,8 +8,6 @@ These are the principles this review audits documentation against — a project-
 
 - **Handle sensitive data deliberately**: Documentation must not expose secrets, credentials, internal hostnames, or other sensitive data. Flag anything that should be redacted or doesn't belong in published docs.
 
-- **Document coupling at the point of breakage**: When something depends on another component's internal behavior (a read sequence, execution order, a size assumption), document that dependency where a future maintainer would break it — not only where it's consumed.
-
 - **Document every type parameter**: Reference documentation for a generic type should explain what each type parameter carries — including ones that appear only in field types and look "phantom." They still carry information, and they are exactly the ones that get left undocumented.
 
 - **Documented behavior is a commitment**: A documented guarantee is a contract — easier to add than to retract, because readers come to depend on it. Don't over-promise; document what will actually be held to.
