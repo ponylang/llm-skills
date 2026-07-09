@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file. Entries
 are grouped by date (UTC) with newest first.
 
+## 2026-07-09
+
+- CHANGED: Remove the coupling documentation principle ([PR #57](https://github.com/ponylang/llm-skills/pull/57))
+
 ## 2026-07-04
 
 - ADDED: Flag coupling comments that don't earn their keep in the code review editor persona ([PR #56](https://github.com/ponylang/llm-skills/pull/56))
