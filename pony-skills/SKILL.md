@@ -11,6 +11,7 @@ When one of these applies, load the named skill.
 | When | Load |
 |---|---|
 | Working on Pony at all — before you start, and for questions about capabilities, the type system, the runtime, or testing | `pony-ref` |
+| Before writing or changing a comment or docstring | `pony-comments` |
 | Designing APIs, types, features, or system boundaries (not just implementing an existing design) | `pony-software-design` |
 | Reviewing code, or before opening a PR | `pony-code-review` |
 | Reviewing a documentation-only change | `pony-docs-review` |
