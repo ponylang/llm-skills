@@ -83,7 +83,7 @@ When principles conflict, these values set the priority. We value the left side 
 
 4. **Spawn 9 persona agents in parallel**, each as a fresh-context sub-agent using your most capable model. Each agent's prompt includes:
 
-   - The persona document, read from the corresponding file in `personas/`. When a persona's context loading references an external skill (e.g., `pony-test-design`, `pony-pbt-patterns`, `pony-ref`), read that skill's content and include it in the agent prompt.
+   - The persona document, read from the corresponding file in `personas/`. When a persona's context loading references an external skill (e.g., `pony-comments`, `pony-test-design`, `pony-pbt-patterns`, `pony-ref`), read that skill's content and include it in the agent prompt. The Editor persona's rulebook is `pony-comments`; it must be injected in full or the persona has no standard to review against.
    - The code-review principles: read `references/principles.md` (alongside this skill) and include its content in the agent prompt, the same way referenced skills are injected above. Also instruct the agent to read the project `AGENTS.md` if one exists (not all projects have one; if absent, note it and proceed) and to follow its conventions, including loading any skills it references.
    - The review target: base branch, diff command, PR URL, and any related issue/discussion URLs.
    - Instructions to read all changed files in full (not just diffs), plus supporting files needed for context.
@@ -179,7 +179,7 @@ Pick whichever is most relevant to the change. If multiple conditions apply, pic
 
 4. **Spawn 4 persona agents in parallel**, each as a fresh-context sub-agent using your most capable model. Each agent's prompt includes:
 
-   - The persona document, read from the corresponding file in `personas/`. When a persona's context loading references an external skill (e.g., `pony-test-design`, `pony-pbt-patterns`, `pony-ref`), read that skill's content and include it in the agent prompt.
+   - The persona document, read from the corresponding file in `personas/`. When a persona's context loading references an external skill (e.g., `pony-comments`, `pony-test-design`, `pony-pbt-patterns`, `pony-ref`), read that skill's content and include it in the agent prompt. The Editor persona's rulebook is `pony-comments`; it must be injected in full or the persona has no standard to review against.
    - The code-review principles: read `references/principles.md` (alongside this skill) and include its content in the agent prompt, the same way referenced skills are injected above. Also instruct the agent to read the project `AGENTS.md` if one exists (not all projects have one; if absent, note it and proceed) and to follow its conventions, including loading any skills it references.
    - The review target: base branch, diff command, PR URL, and any related issue/discussion URLs.
    - Instructions to read all changed files in full (not just diffs), plus supporting files needed for context.
