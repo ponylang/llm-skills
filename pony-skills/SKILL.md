@@ -15,7 +15,7 @@ When one of these applies, load the named skill.
 | Designing APIs, types, features, or system boundaries (not just implementing an existing design) | `pony-software-design` |
 | Reviewing code, or before opening a PR | `pony-code-review` |
 | Reviewing a documentation-only change | `pony-docs-review` |
-| Handling a problem found outside the current change — capture it, then vet before filing an issue | `pony-vet-suspected-issues` |
+| A problem you notice while working on something else — decide whether it belongs in your change, and if not, capture it and vet it before filing an issue | `pony-vet-suspected-issues` |
 | Writing tests, or assessing test quality | `pony-test-design` |
 | Writing property-based or generative tests | `pony-pbt-patterns` |
 | Before forming a hypothesis about a non-trivial bug | `pony-debug` |

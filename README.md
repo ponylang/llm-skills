@@ -136,9 +136,9 @@ Ensemble documentation review — the prose counterpart to `pony-code-review`. L
 
 #### pony-vet-suspected-issues
 
-How to handle a problem you find outside the change you're working on — the bug you noticed in passing, or the out-of-scope finding a review turned up. Load it when you spot one, or when a PR is open and you have some to work through.
+How to handle a problem you notice while working on something else — the bug you spotted in passing, or a finding a review turned up. Load it when you spot one, or when a PR is open and you have some to work through.
 
-Instead of filing an issue on the spot, you capture it as a suspected issue and vet it after the PR is open: verify it, find its real scope, check for duplicates, and review the draft before filing — or discard it. `pony-code-review` and `pony-docs-review` route their out-of-scope findings here.
+First you decide whether it belongs to the change you're making — whether that change should have covered it. If it does, it is part of that change. If it doesn't, you capture it as a suspected issue instead of filing on the spot, and vet it after the PR is open: establish it's real, debug it for the cause and how far it reaches, check for duplicates, and review the draft before filing — or discard it. `pony-code-review` and `pony-docs-review` route findings outside the current change here.
 
 #### pony-test-design
 
@@ -156,7 +156,7 @@ Built on one idea — chance is not coverage, so a generator must bias toward wh
 
 Structured debugging protocol with checkpoints. Load it when debugging non-trivial issues — before forming any hypothesis about the cause.
 
-Provides an OODA-loop investigation process: characterize the failure, gather context, build a minimal reproduction, then iterate through hypothesis/experiment/observe cycles until all symptoms are explained. Especially valuable for Pony's subtle failure modes (capability violations, FFI issues, actor lifecycle problems, CI timeouts from undisposed resources).
+Provides an OODA-loop investigation process: characterize the failure, gather context, build a minimal reproduction, then iterate through hypothesis/experiment/observe cycles until all symptoms are explained. Then find every place the cause reaches, and only then where the fix belongs. Especially valuable for Pony's subtle failure modes (capability violations, FFI issues, actor lifecycle problems, CI timeouts from undisposed resources).
 
 ### Infrastructure
 
@@ -212,7 +212,7 @@ Prefer to pick individually? Add any of these instead:
 
 ### pony-vet-suspected-issues trigger
 
-> **Load `pony-vet-suspected-issues` for problems found outside the current change**: When you spot a bug or gap outside the change you're working on, or a review surfaces an out-of-scope finding, capture it as a suspected issue and vet it after the PR is open before filing — don't file on the spot. Load `pony-vet-suspected-issues`.
+> **Load `pony-vet-suspected-issues` for problems you notice while working on something else**: When you spot a bug or gap while working on something else, or a review surfaces a finding outside the current change, first decide whether it belongs to the change you're making — whether that change should have covered it. If it doesn't, capture it as a suspected issue and vet it after the PR is open before filing — don't file on the spot. Load `pony-vet-suspected-issues`.
 
 ### pony-test-design trigger
 
