@@ -96,7 +96,7 @@ What earns a comment, what never belongs in one, and what to do when two distant
 What's in the quick reference:
 
 - Default to not writing a comment; a better name beats a comment that can go stale
-- Never write a fact with a shelf life (what CI runs, whether a test exists, a version)
+- Never write a fact with a shelf life (what CI runs, whether a test exists, a version, what the body does)
 - Never narrate history, list callers, or leave dead status prose
 - The coupling decision: remove it, pin it, or comment both ends — in that order
 
