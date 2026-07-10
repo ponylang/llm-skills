@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file. Entries
 are grouped by date (UTC) with newest first.
 
+## 2026-07-10
+
+- CHANGED: Scope a fix to the defect, not to the report ([PR #60](https://github.com/ponylang/llm-skills/pull/60))
+
 ## 2026-07-09
 
 - ADDED: Add pony-comments, and make the editor review against it ([PR #59](https://github.com/ponylang/llm-skills/pull/59))
