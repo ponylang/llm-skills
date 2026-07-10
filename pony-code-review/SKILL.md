@@ -83,7 +83,7 @@ When principles conflict, these values set the priority. We value the left side 
 
 4. **Spawn 9 persona agents in parallel**, each as a fresh-context sub-agent using your most capable model. Each agent's prompt includes:
 
-   - The persona document, read from the corresponding file in `personas/`. When a persona's context loading references an external skill (e.g., `pony-comments`, `pony-test-design`, `pony-pbt-patterns`, `pony-ref`), read that skill's content and include it in the agent prompt. The Editor persona's rulebook is `pony-comments`; it must be injected in full or the persona has no standard to review against.
+   - The persona document, read from the corresponding file in `personas/`. When a persona's context loading references an external skill (e.g., `pony-prose`, `pony-comments`, `pony-test-design`, `pony-pbt-patterns`, `pony-ref`), read that skill's content and include it in the agent prompt. The Editor persona reviews every kind of prose in the diff, and its rulebooks must be injected in full or it has no standard to review against: `pony-prose` always, plus the form skill for each kind of prose the change touches — `pony-comments` for comments and docstrings in code, `pony-release-notes` for release notes and CHANGELOG entries, `pony-library-readme` or `pony-examples-readme` for READMEs.
    - The code-review principles: read `references/principles.md` (alongside this skill) and include its content in the agent prompt, the same way referenced skills are injected above. Also instruct the agent to read the project `AGENTS.md` if one exists (not all projects have one; if absent, note it and proceed) and to follow its conventions, including loading any skills it references.
    - The review target: base branch, diff command, PR URL, and any related issue/discussion URLs.
    - Instructions to read all changed files in full (not just diffs), plus supporting files needed for context.
@@ -150,9 +150,9 @@ Lightweight mode runs 4 personas in a single pass with no iterative re-review. L
 |------|-------|
 | `correctness.md` | Logic, edge cases, completeness for valid inputs |
 | `adversarial.md` | Concrete break scenarios, backward from failure |
-| `editor.md` | Comment and docstring economy, leaked-artifact sweep |
+| `editor.md` | Prose economy — comments, docstrings, release notes, READMEs — and leaked-artifact sweep |
 
-Editor runs on every lightweight review: verbose or stale comments and leaked review artifacts creep into small changes as readily as big ones, and the persona calibrates its own severity — most concision nits are Low — so it won't flood a small review.
+Editor runs on every lightweight review: wordy or stale prose and leaked review artifacts creep into small changes as readily as big ones, and the persona calibrates its own severity — most economy nits are Low — so it won't flood a small review.
 
 **Context-dependent slot (pick 1):**
 
@@ -180,7 +180,7 @@ Pick whichever is most relevant to the change. If multiple conditions apply, pic
 
 4. **Spawn 4 persona agents in parallel**, each as a fresh-context sub-agent using your most capable model. Each agent's prompt includes:
 
-   - The persona document, read from the corresponding file in `personas/`. When a persona's context loading references an external skill (e.g., `pony-comments`, `pony-test-design`, `pony-pbt-patterns`, `pony-ref`), read that skill's content and include it in the agent prompt. The Editor persona's rulebook is `pony-comments`; it must be injected in full or the persona has no standard to review against.
+   - The persona document, read from the corresponding file in `personas/`. When a persona's context loading references an external skill (e.g., `pony-prose`, `pony-comments`, `pony-test-design`, `pony-pbt-patterns`, `pony-ref`), read that skill's content and include it in the agent prompt. The Editor persona reviews every kind of prose in the diff, and its rulebooks must be injected in full or it has no standard to review against: `pony-prose` always, plus the form skill for each kind of prose the change touches — `pony-comments` for comments and docstrings in code, `pony-release-notes` for release notes and CHANGELOG entries, `pony-library-readme` or `pony-examples-readme` for READMEs.
    - The code-review principles: read `references/principles.md` (alongside this skill) and include its content in the agent prompt, the same way referenced skills are injected above. Also instruct the agent to read the project `AGENTS.md` if one exists (not all projects have one; if absent, note it and proceed) and to follow its conventions, including loading any skills it references.
    - The review target: base branch, diff command, PR URL, and any related issue/discussion URLs.
    - Instructions to read all changed files in full (not just diffs), plus supporting files needed for context.
@@ -225,7 +225,7 @@ The synthesizer should pay special attention to:
 - **Principle violations others missed**: Findings from the Principles persona that no other persona noticed represent systematic blind spots.
 - **Cross-persona corroboration**: When multiple personas independently flag the same issue from different angles, that's high confidence. Call it out.
 - **Scope findings that point different ways**: When several personas each say the change should have covered something different, that is usually one signal rather than many — the change's boundary is drawn in the wrong place. Consolidate them into a single question about where that boundary belongs, weighed against "it is easier to give than take away." Passing along N separate widenings is how a focused change sprawls.
-- **Editor findings**: Most are Low — concision and tidiness. But a leaked internal review artifact (finding ID, round marker, sketch/plan backref) in a published or user-facing file, or a stale comment that actively misleads, is a real defect — don't downgrade it as "just style."
+- **Editor findings**: Most are Low — economy and tidiness. But prose that misleads a reader is a real defect, not "just style": a leaked internal review artifact (finding ID, round marker, sketch/plan backref) in a published or user-facing file, a stale comment that contradicts the code, or a release note that describes the implementation instead of what the user sees. Don't downgrade those.
 - **Wildcard findings**: The wildcard persona deliberately looks for things the other personas miss. Its findings may be unconventional — evaluate them on merit, not on whether they fit a category. If a wildcard finding aligns with a faint signal from another persona, that's strong evidence both caught the same thing from different angles.
 - **Convergence failures** (re-reviews only): Check the review history for signs that an area isn't converging — recurring findings in the same location, fixes that add complexity instead of removing it, different symptoms of the same structural mismatch across rounds. When detected, escalate a specific structural question (see "Convergence Failure Detection" in the iterative workflow section). This is always a parked item.
 - **Pre-existing issues**: Findings about problems in code outside the current change are still findings — never silently discard them. Flag them clearly as pre-existing so the implementer can triage them, starting with whether the change should have covered them. A review that discovers a real problem and then drops it because "it's not part of this PR" has wasted the discovery.
@@ -239,7 +239,7 @@ The synthesizer should pay special attention to:
 - **Adversarial findings the correctness reviewer missed**: These are high-value — the correctness reviewer was looking forward from the code and didn't see the failure path.
 - **Cross-persona corroboration**: When multiple personas independently flag the same issue from different angles, that's high confidence.
 - **Test gaps matching other findings**: When Tests is the context-dependent persona and identifies coverage gaps that align with issues found by Adversarial or Correctness, those are the highest-priority test additions.
-- **Editor findings**: Same as full mode — most are Low (concision, tidiness), but a leaked internal review artifact or a stale comment that actively misleads in a published or user-facing file is a real defect, not just style.
+- **Editor findings**: Same as full mode — most are Low (economy, tidiness), but prose that misleads a reader is a real defect, not just style: a leaked internal review artifact, a stale comment that contradicts the code, or a release note that describes the implementation instead of what the user sees.
 - **Pre-existing issues**: Same as full mode — never silently discard them. Flag as pre-existing for triage; the implementer asks whether the change should have covered them before concluding out-of-scope.
 - **Finding density signal**: If the 4 personas collectively produce more findings than expected for the change size, note this explicitly. A high density of findings on a small change suggests the change is more complex than it appeared and may warrant full mode. This is the synthesizer's primary escalation signal.
 - **When digging deeper**: Same as full mode — summaries by default, evidence files when needed.
@@ -304,5 +304,5 @@ The persona documents are in `personas/`. Full mode uses all 9; lightweight uses
 | `performance.md` | Architectural bottlenecks, then local waste |
 | `tests.md` | Test quality, missing tests, counterfactual reasoning |
 | `principles.md` | Systematic principles audit with evidence |
-| `editor.md` | Comment and docstring economy, leaked-artifact sweep |
+| `editor.md` | Prose economy — comments, docstrings, release notes, READMEs — and leaked-artifact sweep |
 | `wildcard.md` | Chaos agent — finds what the others miss |

@@ -78,6 +78,28 @@ What's in the `references/` directory (read on demand for deeper questions):
 
 ### Project Conventions
 
+#### pony-prose
+
+How the words read in any prose that ships with the code — comments, docstrings, release notes, READMEs, commit messages. Load it before writing any of them. It is the layer under the form-specific skills: they say what belongs in each kind of prose, this says how to write it plainly.
+
+What's in the quick reference:
+
+- Write plainly, and stop there — no flourish pass for these forms
+- Say a fact the reader can check; cover the phrasing and confirm a claim remains
+- Never coin jargon; don't give non-person nouns intent or a job; keep antecedents clear
+- Don't inflate or invent; aim criticism at the problem, never the person
+
+#### pony-comments
+
+What earns a comment, what never belongs in one, and what to do when two distant things must change together. Load it before writing or changing a comment or docstring. Pairs with `pony-prose`, which covers how the words themselves read.
+
+What's in the quick reference:
+
+- Default to not writing a comment; a better name beats a comment that can go stale
+- Never write a fact with a shelf life (what CI runs, whether a test exists, a version)
+- Never narrate history, list callers, or leave dead status prose
+- The coupling decision: remove it, pin it, or comment both ends — in that order
+
 #### pony-examples-readme
 
 Conventions for writing `examples/README.md` files in ponylang projects. Load it when adding, updating, or reorganizing examples.
@@ -128,7 +150,7 @@ Has full (8-persona) and lightweight (5-persona) modes. Full mode runs design (3
 
 Ensemble code review with specialized reviewer personas. Load it when conducting a code review of a PR, branch, or local changes.
 
-Has full (9-persona, iterative re-review) and lightweight (4-persona, single pass) modes. Personas cover correctness, security, performance, API design, test quality, adversarial scenarios, design principles, comment and docstring economy, and wildcard concerns.
+Has full (9-persona, iterative re-review) and lightweight (4-persona, single pass) modes. Personas cover correctness, security, performance, API design, test quality, adversarial scenarios, design principles, prose economy (comments, docstrings, release notes, READMEs), and wildcard concerns.
 
 #### pony-docs-review
 
@@ -185,6 +207,14 @@ Prefer to pick individually? Add any of these instead:
 ### pony-ref trigger
 
 > **Load `pony-ref` proactively when working on Pony code**: At the start of any conversation where the working directory is a Pony project (contains `corral.json` or `*.pony` files), load `pony-ref` before doing any work. Also load it mid-conversation when hitting capabilities, type system, runtime, or testing questions.
+
+### pony-prose trigger
+
+> **Load `pony-prose` before writing prose that ships with the code**: Before writing or changing a comment, docstring, release note, README, issue, PR description, or commit message, load `pony-prose` — the rulebook for writing it plainly.
+
+### pony-comments trigger
+
+> **Load `pony-comments` before writing a comment or docstring**: Before writing or changing any comment or docstring, load `pony-comments` — what earns a comment, what never belongs in one, and how to handle two distant things that must change together.
 
 ### pony-examples-readme trigger
 

@@ -8,6 +8,8 @@ disable-model-invocation: false
 
 These conventions are derived from existing ponylang library READMEs and should be followed when writing or updating a README.md for a Pony library project.
 
+Load `pony-prose` for how the prose reads. This skill says what a README holds; `pony-prose` says how to write it plainly.
+
 ## Required Sections (in order)
 
 Every Pony library README has these sections in this order:

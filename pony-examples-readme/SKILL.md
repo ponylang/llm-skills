@@ -8,6 +8,8 @@ disable-model-invocation: false
 
 These conventions are derived from existing ponylang examples/README.md files (postgres, redis, lori, crdt, uri, web_link). Follow them when writing or updating an examples/README.md.
 
+Load `pony-prose` for how the prose reads. This skill says what an examples README holds; `pony-prose` says how to write it plainly.
+
 ## Structure
 
 1. **Title** — Always `# Examples`.
