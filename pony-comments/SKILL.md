@@ -14,7 +14,9 @@ Load `pony-prose` first: it is the rulebook for how the words read, in a comment
 
 Most comments restate the line beneath them, and the line already said it. Before writing one, try renaming the thing instead. A better name is a comment that cannot go stale.
 
-Write a comment only when a future reader would re-derive it after a debugging session. That is the bar, and most comments do not clear it.
+Write a comment only for a fact a reader needs, that changes a decision they face, and that they can't get from the code in front of them. Name the reader and the decision before you write; if you can't name them, the comment is aimed at nobody — delete it.
+
+The debugging session is the trap. You come out of it with two things that are easy to confuse: the invariant that held, and the sequence of calls that produced it. The invariant is durable — write it. The call sequence describes the current body, and the moment someone rewrites it, the comment is false. You reach for the call sequence because it cost the most to learn, which is the wrong reason to write anything down.
 
 ## Never write a fact with a shelf life
 
@@ -34,6 +36,10 @@ Run this check before you write, not after. It costs nothing:
 The information is still worth having. It belongs where the machinery is documented and maintained: the build file, the CI config, the project's `AGENTS.md`.
 
 One word needs care. "Silently" is a fact about the program when it means the code produces a wrong value and raises nothing. It is a shelf-life claim when it means no test catches it. Only the first belongs in a comment.
+
+The same rot has an inside form, and it is the more tempting one. A comment that describes how the current body does its work — "walks the list twice, once to count" — looks like the safest comment there is, because it is about the code and nothing else. It rots all the same: the moment someone rewrites the body, it's false, and nothing catches it. The check mirrors the one above:
+
+> If rewriting the body — without changing anything a caller relies on — would make this sentence false, then it describes how the code works now, not a fact that outlasts the body, and it does not belong in a comment.
 
 ## A comment exists to explain
 
