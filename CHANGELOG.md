@@ -5,6 +5,7 @@ are grouped by date (UTC) with newest first.
 
 ## 2026-07-10
 
+- ADDED: Add pony-prose, the rulebook for writing prose plainly ([PR #61](https://github.com/ponylang/llm-skills/pull/61))
 - CHANGED: Scope a fix to the defect, not to the report ([PR #60](https://github.com/ponylang/llm-skills/pull/60))
 
 ## 2026-07-09
