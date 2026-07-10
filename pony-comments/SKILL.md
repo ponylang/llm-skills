@@ -8,7 +8,7 @@ disable-model-invocation: false
 
 A comment is forever. The code around it moves, the tests move, the build moves, and the comment stays exactly as written with nothing to tell you it started lying. Comments have no tests. Write accordingly.
 
-This is the rulebook. The editor persona in `pony-code-review` checks changed code against it.
+Load `pony-prose` first: it is the rulebook for how the words read, in a comment or anywhere else. This skill is the rulebook for what earns a comment at all. The editor persona in `pony-code-review` checks changed prose against both.
 
 ## Default: don't
 
@@ -35,9 +35,9 @@ The information is still worth having. It belongs where the machinery is documen
 
 One word needs care. "Silently" is a fact about the program when it means the code produces a wrong value and raises nothing. It is a shelf-life claim when it means no test catches it. Only the first belongs in a comment.
 
-## Never coin jargon
+## A comment exists to explain
 
-A comment exists to explain. One that doesn't is worse than none — it costs the reader effort and returns nothing. Never name what the code does in shorthand you minted on the spot: invented compounds ("green-skip," "main miss"), pseudo-technical labels. The tell is that the term reads like real vocabulary — next to "garbage collection" it looks legitimate — but nobody can decode it, because it means something mundane. Write what happens in plain words. Established domain terms, and terms the project itself defines, are fine.
+One that doesn't is worse than none — it costs the reader effort and returns nothing. The plainness rules that keep a comment legible, including never coining jargon for what the code does, live in `pony-prose`; load it before writing one.
 
 ## Never narrate history
 
@@ -110,7 +110,9 @@ Whether the coupling *can* be tested is a real question and a separate one. If i
 
 ## Docstrings are different
 
-They are for the people using the thing, not the people maintaining it. Write them fully — "default: don't" does not apply. Every rule above about shelf life, jargon, and history still does.
+They are for the people using the thing, not the people maintaining it. Write them fully — "default: don't" does not apply. The rules above about shelf life and history still do, as do all of `pony-prose`'s.
+
+Full does not mean padded. A docstring gives a caller what they need to use the thing correctly: what it does, and the guarantees they can rely on. It says nothing about how it works, and it doesn't restate the signature.
 
 In Pony, `\nodoc\` on test declarations is load-bearing tooling, not prose. Never remove it.
 

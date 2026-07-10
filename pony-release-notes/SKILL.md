@@ -6,6 +6,8 @@ disable-model-invocation: false
 
 # Pony Release Notes & CHANGELOG
 
+Load `pony-prose` for how the words read. This skill says what belongs in a release note; `pony-prose` says how to write it plainly.
+
 ## Writing Style
 
 **Release notes — write for end users, not developers**: Release notes describe user-visible changes only. Omit implementation details (internal refactoring, which functions changed, how the fix works). Focus on what the user experienced before, what they experience now, and why it matters. When introducing new API surface, include a short code example — a concise usage snippet communicates more than descriptive text. Changes that are only relevant to maintainers (internal documentation, code comments, refactoring with no user-visible effect) don't get release notes at all.
