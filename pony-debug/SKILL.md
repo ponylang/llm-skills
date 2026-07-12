@@ -62,6 +62,8 @@ Then loop. Each iteration should narrow the space — ruling out possibilities, 
 
 **Artifact per iteration**: The hypothesis, the experiment, what was observed, and what was learned. Accumulate these — the trail of evidence is how you build toward a complete explanation.
 
+**When the symptom is nondeterministic, orient at the scheduling layer first.** A test that fails on different runs, or passes on some platforms and not others, points at concurrency — scheduler contention, CPU count, actor scheduling, concurrent vs sequential execution — not at code logic. Tracing code paths to prove two versions are logically equivalent is the wrong level of analysis for a scheduling problem; a refactor that preserves logic can still change timing.
+
 **When evidence refutes a hypothesis**: Form a NEW hypothesis from what the evidence actually shows. Do not shift the old hypothesis — "maybe it happens earlier" is the same hypothesis moved upstream. That's defending a theory, not following evidence.
 
 **If stuck after 2-3 iterations without progress**: You are likely anchored to a bad hypothesis. Spawn a fresh-eyes subagent with the original problem, what you've tried, and your current hypothesis. The subagent's job is to verify your assumptions, generate alternative hypotheses, and report back. Act on its findings — don't dismiss them to defend your original theory.
