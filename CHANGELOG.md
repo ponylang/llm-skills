@@ -5,6 +5,7 @@ are grouped by date (UTC) with newest first.
 
 ## 2026-07-12
 
+- CHANGED: Hold edits until an ensemble review round finishes ([PR #65](https://github.com/ponylang/llm-skills/pull/65))
 - CHANGED: Treat prose findings as defects, not style suggestions ([PR #63](https://github.com/ponylang/llm-skills/pull/63))
 
 ## 2026-07-10
