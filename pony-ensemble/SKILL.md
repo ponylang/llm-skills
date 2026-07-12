@@ -26,6 +26,10 @@ Produce higher-confidence outputs through decorrelated reasoning paths. Multiple
 4. Reviewer loop on the synthesis
 5. Present to the human
 
+### Don't edit the artifact mid-round
+
+When an ensemble review runs against a mutable artifact — a working tree, a draft — freeze the artifact until every agent in the round has returned, and apply findings between rounds, never during one. The agents run in parallel against the same artifact; if you edit while they run, each reads a different version, no two agents review the same thing, and the round's agreement is worthless. A finding urgent enough to fix at once is a reason to stop the round, not to edit under it.
+
 ## Attention Focuses
 
 Specified per invocation — the human provides them, or the orchestrator selects contextually appropriate ones. They should be small perturbations, not fundamentally different approaches. The diversity comes from how small differences cascade through the reasoning chain.
