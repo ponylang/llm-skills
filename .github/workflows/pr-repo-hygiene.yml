@@ -1,6 +1,19 @@
 name: Repository Hygiene
 
-on: pull_request
+on:
+  pull_request:
+    paths:
+      # super-linter checks bash, markdown, and yaml. Skill dirs (pony-*/) hold
+      # markdown we don't lint, so a skill-only change shouldn't trigger this
+      # workflow; the negation sits before the yaml/bash globs so a non-markdown
+      # file under a skill dir still would.
+      - '**.md'
+      - '!pony-*/**'
+      - '**.yml'
+      - '**.yaml'
+      - '**.sh'
+      - '**.bash'
+      - '.markdownlintignore'
 
 concurrency:
   group: pr-repo-hygiene-${{ github.ref }}
@@ -23,11 +36,3 @@ jobs:
           VALIDATE_BASH: true
           VALIDATE_MD: true
           VALIDATE_YAML: true
-
-  refresh-website-content:
-    name: Verify refresh-website-content script runs successfully
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6.0.2
-      - name: Run refresh-website-content.sh
-        run: .ci-scripts/refresh-website-content.sh

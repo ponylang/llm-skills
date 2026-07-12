@@ -1,0 +1,22 @@
+name: Verify Refresh Website Content Script
+
+on:
+  pull_request:
+    paths:
+      - '.ci-scripts/refresh-website-content.sh'
+
+concurrency:
+  group: verify-refresh-website-content-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify refresh-website-content script runs successfully
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - name: Run refresh-website-content.sh
+        run: .ci-scripts/refresh-website-content.sh
