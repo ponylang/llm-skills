@@ -1,6 +1,9 @@
 name: Lint GitHub Action Workflows
 
-on: pull_request
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
 
 concurrency:
   group: lint-actions-${{ github.ref }}
