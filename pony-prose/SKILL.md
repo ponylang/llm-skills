@@ -1,6 +1,6 @@
 ---
 name: pony-prose
-description: How the words go in a comment, docstring, release note, or README — write plainly, say the fact, and stop. Load before writing any prose that ships with the code. Language-agnostic.
+description: How the words go in a comment, docstring, release note, README, or a project's AGENTS.md — write plainly, say the fact, and stop. Load before writing any prose that ships with the code. Language-agnostic.
 disable-model-invocation: false
 ---
 
@@ -8,7 +8,7 @@ disable-model-invocation: false
 
 The form tells you what to say. This tells you how to say it.
 
-A comment, a docstring, a release note, a CHANGELOG entry, a README, an issue body, a PR description, a commit message — each has a skill that says what belongs in it and what to leave out. This skill is the layer under all of them: how the words themselves read once you've decided what to write. Load it alongside the form's own skill.
+A comment, a docstring, a release note, a CHANGELOG entry, a README, a project's `AGENTS.md`, an issue body, a PR description, a commit message — each has a skill that says what belongs in it and what to leave out. This skill is the layer under all of them: how the words themselves read once you've decided what to write. Load it alongside the form's own skill.
 
 ## Plain is where you stop
 
@@ -71,4 +71,4 @@ The same fact can be aimed at the problem or at the person. Which one you pick i
 
 ## Where this sits
 
-This skill owns how the words read. It owns nothing about what to say or what to leave out — that is the form's job. `pony-comments` says what earns a comment; `pony-release-notes` says what belongs in a release note; the README skills say what a README holds. Load the form's skill for what to write, and this one for how to write it.
+This skill owns how the words read. It owns nothing about what to say or what to leave out — that is the form's job. `pony-comments` says what earns a comment; `pony-release-notes` says what belongs in a release note; the README skills say what a README holds; `pony-agents-md` says what earns a line in a project's `AGENTS.md`. Load the form's skill for what to write, and this one for how to write it.

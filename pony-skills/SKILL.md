@@ -11,8 +11,9 @@ When one of these applies, load the named skill.
 | When | Load |
 |---|---|
 | Working on Pony at all — before you start, and for questions about capabilities, the type system, the runtime, or testing | `pony-ref` |
-| Writing any prose that ships with the code — a comment, docstring, release note, README, issue, PR description, or commit message | `pony-prose` |
+| Writing any prose that ships with the code — a comment, docstring, release note, README, `AGENTS.md`, issue, PR description, or commit message | `pony-prose` |
 | Before writing or changing a comment or docstring | `pony-comments` |
+| Before writing or changing a project's `AGENTS.md` or `CLAUDE.md` | `pony-agents-md` |
 | Designing APIs, types, features, or system boundaries (not just implementing an existing design) | `pony-software-design` |
 | Reviewing code, or before opening a PR | `pony-code-review` |
 | Reviewing a documentation-only change | `pony-docs-review` |

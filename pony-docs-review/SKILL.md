@@ -61,11 +61,11 @@ The pony-synthesize skill's output format is not a natural fit for documentation
 
 3. **Create a temporary directory for evidence files.** Use `~/tmp/pony-docs-review-<timestamp>/`. Each persona will write its detailed evidence to a file in this directory. Generate the file path for each persona (e.g., `accuracy-evidence.md`) and pass it in the prompt.
 
-4. **Spawn 9 persona agents in parallel**, each as a fresh-context sub-agent using your most capable model. Each agent's prompt includes:
+4. **Spawn 9 persona agents in parallel**, each as a fresh-context sub-agent using your most capable model. When the change touches a project's `AGENTS.md` or `CLAUDE.md`, tell every persona so, scoped to that file: it is loaded into every agent on every task, `pony-agents-md` is its rulebook and is subtractive by design, and findings that would add to it — a coverage gap, a thin section, a rough read — are out of scope. What belongs in it is established by the calibration run `pony-agents-md` describes, not by reading it. Each agent's prompt includes:
 
    - The persona document, read from the corresponding file in `personas/`. When a persona's context loading references an external skill (e.g., `pony-ref`), read that skill's content and include it in the agent prompt.
    - The documentation principles: read `references/principles.md` (alongside this skill) and include its content in the agent prompt, the same way referenced skills are injected above. Also instruct the agent to read the project AGENTS.md if one exists (not all projects have one; if absent, note it and proceed) and to follow its conventions, including loading any skills it references.
-   - **For the Editor persona specifically:** its rulebooks must be injected in full or it has no standard to review against — `pony-prose` always, plus the form skill for each kind of prose the change touches: `pony-library-readme` or `pony-examples-readme` for READMEs, `pony-release-notes` for release notes and CHANGELOG entries.
+   - **For the Editor persona specifically:** its rulebooks must be injected in full or it has no standard to review against — `pony-prose` always, plus the form skill for each kind of prose the change touches: `pony-library-readme` or `pony-examples-readme` for READMEs, `pony-release-notes` for release notes and CHANGELOG entries, `pony-agents-md` for the project's `AGENTS.md` or `CLAUDE.md`.
    - The review target: base branch, diff command, PR URL, and any related issue/discussion URLs.
    - Instructions to read all changed files in full (not just diffs), plus supporting files needed for context.
    - Relevant gathered context from step 2, distributed to the personas that consume it (e.g. source code for Accuracy; related docs or style guides for Consistency or Principles when they run).
@@ -159,11 +159,11 @@ Pick whichever is most relevant to the change. If multiple conditions apply, pic
 
 3. **Create a temporary directory for evidence files.** Use `~/tmp/pony-docs-review-<timestamp>/`. Same convention as full mode.
 
-4. **Spawn 4 persona agents in parallel**, each as a fresh-context sub-agent using your most capable model. Each agent's prompt includes:
+4. **Spawn 4 persona agents in parallel**, each as a fresh-context sub-agent using your most capable model. When the change touches a project's `AGENTS.md` or `CLAUDE.md`, tell every persona so, scoped to that file: it is loaded into every agent on every task, `pony-agents-md` is its rulebook and is subtractive by design, and findings that would add to it — a coverage gap, a thin section, a rough read — are out of scope. What belongs in it is established by the calibration run `pony-agents-md` describes, not by reading it. Each agent's prompt includes:
 
    - The persona document, read from the corresponding file in `personas/`. When a persona's context loading references an external skill, read that skill's content and include it in the agent prompt.
    - The documentation principles: read `references/principles.md` (alongside this skill) and include its content in the agent prompt, the same way referenced skills are injected above. Also instruct the agent to read the project AGENTS.md if one exists (not all projects have one; if absent, note it and proceed) and to follow its conventions, including loading any skills it references.
-   - **For the Editor persona specifically:** its rulebooks must be injected in full or it has no standard to review against — `pony-prose` always, plus the form skill for each kind of prose the change touches: `pony-library-readme` or `pony-examples-readme` for READMEs, `pony-release-notes` for release notes and CHANGELOG entries.
+   - **For the Editor persona specifically:** its rulebooks must be injected in full or it has no standard to review against — `pony-prose` always, plus the form skill for each kind of prose the change touches: `pony-library-readme` or `pony-examples-readme` for READMEs, `pony-release-notes` for release notes and CHANGELOG entries, `pony-agents-md` for the project's `AGENTS.md` or `CLAUDE.md`.
    - The review target: base branch, diff command, PR URL, and any related issue/discussion URLs.
    - Instructions to read all changed files in full (not just diffs), plus supporting files needed for context.
    - Relevant gathered context from step 2, distributed to the personas that consume it (e.g. source code for Accuracy; related docs or style guides for Consistency or Principles when they run).

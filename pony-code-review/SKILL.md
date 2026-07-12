@@ -81,9 +81,9 @@ When principles conflict, these values set the priority. We value the left side 
 
 3. **Create a temporary directory for evidence files.** Use `~/tmp/code-review-<timestamp>/`, where `<timestamp>` is seconds-precision (e.g., `2026-06-05-143052`). Pick a concrete path up front — substitute a real timestamp for `<timestamp>` and reuse that literal path verbatim in every subsequent step. Each shell command runs in a fresh process, so don't try to recompute the path. Each persona will write its detailed evidence to a file in this directory. Generate the file path for each persona (e.g., `correctness-evidence.md`) and pass it in the prompt.
 
-4. **Spawn 9 persona agents in parallel**, each as a fresh-context sub-agent using your most capable model. Each agent's prompt includes:
+4. **Spawn 9 persona agents in parallel**, each as a fresh-context sub-agent using your most capable model. When the change touches a project's `AGENTS.md` or `CLAUDE.md`, tell every persona so, scoped to that file: it is loaded into every agent on every task, `pony-agents-md` is its rulebook and is subtractive by design, and a large deletion from it is the intended shape of a fix, not a regression. Each agent's prompt includes:
 
-   - The persona document, read from the corresponding file in `personas/`. When a persona's context loading references an external skill (e.g., `pony-prose`, `pony-comments`, `pony-test-design`, `pony-pbt-patterns`, `pony-ref`), read that skill's content and include it in the agent prompt. The Editor persona reviews every kind of prose in the diff, and its rulebooks must be injected in full or it has no standard to review against: `pony-prose` always, plus the form skill for each kind of prose the change touches — `pony-comments` for comments and docstrings in code, `pony-release-notes` for release notes and CHANGELOG entries, `pony-library-readme` or `pony-examples-readme` for READMEs.
+   - The persona document, read from the corresponding file in `personas/`. When a persona's context loading references an external skill (e.g., `pony-prose`, `pony-comments`, `pony-test-design`, `pony-pbt-patterns`, `pony-ref`), read that skill's content and include it in the agent prompt. The Editor persona reviews every kind of prose in the diff, and its rulebooks must be injected in full or it has no standard to review against: `pony-prose` always, plus the form skill for each kind of prose the change touches — `pony-comments` for comments and docstrings in code, `pony-release-notes` for release notes and CHANGELOG entries, `pony-library-readme` or `pony-examples-readme` for READMEs, `pony-agents-md` when the change touches the project's `AGENTS.md` or `CLAUDE.md`.
    - The code-review principles: read `references/principles.md` (alongside this skill) and include its content in the agent prompt, the same way referenced skills are injected above. Also instruct the agent to read the project `AGENTS.md` if one exists (not all projects have one; if absent, note it and proceed) and to follow its conventions, including loading any skills it references.
    - The review target: base branch, diff command, PR URL, and any related issue/discussion URLs.
    - Instructions to read all changed files in full (not just diffs), plus supporting files needed for context.
@@ -150,7 +150,7 @@ Lightweight mode runs 4 personas in a single pass with no iterative re-review. L
 |------|-------|
 | `correctness.md` | Logic, edge cases, completeness for valid inputs |
 | `adversarial.md` | Concrete break scenarios, backward from failure |
-| `editor.md` | Prose that breaks the rulebooks — comments, docstrings, release notes, READMEs — and leaked-artifact sweep |
+| `editor.md` | Prose that breaks the rulebooks — comments, docstrings, release notes, READMEs, `AGENTS.md` — and leaked-artifact sweep |
 
 Editor runs on every lightweight review: a small change can carry prose that breaks the rulebooks, or a review artifact left in the text, and no other lightweight persona reviews prose. It groups a file's small tightenings into one finding, so the review gets one entry rather than a list.
 
@@ -178,9 +178,9 @@ Pick whichever is most relevant to the change. If multiple conditions apply, pic
 
 3. **Create a temporary directory for evidence files.** Use `~/tmp/code-review-<timestamp>/`. Same convention as full mode.
 
-4. **Spawn 4 persona agents in parallel**, each as a fresh-context sub-agent using your most capable model. Each agent's prompt includes:
+4. **Spawn 4 persona agents in parallel**, each as a fresh-context sub-agent using your most capable model. When the change touches a project's `AGENTS.md` or `CLAUDE.md`, tell every persona so, scoped to that file: it is loaded into every agent on every task, `pony-agents-md` is its rulebook and is subtractive by design, and a large deletion from it is the intended shape of a fix, not a regression. Each agent's prompt includes:
 
-   - The persona document, read from the corresponding file in `personas/`. When a persona's context loading references an external skill (e.g., `pony-prose`, `pony-comments`, `pony-test-design`, `pony-pbt-patterns`, `pony-ref`), read that skill's content and include it in the agent prompt. The Editor persona reviews every kind of prose in the diff, and its rulebooks must be injected in full or it has no standard to review against: `pony-prose` always, plus the form skill for each kind of prose the change touches — `pony-comments` for comments and docstrings in code, `pony-release-notes` for release notes and CHANGELOG entries, `pony-library-readme` or `pony-examples-readme` for READMEs.
+   - The persona document, read from the corresponding file in `personas/`. When a persona's context loading references an external skill (e.g., `pony-prose`, `pony-comments`, `pony-test-design`, `pony-pbt-patterns`, `pony-ref`), read that skill's content and include it in the agent prompt. The Editor persona reviews every kind of prose in the diff, and its rulebooks must be injected in full or it has no standard to review against: `pony-prose` always, plus the form skill for each kind of prose the change touches — `pony-comments` for comments and docstrings in code, `pony-release-notes` for release notes and CHANGELOG entries, `pony-library-readme` or `pony-examples-readme` for READMEs, `pony-agents-md` when the change touches the project's `AGENTS.md` or `CLAUDE.md`.
    - The code-review principles: read `references/principles.md` (alongside this skill) and include its content in the agent prompt, the same way referenced skills are injected above. Also instruct the agent to read the project `AGENTS.md` if one exists (not all projects have one; if absent, note it and proceed) and to follow its conventions, including loading any skills it references.
    - The review target: base branch, diff command, PR URL, and any related issue/discussion URLs.
    - Instructions to read all changed files in full (not just diffs), plus supporting files needed for context.
@@ -304,5 +304,5 @@ The persona documents are in `personas/`. Full mode uses all 9; lightweight uses
 | `performance.md` | Architectural bottlenecks, then local waste |
 | `tests.md` | Test quality, missing tests, counterfactual reasoning |
 | `principles.md` | Systematic principles audit with evidence |
-| `editor.md` | Prose that breaks the rulebooks — comments, docstrings, release notes, READMEs — and leaked-artifact sweep |
+| `editor.md` | Prose that breaks the rulebooks — comments, docstrings, release notes, READMEs, `AGENTS.md` — and leaked-artifact sweep |
 | `wildcard.md` | Chaos agent — finds what the others miss |
