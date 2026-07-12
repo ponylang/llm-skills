@@ -150,11 +150,11 @@ Has full (8-persona) and lightweight (5-persona) modes. Full mode runs design (3
 
 Ensemble code review with specialized reviewer personas. Load it when conducting a code review of a PR, branch, or local changes.
 
-Has full (9-persona, iterative re-review) and lightweight (4-persona, single pass) modes. Personas cover correctness, security, performance, API design, test quality, adversarial scenarios, design principles, prose economy (comments, docstrings, release notes, READMEs), and wildcard concerns.
+Has full (9-persona, iterative re-review) and lightweight (4-persona, single pass) modes. Personas cover correctness, security, performance, API design, test quality, adversarial scenarios, design principles, prose that breaks `pony-prose` or `pony-comments` (comments, docstrings, release notes, READMEs), and wildcard concerns.
 
 #### pony-docs-review
 
-Ensemble documentation review — the prose counterpart to `pony-code-review`. Load it when reviewing a documentation-only change (tutorials, READMEs, reference pages). Has full (8-persona, iterative re-review) and lightweight (3-persona, single pass) modes; personas cover accuracy, completeness, clarity, structure, consistency, reader experience, principles, and wildcard concerns.
+Ensemble documentation review — the prose counterpart to `pony-code-review`. Load it when reviewing a documentation-only change (tutorials, READMEs, reference pages). Has full (9-persona, iterative re-review) and lightweight (4-persona, single pass) modes; personas cover accuracy, completeness, prose that breaks `pony-prose`, audience fit, structure, consistency, reader experience, principles, and wildcard concerns.
 
 #### pony-vet-suspected-issues
 
