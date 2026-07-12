@@ -33,7 +33,7 @@ Run this check before you write, not after. It costs nothing:
 
 > If deleting a test or editing a workflow would make this sentence false, it does not belong in a comment.
 
-The information is still worth having. It belongs where the machinery is documented and maintained: the build file, the CI config, the project's `AGENTS.md`.
+The information is still worth having. It belongs where the machinery is documented and maintained: the build file, the CI config, the project's `AGENTS.md`. If it is the `AGENTS.md`, load `pony-agents-md` first — that file is read on every task in the repository, and it has its own bar for what earns a line.
 
 One word needs care. "Silently" is a fact about the program when it means the code produces a wrong value and raises nothing. It is a shelf-life claim when it means no test catches it. Only the first belongs in a comment.
 

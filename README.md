@@ -80,7 +80,7 @@ What's in the `references/` directory (read on demand for deeper questions):
 
 #### pony-prose
 
-How the words read in any prose that ships with the code — comments, docstrings, release notes, READMEs, commit messages. Load it before writing any of them. It is the layer under the form-specific skills: they say what belongs in each kind of prose, this says how to write it plainly.
+How the words read in any prose that ships with the code — comments, docstrings, release notes, READMEs, a project's `AGENTS.md`, commit messages. Load it before writing any of them. It is the layer under the form-specific skills: they say what belongs in each kind of prose, this says how to write it plainly.
 
 What's in the quick reference:
 
@@ -99,6 +99,19 @@ What's in the quick reference:
 - Never write a fact with a shelf life (what CI runs, whether a test exists, a version, what the body does)
 - Never narrate history, list callers, or leave dead status prose
 - The coupling decision: remove it, pin it, or comment both ends — in that order
+
+#### pony-agents-md
+
+What earns a line in a project's `AGENTS.md`, and what never belongs in one. Load it before writing or changing `AGENTS.md` or `CLAUDE.md`. The file is read on every task in the repository, so it is the most expensive prose the project has — and the agent adding to it is the one who can least see that cost.
+
+What's in the quick reference:
+
+- A line earns its place only if reading it there is cheaper and truer than reading the code
+- Name the one thing in the code a fact is about; if you can name it, it belongs to that thing, not this file
+- Never describe the current code — a state table, a field list, a call sequence, a restated signature
+- What earns a line: the picture no single file can hold, the commands, the conventions, and the traps
+- When it goes out of date, delete it rather than update it
+- Don't review your own addition — spawn a cold reader that has not seen your change
 
 #### pony-examples-readme
 
@@ -150,7 +163,7 @@ Has full (8-persona) and lightweight (5-persona) modes. Full mode runs design (3
 
 Ensemble code review with specialized reviewer personas. Load it when conducting a code review of a PR, branch, or local changes.
 
-Has full (9-persona, iterative re-review) and lightweight (4-persona, single pass) modes. Personas cover correctness, security, performance, API design, test quality, adversarial scenarios, design principles, prose that breaks `pony-prose` or `pony-comments` (comments, docstrings, release notes, READMEs), and wildcard concerns.
+Has full (9-persona, iterative re-review) and lightweight (4-persona, single pass) modes. Personas cover correctness, security, performance, API design, test quality, adversarial scenarios, design principles, prose that breaks the rulebooks (comments, docstrings, release notes, READMEs, `AGENTS.md`), and wildcard concerns.
 
 #### pony-docs-review
 
@@ -210,11 +223,15 @@ Prefer to pick individually? Add any of these instead:
 
 ### pony-prose trigger
 
-> **Load `pony-prose` before writing prose that ships with the code**: Before writing or changing a comment, docstring, release note, README, issue, PR description, or commit message, load `pony-prose` — the rulebook for writing it plainly.
+> **Load `pony-prose` before writing prose that ships with the code**: Before writing or changing a comment, docstring, release note, README, `AGENTS.md`, issue, PR description, or commit message, load `pony-prose` — the rulebook for writing it plainly.
 
 ### pony-comments trigger
 
 > **Load `pony-comments` before writing a comment or docstring**: Before writing or changing any comment or docstring, load `pony-comments` — what earns a comment, what never belongs in one, and how to handle two distant things that must change together.
+
+### pony-agents-md trigger
+
+> **Load `pony-agents-md` before writing a project's `AGENTS.md`**: Before writing or changing `AGENTS.md` or `CLAUDE.md`, load `pony-agents-md` — what earns a line in a file that is read on every task, and what belongs to the code instead.
 
 ### pony-examples-readme trigger
 
