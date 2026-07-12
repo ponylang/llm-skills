@@ -109,9 +109,9 @@ When pony-code-review runs as part of the pre-PR pipeline, findings go back to t
 
 ### Finding Triage
 
-The implementer categorizes each finding. Every finding must be categorized — no finding is silently dropped, regardless of severity.
+The implementer categorizes each finding. Every finding must be categorized — no finding is silently dropped, regardless of severity. Severity is not an input to this decision: it says what a finding costs if left in, not whether it may be left in. A Low finding whose fix is obvious is fixed, the same as a Critical one.
 
-- **Fix**: The right action is obvious from the finding itself. Bugs, missing tests, stale docs, pattern violations, naming issues. Fix without waiting for the human.
+- **Fix**: The right action is obvious from the finding itself. Bugs, missing tests, stale docs, pattern violations, naming issues, and prose that breaks `pony-prose` or `pony-comments` — a broken rule is a defect, not a suggestion. Fix without waiting for the human.
 - **Park**: The finding needs the human's input. Design questions, principle tensions, ambiguous tradeoffs where reasonable people could disagree. Also park findings you disagree with — don't dismiss them. Parked items are listed in the PR for the human to weigh in on.
 - **Out of scope**: What is left after you have asked whether the change should have covered it. Where the code sits is not the test. A change scoped too small has a diff that is too small, so "it isn't in the diff" rules out exactly the findings that would prove the change is too small. Ask first: does this finding mean the change is scoped too small? (`pony-vet-suspected-issues` has the test.) If it does, it is a Fix when covering it is the same kind of work the change already does, and a Park when covering it changes what the change is. Only what survives that question is out of scope. Don't fix it in this PR, and don't file an issue for it on the spot. Capture it as a suspected issue — carry the finding, its location, the evidence, and which persona(s) flagged it — and vet it after this PR is open before filing: confirm it still holds, find its real scope, check for duplicates, and review the draft. Load `pony-vet-suspected-issues` for the procedure. Filing straight from a review tends to produce issues that are wrong or miss the real scope; the persona's evidence is the starting point for vetting, not the finished issue.
 
@@ -150,9 +150,9 @@ Lightweight mode runs 4 personas in a single pass with no iterative re-review. L
 |------|-------|
 | `correctness.md` | Logic, edge cases, completeness for valid inputs |
 | `adversarial.md` | Concrete break scenarios, backward from failure |
-| `editor.md` | Prose economy — comments, docstrings, release notes, READMEs — and leaked-artifact sweep |
+| `editor.md` | Prose that breaks the rulebooks — comments, docstrings, release notes, READMEs — and leaked-artifact sweep |
 
-Editor runs on every lightweight review: wordy or stale prose and leaked review artifacts creep into small changes as readily as big ones, and the persona calibrates its own severity — most economy nits are Low — so it won't flood a small review.
+Editor runs on every lightweight review: a small change can carry prose that breaks the rulebooks, or a review artifact left in the text, and no other lightweight persona reviews prose. It groups a file's small tightenings into one finding, so the review gets one entry rather than a list.
 
 **Context-dependent slot (pick 1):**
 
@@ -204,9 +204,9 @@ Pick whichever is most relevant to the change. If multiple conditions apply, pic
 
 ### Finding Triage (Lightweight, Integrated)
 
-Same categories as full mode:
+Same categories as full mode, and the same rule: severity is not an input. A Low finding whose fix is obvious is fixed.
 
-- **Fix**: Obvious action from the finding itself. Fix without waiting.
+- **Fix**: Obvious action from the finding itself, including prose that breaks `pony-prose` or `pony-comments`. Fix without waiting.
 - **Park**: Needs the human's input. Listed in the PR.
 - **Out of scope**: What is left after asking whether the change should have covered it — not simply "in code outside this change." If the finding shows the change is scoped too small, it is a Fix when covering it is the same kind of work the change already does, and a Park when covering it changes what the change is. Only what survives becomes a suspected issue: capture it and vet it after the PR before filing — load `pony-vet-suspected-issues`; don't file on the spot.
 
@@ -225,7 +225,7 @@ The synthesizer should pay special attention to:
 - **Principle violations others missed**: Findings from the Principles persona that no other persona noticed represent systematic blind spots.
 - **Cross-persona corroboration**: When multiple personas independently flag the same issue from different angles, that's high confidence. Call it out.
 - **Scope findings that point different ways**: When several personas each say the change should have covered something different, that is usually one signal rather than many — the change's boundary is drawn in the wrong place. Consolidate them into a single question about where that boundary belongs, weighed against "it is easier to give than take away." Passing along N separate widenings is how a focused change sprawls.
-- **Editor findings**: Most are Low — economy and tidiness. But prose that misleads a reader is a real defect, not "just style": a leaked internal review artifact (finding ID, round marker, sketch/plan backref) in a published or user-facing file, a stale comment that contradicts the code, or a release note that describes the implementation instead of what the user sees. Don't downgrade those.
+- **Editor findings**: Every one cites a broken rule, so every one is a defect and none is a suggestion. Rank them by what the prose costs a reader — prose that misleads costs most, wordiness least — and never let a low rank read as permission to leave one in.
 - **Wildcard findings**: The wildcard persona deliberately looks for things the other personas miss. Its findings may be unconventional — evaluate them on merit, not on whether they fit a category. If a wildcard finding aligns with a faint signal from another persona, that's strong evidence both caught the same thing from different angles.
 - **Convergence failures** (re-reviews only): Check the review history for signs that an area isn't converging — recurring findings in the same location, fixes that add complexity instead of removing it, different symptoms of the same structural mismatch across rounds. When detected, escalate a specific structural question (see "Convergence Failure Detection" in the iterative workflow section). This is always a parked item.
 - **Pre-existing issues**: Findings about problems in code outside the current change are still findings — never silently discard them. Flag them clearly as pre-existing so the implementer can triage them, starting with whether the change should have covered them. A review that discovers a real problem and then drops it because "it's not part of this PR" has wasted the discovery.
@@ -239,7 +239,7 @@ The synthesizer should pay special attention to:
 - **Adversarial findings the correctness reviewer missed**: These are high-value — the correctness reviewer was looking forward from the code and didn't see the failure path.
 - **Cross-persona corroboration**: When multiple personas independently flag the same issue from different angles, that's high confidence.
 - **Test gaps matching other findings**: When Tests is the context-dependent persona and identifies coverage gaps that align with issues found by Adversarial or Correctness, those are the highest-priority test additions.
-- **Editor findings**: Same as full mode — most are Low (economy, tidiness), but prose that misleads a reader is a real defect, not just style: a leaked internal review artifact, a stale comment that contradicts the code, or a release note that describes the implementation instead of what the user sees.
+- **Editor findings**: Same as full mode — every one cites a broken rule, so every one is a defect and none is a suggestion. Never downgrade one into style.
 - **Pre-existing issues**: Same as full mode — never silently discard them. Flag as pre-existing for triage; the implementer asks whether the change should have covered them before concluding out-of-scope.
 - **Finding density signal**: If the 4 personas collectively produce more findings than expected for the change size, note this explicitly. A high density of findings on a small change suggests the change is more complex than it appeared and may warrant full mode. This is the synthesizer's primary escalation signal.
 - **When digging deeper**: Same as full mode — summaries by default, evidence files when needed.
@@ -250,8 +250,8 @@ Findings grouped by severity, then by location:
 
 **Critical** (must fix before merge)
 **High** (should fix — real risk if left)
-**Medium** (would improve the code, not blocking)
-**Low** (suggestions, style)
+**Medium** (worth fixing; nothing is broken)
+**Low** (a small cost; nothing false or missing)
 
 Each finding:
 - **Location**: `file:line`
@@ -304,5 +304,5 @@ The persona documents are in `personas/`. Full mode uses all 9; lightweight uses
 | `performance.md` | Architectural bottlenecks, then local waste |
 | `tests.md` | Test quality, missing tests, counterfactual reasoning |
 | `principles.md` | Systematic principles audit with evidence |
-| `editor.md` | Prose economy — comments, docstrings, release notes, READMEs — and leaked-artifact sweep |
+| `editor.md` | Prose that breaks the rulebooks — comments, docstrings, release notes, READMEs — and leaked-artifact sweep |
 | `wildcard.md` | Chaos agent — finds what the others miss |

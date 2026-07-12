@@ -167,9 +167,16 @@ synthesizer to work from:
   coverage target) under scrutiny
 - **Concern**: What the problem is
 - **Impact**: Structural (requires rethinking the test approach), significant
-  (requires notable changes to the candidate), or minor (small adjustment)
+  (requires notable changes to the candidate), or minor (a local
+  change; the rest of the candidate is unaffected)
 - **Evidence**: Brief — full evidence is in the file
-- **Suggested change**: If applicable
+- **Suggested change**: Write it whenever you can. A concern you can name but
+  cannot resolve is still a finding — say so, and say what blocks you.
+
+Impact is what the finding costs the candidate: how much of it has to
+change. It is not permission to leave the finding alone — report a minor
+finding exactly as you report a structural one, and stage 2 synthesis categorizes
+every finding, at every impact level.
 
 The impact assessment helps the synthesizer with categorization without
 pre-empting it. A persona's "structural" assessment is a strong signal toward

@@ -1,12 +1,12 @@
 ---
 name: pony-docs-review
-description: Ensemble documentation review with specialized reviewer personas. Has full (8-persona) and lightweight (3-persona) modes. Load when reviewing documentation-only changes where code-focused personas don't apply.
+description: Ensemble documentation review with specialized reviewer personas. Has full (9-persona) and lightweight (4-persona) modes. Load when reviewing documentation-only changes where code-focused personas don't apply.
 disable-model-invocation: false
 ---
 
 # Documentation Review
 
-Ensemble documentation review that synthesizes findings from specialized reviewer personas. Has two modes: full (8 personas, iterative re-review) and lightweight (3 personas, single pass). Not for one-line typo fixes or trivial formatting changes — for those, a lightweight self-review is sufficient.
+Ensemble documentation review that synthesizes findings from specialized reviewer personas. Has two modes: full (9 personas, iterative re-review) and lightweight (4 personas, single pass). Not for one-line typo fixes or trivial formatting changes — for those, a lightweight self-review is sufficient.
 
 ## Mode Selection
 
@@ -40,7 +40,7 @@ These modes apply to both full and lightweight:
 
 ## Relationship to Ensemble Workflow
 
-Use the ensemble workflow with documentation-review-specific customizations. Load `pony-ensemble` for the mechanical process. This skill replaces the generic attention focuses with documentation review personas (8 for full mode, 3 for lightweight) and replaces the generic agent output format with the review-specific format defined below.
+Use the ensemble workflow with documentation-review-specific customizations. Load `pony-ensemble` for the mechanical process. This skill replaces the generic attention focuses with documentation review personas (9 for full mode, 4 for lightweight) and replaces the generic agent output format with the review-specific format defined below.
 
 The ensemble protocol requires an adversarial focus when reviewing fixes. Pony-docs-review does not have a dedicated adversarial persona because documentation "fixes" (correcting factual errors, filling gaps) don't have the same failure mode as code fixes — there's no analog to "the bug still occurs despite the fix." When a pony-docs-review targets a documentation fix, the Accuracy persona naturally covers the adversarial concern: verifying that the corrected information is actually correct and that the fix doesn't introduce new inaccuracies. This satisfies the ensemble protocol's "fix reviews require an adversarial focus" requirement — no additional adversarial agent is needed. The orchestrator should note this in the Accuracy persona's prompt when the review target is a fix.
 
@@ -61,10 +61,11 @@ The pony-synthesize skill's output format is not a natural fit for documentation
 
 3. **Create a temporary directory for evidence files.** Use `~/tmp/pony-docs-review-<timestamp>/`. Each persona will write its detailed evidence to a file in this directory. Generate the file path for each persona (e.g., `accuracy-evidence.md`) and pass it in the prompt.
 
-4. **Spawn 8 persona agents in parallel**, each as a fresh-context sub-agent using your most capable model. Each agent's prompt includes:
+4. **Spawn 9 persona agents in parallel**, each as a fresh-context sub-agent using your most capable model. Each agent's prompt includes:
 
    - The persona document, read from the corresponding file in `personas/`. When a persona's context loading references an external skill (e.g., `pony-ref`), read that skill's content and include it in the agent prompt.
    - The documentation principles: read `references/principles.md` (alongside this skill) and include its content in the agent prompt, the same way referenced skills are injected above. Also instruct the agent to read the project AGENTS.md if one exists (not all projects have one; if absent, note it and proceed) and to follow its conventions, including loading any skills it references.
+   - **For the Editor persona specifically:** its rulebooks must be injected in full or it has no standard to review against — `pony-prose` always, plus the form skill for each kind of prose the change touches: `pony-library-readme` or `pony-examples-readme` for READMEs, `pony-release-notes` for release notes and CHANGELOG entries.
    - The review target: base branch, diff command, PR URL, and any related issue/discussion URLs.
    - Instructions to read all changed files in full (not just diffs), plus supporting files needed for context.
    - Relevant gathered context from step 2, distributed to the personas that consume it (e.g. source code for Accuracy; related docs or style guides for Consistency or Principles when they run).
@@ -73,7 +74,7 @@ The pony-synthesize skill's output format is not a natural fit for documentation
    - Instructions that a change whose scope is wrong is itself a finding, in either direction. Too small: the persona sees something the change should have covered — another page the same problem reaches, another place the convention being introduced belongs. Too large: it sees something in the change that no justification ties to the rest. Ask whether one reason accounts for everything the change does, and whether anything it should account for is missing. Don't withhold either kind because of where it sits in the diff. Everyone who looks at a change is responsible for whether its scope is right; no single step owns that.
    - Instructions that this is an ensemble agent — return findings to the orchestrator, don't take external actions.
 
-   **For the Wildcard persona specifically:** include the identity statement (first paragraph) from each of the other 7 personas so the wildcard knows what territory is already covered.
+   **For the Wildcard persona specifically:** include the identity statement (first paragraph) from each of the other 8 personas so the wildcard knows what territory is already covered.
 
 5. **Triage agent outputs** per ensemble protocol — check that each persona addressed the actual documentation and stayed coherent.
 
@@ -89,9 +90,9 @@ When pony-docs-review runs as part of the pre-PR pipeline, findings go back to t
 
 ### Finding Triage
 
-The implementer categorizes each finding. Every finding must be categorized — no finding is silently dropped, regardless of severity.
+The implementer categorizes each finding. Every finding must be categorized — no finding is silently dropped, regardless of severity. Severity is not an input to this decision: it says what a finding costs if left in, not whether it may be left in. A Low finding whose fix is obvious is fixed, the same as a Critical one.
 
-- **Fix**: The right action is obvious from the finding itself. Factual errors, broken examples, missing steps, stale cross-references, terminology inconsistencies. Fix without waiting.
+- **Fix**: The right action is obvious from the finding itself. Factual errors, broken examples, missing steps, stale cross-references, terminology inconsistencies, and prose that breaks `pony-prose` — a broken rule is a defect, not a suggestion. Fix without waiting.
 - **Park**: The finding needs the maintainer's input. Tone questions, scope decisions, audience disagreements, ambiguous tradeoffs where reasonable people could disagree. Also park findings you disagree with — don't dismiss them. Parked items are listed in the PR for the maintainer to weigh in on.
 - **Out of scope**: What is left after you have asked whether the change should have covered it. Where the documentation sits is not the test. A change scoped too small has a diff that is too small, so "it isn't in the diff" rules out exactly the findings that would prove the change is too small. Ask first: does this finding mean the change is scoped too small? (`pony-vet-suspected-issues` has the test.) If it does, it is a Fix when covering it is the same kind of work the change already does, and a Park when covering it changes what the change is. Only what survives that question is out of scope. Don't fix it in this PR, and don't file an issue for it on the spot. Capture it as a suspected issue — carry the finding, its location, the evidence, and which persona(s) flagged it — and vet it after this PR is open before filing: confirm it still holds, find its real scope, check for duplicates, and review the draft. Load `pony-vet-suspected-issues` for the procedure. Filing straight from a review tends to produce issues that are wrong or miss the real scope; the persona's evidence is the starting point for vetting, not the finished issue.
 
@@ -120,16 +121,19 @@ The loop ends when no findings remain except parked and out-of-scope items (the 
 
 ## Process: Lightweight Mode
 
-Lightweight mode runs 3 personas in a single pass with no iterative re-review. Load `pony-ensemble` for the mechanical process.
+Lightweight mode runs 4 personas in a single pass with no iterative re-review. Load `pony-ensemble` for the mechanical process.
 
 ### Personas
 
-**Core pair (always run):**
+**Core trio (always run):**
 
 | File | Focus |
 |------|-------|
 | `accuracy.md` | Technical correctness — cross-references claims against source code |
 | `completeness.md` | Coverage gaps — missing prerequisites, skipped steps, unstated assumptions |
+| `editor.md` | Prose that breaks the rulebooks — plainness, coined jargon, anthropomorphizing, flourish standing in for the fact — and leaked-artifact sweep |
+
+Editor runs on every lightweight review. Documentation is prose end to end, so even a one-page change can carry prose that breaks the rulebooks, and no other lightweight persona reviews against them. It groups a page's small tightenings into one finding, so the review gets one entry rather than a list.
 
 **Context-dependent slot (pick 1):**
 
@@ -144,8 +148,8 @@ Pick whichever is most relevant to the change. If multiple conditions apply, pic
 
 **Not included in lightweight:**
 
-- **Clarity** — important but lower severity than accuracy/completeness; unclear writing can be re-read, wrong or missing information can't be worked around. If the change is large enough to benefit from a dedicated clarity pass, it's large enough for full mode.
-- **Wildcard** — the wildcard's value scales with change complexity and the number of other personas whose territory it needs to look beyond. With only 3 focused personas on a small change, there's insufficient covered territory for the wildcard to add meaningful signal.
+- **Clarity** — the prose rulebooks are not lost with it: Editor carries `pony-prose` and reviews every line, and Completeness flags a term or a prerequisite the documentation never states. What a lightweight review gives up is the dedicated audience-fit pass. This is about what the persona is worth on a small change, not about what its findings rank — a clarity finding is a defect and gets fixed like any other.
+- **Wildcard** — the wildcard's value scales with change complexity and the number of other personas whose territory it needs to look beyond. With only 4 focused personas on a small change, there's insufficient covered territory for the wildcard to add meaningful signal.
 
 ### Steps
 
@@ -155,10 +159,11 @@ Pick whichever is most relevant to the change. If multiple conditions apply, pic
 
 3. **Create a temporary directory for evidence files.** Use `~/tmp/pony-docs-review-<timestamp>/`. Same convention as full mode.
 
-4. **Spawn 3 persona agents in parallel**, each as a fresh-context sub-agent using your most capable model. Each agent's prompt includes:
+4. **Spawn 4 persona agents in parallel**, each as a fresh-context sub-agent using your most capable model. Each agent's prompt includes:
 
    - The persona document, read from the corresponding file in `personas/`. When a persona's context loading references an external skill, read that skill's content and include it in the agent prompt.
    - The documentation principles: read `references/principles.md` (alongside this skill) and include its content in the agent prompt, the same way referenced skills are injected above. Also instruct the agent to read the project AGENTS.md if one exists (not all projects have one; if absent, note it and proceed) and to follow its conventions, including loading any skills it references.
+   - **For the Editor persona specifically:** its rulebooks must be injected in full or it has no standard to review against — `pony-prose` always, plus the form skill for each kind of prose the change touches: `pony-library-readme` or `pony-examples-readme` for READMEs, `pony-release-notes` for release notes and CHANGELOG entries.
    - The review target: base branch, diff command, PR URL, and any related issue/discussion URLs.
    - Instructions to read all changed files in full (not just diffs), plus supporting files needed for context.
    - Relevant gathered context from step 2, distributed to the personas that consume it (e.g. source code for Accuracy; related docs or style guides for Consistency or Principles when they run).
@@ -181,9 +186,9 @@ Pick whichever is most relevant to the change. If multiple conditions apply, pic
 
 ### Finding Triage (Lightweight, Integrated)
 
-Same categories as full mode:
+Same categories as full mode, and the same rule: severity is not an input. A Low finding whose fix is obvious is fixed.
 
-- **Fix**: Obvious action from the finding itself. Fix without waiting.
+- **Fix**: Obvious action from the finding itself, including prose that breaks `pony-prose`. Fix without waiting.
 - **Park**: Needs the human's input. Listed in the PR.
 - **Out of scope**: What is left after asking whether the change should have covered it — not simply "in documentation outside this change." If the finding shows the change is scoped too small, it is a Fix when covering it is the same kind of work the change already does, and a Park when covering it changes what the change is. Only what survives becomes a suspected issue: capture it and vet it after the PR before filing — load `pony-vet-suspected-issues`; don't file on the spot.
 
@@ -198,6 +203,7 @@ The synthesizer should pay special attention to:
 - **Severity conflicts**: When one persona flags something as critical and another doesn't mention it, investigate why. The persona that flagged it may have domain-specific knowledge the others lack. Don't average severity — if one reviewer says "critical" with evidence, the finding is critical.
 - **Accuracy findings other personas missed**: These are high-value — technically wrong content that passed clarity, structure, and completeness checks. The other personas were evaluating the documentation as prose; only Accuracy cross-referenced it against reality.
 - **Completeness + Reader Experience alignment**: When both flag the same gap from different angles (Completeness: "step 3 is missing"; Reader Experience: "a reader would get stuck here"), that's the highest-priority addition.
+- **Editor findings**: Every one names a broken rule, so every one is a defect and none is a suggestion. Rank by what the prose costs a reader; never downgrade one into style.
 - **Clarity clusters**: Multiple clarity findings in the same section suggest the section needs restructuring, not sentence-level fixes. Escalate to a structural observation.
 - **Cross-persona corroboration**: When multiple personas independently flag the same issue from different angles, that's high confidence. Call it out.
 - **Scope findings that point different ways**: When several personas each say the change should have covered something different, that is usually one signal rather than many — the change's boundary is drawn in the wrong place. Consolidate them into a single question about where that boundary belongs, weighed against "it is easier to give than take away." Passing along N separate widenings is how a focused change sprawls.
@@ -214,16 +220,17 @@ The synthesizer should pay special attention to:
 - **Accuracy findings the completeness reviewer missed**: These are high-value — the content was there but wrong.
 - **Cross-persona corroboration**: When multiple personas independently flag the same issue from different angles, that's high confidence.
 - **Context-dependent persona alignment**: When the context-dependent persona's findings align with Accuracy or Completeness findings, those are the highest-priority items.
+- **Editor findings**: Every one names a broken rule, so every one is a defect and none is a suggestion. Never downgrade one into style.
 - **Pre-existing issues**: Same as full mode — never silently discard them. Flag as pre-existing for triage; the implementer asks whether the change should have covered them before concluding out-of-scope.
-- **Finding density signal**: If the 3 personas collectively produce more findings than expected for the change size, note this explicitly. A high density of findings on a small change suggests the change is more complex than it appeared and may warrant full mode. This is the synthesizer's primary escalation signal.
+- **Finding density signal**: If the personas collectively produce more findings than expected for the change size, note this explicitly. A high density of findings on a small change suggests the change is more complex than it appeared and may warrant full mode. This is the synthesizer's primary escalation signal.
 - **When digging deeper**: Same as full mode — summaries by default, evidence files when needed.
 
 ## Severity Calibration
 
 - **Critical** (must fix before merge): Technically incorrect information that would cause harm — wrong commands that could damage a system, incorrect security guidance, code examples that produce wrong results
 - **High** (should fix — real risk if left): Missing critical information that would leave readers stuck, misleading content that leads to wrong conclusions, broken code examples
-- **Medium** (would improve the docs, not blocking): Clarity issues that slow comprehension, structural problems that make information hard to find, inconsistencies between documents
-- **Low** (suggestions, style): Formatting, minor wording improvements, suggestions
+- **Medium** (worth fixing; nothing is broken): Clarity issues that slow comprehension, structural problems that make information hard to find, inconsistencies between documents
+- **Low** (a small cost; nothing false or missing): Formatting, minor wording improvements
 
 ## Final Output Format
 
@@ -231,8 +238,8 @@ Findings grouped by severity, then by location:
 
 **Critical** (must fix before merge)
 **High** (should fix — real risk if left)
-**Medium** (would improve the docs, not blocking)
-**Low** (suggestions, style)
+**Medium** (worth fixing; nothing is broken)
+**Low** (a small cost; nothing false or missing)
 
 Each finding:
 - **Location**: `file:line`
@@ -274,13 +281,14 @@ Confidence calibration: **High** = verified by reading source code, checking cro
 
 ## Personas
 
-The persona documents are in `personas/`. Full mode uses all 8; lightweight uses Accuracy + Completeness + one context-dependent persona (see "Process: Lightweight Mode" for selection criteria).
+The persona documents are in `personas/`. Full mode uses all 9; lightweight uses Accuracy + Completeness + Editor + one context-dependent persona (see "Process: Lightweight Mode" for selection criteria).
 
 | File | Focus |
 |------|-------|
 | `accuracy.md` | Technical correctness — cross-references claims against source code |
 | `completeness.md` | Coverage gaps — missing prerequisites, skipped steps, unstated assumptions |
-| `clarity.md` | Language quality — ambiguity, jargon, unclear antecedents |
+| `editor.md` | Prose that breaks the rulebooks — plainness, coined jargon, anthropomorphizing, flourish standing in for the fact — and leaked-artifact sweep |
+| `clarity.md` | Audience fit — ambiguity, undefined terms, passive voice, assumed background |
 | `structure.md` | Organization and flow — information architecture, concept ordering, findability |
 | `consistency.md` | Internal and external consistency — terminology, formatting, cross-references |
 | `reader-experience.md` | End-to-end journey — can the audience achieve their goal? |
