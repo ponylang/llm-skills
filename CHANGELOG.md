@@ -5,6 +5,7 @@ are grouped by date (UTC) with newest first.
 
 ## 2026-07-12
 
+- ADDED: Point nondeterministic failures at scheduling, not logic ([PR #67](https://github.com/ponylang/llm-skills/pull/67))
 - ADDED: Note that a tag reference doesn't keep an object's fields alive ([PR #66](https://github.com/ponylang/llm-skills/pull/66))
 - ADDED: Add pony-agents-md, the rulebook for what belongs in AGENTS.md ([PR #64](https://github.com/ponylang/llm-skills/pull/64))
 - CHANGED: Hold edits until an ensemble review round finishes ([PR #65](https://github.com/ponylang/llm-skills/pull/65))
