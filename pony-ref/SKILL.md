@@ -107,6 +107,8 @@ Works with constructors too — `String.>append("hello").>append(" world")` crea
 
 13. **Don't use `fun tag` on primitives**: Primitives are `val`, and the default method receiver is `box`. Since `val <: box`, plain `fun` works on primitives without annotation. `fun tag` compiles but pointlessly weakens the receiver to `tag`, which can't read fields — it's never what you want on a primitive. Just use `fun`.
 
+14. **A `tag` reference doesn't keep an object's fields alive**: `tag` is opaque, so ORCA doesn't trace through it. Holding an object only through a `tag` keeps the object's own allocation alive, but its fields can still be collected. Through a `val`, `ref`, or `box` reference ORCA does trace the fields and keeps them alive. This matters across an FFI boundary: to keep a Pony object alive while C holds a raw pointer to it, root the object itself through a non-`tag` reference, or root the exact object C points at. Rooting a container through a `tag` and expecting its fields to survive doesn't work.
+
 ## Integer Arithmetic Modes
 
 Pony integers have **three** arithmetic modes — choose based on how you want to handle overflow:
