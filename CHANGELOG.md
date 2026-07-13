@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file. Entries
 are grouped by date (UTC) with newest first.
 
+## 2026-07-13
+
+- ADDED: Reject formulaic docstring openers like "Names the..." ([PR #69](https://github.com/ponylang/llm-skills/pull/69))
+
 ## 2026-07-12
 
 - ADDED: Point nondeterministic failures at scheduling, not logic ([PR #67](https://github.com/ponylang/llm-skills/pull/67))
