@@ -86,6 +86,7 @@ What's in the quick reference:
 
 - Write plainly, and stop there — no flourish pass for these forms
 - Say a fact the reader can check; cover the phrasing and confirm a claim remains
+- Cut formulaic docstring openers ("Names the…", "Holds the…", "This method…") and say what the thing is
 - Never coin jargon; don't give non-person nouns intent or a job; keep antecedents clear
 - Don't inflate or invent; aim criticism at the problem, never the person
 
