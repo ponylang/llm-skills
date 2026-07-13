@@ -35,6 +35,10 @@ Flourish that stands in for content is the most common failure and the hardest t
 
 All six are the same move: you reached for how it sounds instead of stating what is true. Cover the phrasing; if a fact is left, keep it; if not, write the fact in.
 
+## Cut formulaic docstring openers
+
+"Names the current stdin subscription." "Represents the retry budget." "Holds the parsed header." "This method returns the count." Each describes the field or the method instead of the thing itself. Cover the opener — "Names the," "Represents the," "Holds the," "Stores the," "This method" — and read what is left: if a plain description of the thing remains, the opener was carrying nothing; if nothing remains, you described the code element and never said what the thing is. Write what it is or does: "The current stdin subscription." "Returns the number of active connections."
+
 ## Never coin jargon
 
 Prose exists to explain. Never name what the code does in shorthand you minted on the spot: invented compounds ("green-skip," "main miss"), pseudo-technical labels. The tell is that the term reads like real vocabulary — next to "garbage collection" it looks legitimate — but nobody can decode it, because it means something mundane. Write what happens in plain words. Established domain terms, and terms the project itself defines, are fine.
