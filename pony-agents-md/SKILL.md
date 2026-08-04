@@ -94,7 +94,7 @@ A file that keeps going out of date is not under-maintained. It is describing so
 
 You are the worst-placed agent in the project to judge what belongs here. You have just done the work. Every detail is loaded, every one was expensive, and all of it feels necessary. The agent this file is written for arrives knowing none of it — and that agent is the only one whose judgment counts, because it is the reader.
 
-So don't judge. Spawn the reader.
+So don't judge. Spawn the reader — use `claude-opus-4-6` if the session uses an Anthropic model, otherwise your most capable available model.
 
 Do this for a new section, a rewrite, or anything you would have to argue for. A one-line command fix does not need it.
 
