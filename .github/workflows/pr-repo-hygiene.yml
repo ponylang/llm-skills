@@ -3,16 +3,11 @@ name: Repository Hygiene
 on:
   pull_request:
     paths:
-      # super-linter checks bash, markdown, and yaml. Skill dirs (pony-*/) hold
-      # markdown we don't lint, so a skill-only change shouldn't trigger this
-      # workflow; the negation sits before the yaml/bash globs so a non-markdown
-      # file under a skill dir still would.
       - '**.md'
       - '!pony-*/**'
-      - '**.yml'
-      - '**.yaml'
       - '**.sh'
       - '**.bash'
+      - '.markdownlint.yml'
       - '.markdownlintignore'
 
 concurrency:
@@ -23,16 +18,18 @@ permissions:
   packages: read
 
 jobs:
-  superlinter:
-    name: Lint bash, markdown, and yaml
+  lint-markdown:
+    name: Lint markdown
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6.0.2
-      - name: Lint codebase
-        uses: docker://github/super-linter:v3.8.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VALIDATE_ALL_CODEBASE: true
-          VALIDATE_BASH: true
-          VALIDATE_MD: true
-          VALIDATE_YAML: true
+      - name: Lint markdown
+        uses: docker://ghcr.io/ponylang/shared-docker-ci-markdownlint:20260810
+
+  lint-shell:
+    name: Lint shell scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - name: Lint shell scripts
+        uses: docker://ghcr.io/ponylang/shared-docker-ci-shellcheck:20260810
