@@ -40,6 +40,7 @@ behind the language.
 - [Track Memory Usage](https://www.ponylang.io/use/debugging/track-memory-usage/index.md)
 - [Rule Reference](https://www.ponylang.io/use/linting/rule-reference/index.md)
 - [Performance Cheat Sheet](https://www.ponylang.io/use/performance/pony-performance-cheat-sheet/index.md)
+- [Profiling](https://www.ponylang.io/use/performance/profiling/index.md)
 - [Coverage Reports](https://www.ponylang.io/use/testing/coverage-reports/index.md)
 
 ## FAQ
