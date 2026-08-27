@@ -466,3 +466,10 @@ aren't looking for.
 or checks a tautological property ("the result is not nil" when the function
 never returns nil) provides false confidence. Every proposed test should have a
 concrete code mutation that would make it fail.
+
+**Mirroring internal layout instead of asserting on the contract.** A test that
+copies constants, offset arithmetic, or internal geometry from the code under
+test is testing that the implementation matches a snapshot of itself — not that
+it upholds a promise. Assert on observables the design guarantees. When the
+geometry changes, contract-level assertions still hold; mirrored-constant
+assertions break on every refactor.
