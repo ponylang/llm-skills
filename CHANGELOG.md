@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file. Entries
 are grouped by date (UTC) with newest first.
 
+## 2026-08-27
+
+- ADDED: Add anti-pattern: mirroring internal layout in test assertions ([PR #72](https://github.com/ponylang/llm-skills/pull/72))
+
 ## 2026-08-04
 
 - CHANGED: Specify claude-opus-4-6 for writing subagents on Anthropic sessions ([PR #70](https://github.com/ponylang/llm-skills/pull/70))
