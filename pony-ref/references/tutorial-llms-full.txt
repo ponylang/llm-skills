@@ -567,7 +567,30 @@ A common use case for this is initialising and cleaning up C libraries without r
 
 # Actors
 
-An **actor** is similar to a **class**, but with one critical difference: an actor can have **behaviours**.
+In Pony, **classes** and **actors** share many similarities and much of what you’ve already learned about the former directly transfers to the latter.
+
+## Declaration
+
+Let’s start by looking at how syntactically similar an actor declaration is to a class declaration. We can take one of our earlier “class Wombat” examples and turn it into an “actor Aardvark” simply by changing the `class` keyword to `actor` and renaming to “Aardvark”.
+
+```
+actor Aardvark
+  let name: String
+  var _hunger_level: U64 = 0
+
+  new create(name': String) =>
+    name = name'
+```
+
+## Instantiation
+
+When it comes time to instantiate an Aardvark, the syntactic similarities continue: We instantiate actors the same way we instantiate objects. Unlike some other actor-oriented languages and frameworks, there’s no special syntax or method to “spawn” an actor in Pony.
+
+```
+let aardvark = Aardvark("Arnie")
+```
+
+Despite these similarities, it’s important to note that there are substantial differences between actors and objects when it comes to how the rest of your Pony code will interact with them. After it’s instantiated, all interaction with an actor must be through its **behaviours**. Since our Aardvark doesn’t yet have any, we’ll need to add some if we want it to be useful.
 
 ## Behaviours
 
@@ -593,7 +616,13 @@ actor Aardvark
     _hunger_level = _hunger_level - amount.min(_hunger_level)
 ```
 
-Here we have an `Aardvark` that can eat asynchronously. Clever Aardvark.
+Here we have an `Aardvark` that can eat asynchronously. Clever Aardvark. To make it eat, we simply call the “eat” behavior on that instance.
+
+```
+aardvark.eat(99)
+```
+
+This looks just like a synchronous function call but we’re actually **passing a message** to `aardvark` requesting that the behavior be executed asynchronously.
 
 ## Message Passing
 
