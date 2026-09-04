@@ -68,6 +68,7 @@ The Pony Tutorial is a comprehensive guide to the Pony programming language, an 
 ## Generics
 
 - [Overview](https://tutorial.ponylang.io/generics/index.md)
+- [Using Generics](https://tutorial.ponylang.io/generics/using-generics.md)
 - [Generics and Reference Capabilities](https://tutorial.ponylang.io/generics/generics-and-reference-capabilities.md)
 - [Constraints](https://tutorial.ponylang.io/generics/generic-constraints.md)
 
@@ -89,6 +90,7 @@ The Pony Tutorial is a comprehensive guide to the Pony programming language, an 
 - [Calling C from Pony](https://tutorial.ponylang.io/c-ffi/calling-c.md)
 - [Linking to C Libraries](https://tutorial.ponylang.io/c-ffi/linking-c.md)
 - [C Shims](https://tutorial.ponylang.io/c-ffi/c-shims.md)
+- [Exporting Pony Methods to C](https://tutorial.ponylang.io/c-ffi/exporting.md)
 - [Callbacks](https://tutorial.ponylang.io/c-ffi/callbacks.md)
 
 ## Runtime Basics
