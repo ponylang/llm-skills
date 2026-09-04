@@ -342,6 +342,15 @@ can be instantiated with:
 - `#any^` = {iso^, trn^, ref, val, box, tag}
 - `#send^` = {iso^, val, tag}
 
+### Constraint Cap Defaults
+
+When a type parameter constraint names a type without an explicit capability,
+the constraint gets the type's declared default capability — `ref` for classes
+and interfaces, `val` for primitives, `tag` for actors. Writing
+`class Foo[A: SomeClass]` means `A: SomeClass ref`, not `A: SomeClass #any`.
+To allow any capability, write the cap set explicitly:
+`class Foo[A: SomeClass #any]`.
+
 ### Partial Reification
 
 The key technique for type-checking generics. Rather than treating type
@@ -349,6 +358,22 @@ variables as opaque, partial reification assigns concrete capabilities from
 within bounds and checks all possible instantiations exhaustively. A type
 expression is valid only if it reduces successfully under every well-formed
 partial reification.
+
+### Generic Viewpoint Adaptation Bounds
+
+The concrete viewpoint adaptation tables above define how a field capability
+adapts through a concrete origin. For generic capability parameters (`#read`,
+`#alias`, `#any`, and their ephemeral variants), the compiler computes upper
+and lower bounds by intersecting the results across all concrete capabilities
+in the generic's expansion. The soundness criteria:
+
+- Upper bound `U`: `upset(U) ⊆ ∩(upset(concrete_k))` for each `k` in the
+  expansion.
+- Lower bound `L`: `downset(L) ⊆ ∩(downset(concrete_k))`.
+
+When the intersection is empty, no valid bound exists (the operation cannot
+be typed). Ephemeral capabilities (`iso^`, `trn^`) participate in these
+computations and produce tighter bounds for ephemeral origins.
 
 ### Known Issues Found
 
