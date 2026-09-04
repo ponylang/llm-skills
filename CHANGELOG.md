@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file. Entries
 are grouped by date (UTC) with newest first.
 
+## 2026-09-04
+
+- CHANGED: Update pony-ref for ponyc 0.70.0 steed model changes ([PR #74](https://github.com/ponylang/llm-skills/pull/74))
+
 ## 2026-08-27
 
 - ADDED: Add anti-pattern: mirroring internal layout in test assertions ([PR #72](https://github.com/ponylang/llm-skills/pull/72))
