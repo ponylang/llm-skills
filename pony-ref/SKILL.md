@@ -107,7 +107,9 @@ Works with constructors too — `String.>append("hello").>append(" world")` crea
 
 13. **Don't use `fun tag` on primitives**: Primitives are `val`, and the default method receiver is `box`. Since `val <: box`, plain `fun` works on primitives without annotation. `fun tag` compiles but pointlessly weakens the receiver to `tag`, which can't read fields — it's never what you want on a primitive. Just use `fun`.
 
-14. **A `tag` reference doesn't keep an object's fields alive**: `tag` is opaque, so ORCA doesn't trace through it. Holding an object only through a `tag` keeps the object's own allocation alive, but its fields can still be collected. Through a `val`, `ref`, or `box` reference ORCA does trace the fields and keeps them alive. This matters across an FFI boundary: to keep a Pony object alive while C holds a raw pointer to it, root the object itself through a non-`tag` reference, or root the exact object C points at. Rooting a container through a `tag` and expecting its fields to survive doesn't work.
+14. **Constraints use the named type's default cap**: When a type parameter constraint names a type without an explicit capability, the constraint gets the type's default cap — `ref` for classes and interfaces, `val` for primitives, `tag` for actors. Writing `class Foo[A: Stringable]` means `A: Stringable ref`, not `A: Stringable #any`. To constrain to any capability, write the cap set explicitly: `class Foo[A: Stringable #any]`. This matters most in intersection constraints where one member has an explicit cap — `(Comparable[A] val & Stringable)` constrains `Stringable` to `ref`, making the intersection unsatisfiable; write `(Comparable[A] val & Stringable val)`.
+
+15. **A `tag` reference doesn't keep an object's fields alive**: `tag` is opaque, so ORCA doesn't trace through it. Holding an object only through a `tag` keeps the object's own allocation alive, but its fields can still be collected. Through a `val`, `ref`, or `box` reference ORCA does trace the fields and keeps them alive. This matters across an FFI boundary: to keep a Pony object alive while C holds a raw pointer to it, root the object itself through a non-`tag` reference, or root the exact object C points at. Rooting a container through a `tag` and expecting its fields to survive doesn't work.
 
 ## Integer Arithmetic Modes
 
@@ -162,6 +164,25 @@ primitive Utils                     // Singleton, default cap is val
   fun helper(): U32 => 42
 ```
 
+## Generic Type Argument Inference
+
+Type arguments can often be omitted when the compiler can infer them from the call's arguments:
+
+```pony
+// Before: Sorter.sort[U8](U8(3), U8(1))
+// After:
+let result = Sorter.sort(U8(3), U8(1))
+
+// Constructors too:
+// Before: Pair[String, U8]("hello", U8(42))
+// After:
+let p = Pair("hello", U8(42))
+```
+
+Inference works when each type parameter is determined by at least one argument position. Array literals and lambdas at positions whose parameter type mentions the type parameter are skipped during inference and typed afterward, so at least one other argument must pin the type.
+
+Write type arguments explicitly when using: union-typed parameters, type aliases wrapping a generic type, `where` named-only arguments, or when no argument position determines the type parameter.
+
 ## PonyCheck (Property-Based Testing)
 
 **Two ways to write property tests**:
@@ -185,6 +206,7 @@ Do NOT try `primitive MyGen is GenObj[String]` or `class MyGen is GenObj[String]
 - `IntProperty` trait — tests a property across all 14 Pony integer types automatically
 - ASCII range types (`ASCIIPrintable`, `ASCIILetters`, `ASCIIDigits`, etc.) for controlling string generation character sets
 - `Generators.one_of` for selecting from a fixed set, `Generators.frequency` for weighted selection
+- `Generators.set_of`, `Generators.map_of` take `(gen where min = 0, max = 100)` — pass `min = 1` for non-empty collections
 
 **Gotchas**:
 - `flat_map` shrinking is incomplete (TODO in source) — only shrinks on inner generator, not outer
