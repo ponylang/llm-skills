@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file. Entries
 are grouped by date (UTC) with newest first.
 
+## 2026-09-09
+
+- ADDED: Add portability evaluation persona to pony-test-design ([PR #75](https://github.com/ponylang/llm-skills/pull/75))
+
 ## 2026-09-04
 
 - CHANGED: Update pony-ref for ponyc 0.70.0 steed model changes ([PR #74](https://github.com/ponylang/llm-skills/pull/74))
