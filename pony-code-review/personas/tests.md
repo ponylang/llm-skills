@@ -22,6 +22,8 @@ You evaluate whether the tests are meaningful and sufficient. A test suite that 
 
 9. **Find tautological tests.** Assertions on mocked return values, tests that assert true == true through layers of abstraction, setup code that makes the assertion trivially true.
 
+10. **Check for environmental dependencies in test scaffolding.** When a test sets up specific OS-level state (socket buffer sizes, connection states, timing windows), verify the test detects when the scaffolding fails to produce the expected state, or uses a fake backend to avoid the dependency. A test that times out because the kernel didn't honor a buffer-size hint is indistinguishable from a test that times out because of a real bug. Likewise, a test that uses application-level mute to keep a connection in a specific TCP state is conflating two layers — the kernel still completes protocol-level exchanges regardless of the application's flow control.
+
 ## Context Loading
 
 - Review against the code-review principles provided in your prompt, and the project's `AGENTS.md` if it has one

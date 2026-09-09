@@ -1,6 +1,6 @@
 ---
 name: pony-test-design
-description: Two-stage ensemble for planning meaningful tests. Load when writing tests for new features or reviewing test quality. Counters the tendency to write tests that exercise the stdlib instead of your code. Has full (8-persona) and lightweight (5-persona) modes.
+description: Two-stage ensemble for planning meaningful tests. Load when writing tests for new features or reviewing test quality. Counters the tendency to write tests that exercise the stdlib instead of your code. Has full (9-persona) and lightweight (5-persona) modes.
 disable-model-invocation: false
 ---
 
@@ -55,7 +55,7 @@ attention focuses.
 
 This skill uses the ensemble workflow with domain-specific customizations.
 Stage 1 (planning) runs as a standard ensemble with 3 personas. Stage 2
-(evaluation) runs as a second ensemble with 5 personas, using the Stage 1
+(evaluation) runs as a second ensemble with 6 personas, using the Stage 1
 synthesis output as its input. The two-stage loop and finding categorization
 (Rejection/Adjustment/Tension) are additions specific to this skill — the
 base ensemble protocol handles agent spawning, triage, and synthesis
@@ -118,7 +118,7 @@ can assess them systematically. The synthesis should pay special attention to:
 
 ### Stage 2: Evaluation
 
-Five evaluation personas stress-test the candidate test strategy in parallel.
+Six evaluation personas stress-test the candidate test strategy in parallel.
 Their input is the Integrated Result from Stage 1 synthesis — the candidate
 test strategy with its proposed tests, input approaches, and expected
 assertions. They evaluate the test strategy against the code under test —
@@ -131,10 +131,11 @@ definitions are in `personas/evaluation/`.
 | `coverage.md` | Systematic gap analysis — missing edge cases, boundaries, adversarial scenarios |
 | `counterfactual.md` | Can each proposed test actually fail when the code breaks? |
 | `property-opportunity.md` | Would properties provide stronger coverage than examples? |
-| `wildcard.md` | What all 7 other personas missed |
+| `portability.md` | Does the scaffolding depend on OS, kernel, or platform behavior? |
+| `wildcard.md` | What all 8 other personas missed |
 
 For the wildcard persona specifically: include the identity statement (first
-paragraph) from each of the other 7 personas so the wildcard knows what
+paragraph) from each of the other 8 personas so the wildcard knows what
 territory is already covered.
 
 Before spawning evaluation personas, create a temporary directory for evidence
@@ -313,6 +314,7 @@ lens is most relevant to the task:
 | Tests have non-obvious assertions or complex code paths | `counterfactual.md` |
 | Code under test has many branches, states, or variants | `coverage.md` |
 | Tests use example-based inputs for behavior with potential invariants | `property-opportunity.md` |
+| Tests use real sockets, timers, or OS resources | `portability.md` |
 
 Pick whichever is closest — every test strategy has some risk profile. If
 multiple conditions apply, pick the most relevant one. If the reason for
@@ -473,3 +475,25 @@ test is testing that the implementation matches a snapshot of itself — not tha
 it upholds a promise. Assert on observables the design guarantees. When the
 geometry changes, contract-level assertions still hold; mirrored-constant
 assertions break on every refactor.
+
+**Application-level control as OS-level guarantee.** A test that mutes a
+connection and assumes the OS won't complete a TCP half-close is conflating two
+layers. Mute is a library concept; the kernel still ACKs FINs. If a test needs
+a connection to stay in a specific state, the scaffolding must control the state
+directly — through a fake backend or by preventing the protocol-level exchange —
+not hope the OS cooperates with an application-level pause.
+
+**Scaffolding that depends on socket buffer hints.** `SO_SNDBUF` and
+`SO_RCVBUF` are hints. The kernel may double them, enforce a minimum larger than
+the requested value, or ignore them entirely. A test that depends on a fixed
+payload triggering backpressure will time out on a kernel that absorbs the
+payload without throttling. If the test needs backpressure, it should detect
+whether backpressure actually formed and fail fast with a diagnostic rather than
+hanging at its timeout.
+
+**Negative assertions behind timers.** "X must not happen for N milliseconds"
+proves absence within a window, not structural prevention. The test can pass
+vacuously on a system where X never has a chance to happen, or fail spuriously
+when an unrelated event (an OS-level close, a scheduler delay) fires during the
+window. Assert on the mechanism that prevents X rather than waiting to see
+whether X happens.
