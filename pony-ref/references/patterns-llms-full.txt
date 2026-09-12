@@ -549,7 +549,7 @@ Batch size is a tradeoff. Smaller batches mean the actor yields more often, whic
 
 One thing to be aware of: between batches, other messages sent to this actor will be processed. If another actor sends a second `process` call while the first is still working through its chunks, the two will interleave. Depending on your application, that might be perfectly fine or it might be a problem. If you need multi-step processing to be atomic (no interleaving), the [Access](https://patterns.ponylang.io/async/access.html) pattern addresses exactly that concern. Batch and Yield and Access solve opposite problems: Access prevents interleaving when you don’t want it; Batch and Yield deliberately introduces interleaving so the scheduler can share time fairly.
 
-You’ll see this same structure in Pony’s networking layer. `TCPConnection` delivers incoming data to a `received` method that returns a `Bool`. Returning `true` tells the enclosing behavior to continue delivering data. Returning `false` causes the behavior to exit — it’s literally Batch and Yield. The next read will come from a new behavior call, giving the scheduler a chance to run other actors in between.
+You’ll see this same structure in Pony’s networking layer. When data arrives on a TCP connection, the `on_received` callback returns a `ReadAction`. Returning `KeepReading` causes the read loop to continue delivering data. Returning `YieldReading` causes the loop to stop after this message — it’s literally Batch and Yield. The next read will come from a new behavior call, giving the scheduler a chance to run other actors in between.
 
 The [Supervisor and Worker](https://patterns.ponylang.io/async/supervisor-worker.html) pattern distributes work across multiple actors. If your workers are processing large datasets, they should use Batch and Yield internally so each worker plays fair with the scheduler while doing its share.
 
@@ -1255,7 +1255,7 @@ Despite the pattern’s name, Pony’s `embed` keyword can’t be used here. An 
 
 You might have noticed the `match _notify` in every callback within `Connection`. That’s the cost of the `none()` constructor: the notify field is a union type because the placeholder instance has no actor to reference. In practice, the `none()` instance is never used for real processing, so the `None` branch never fires at runtime. The match is a type-system ceremony, not a meaningful code path.
 
-The real payoff shows up in production libraries. [Lori](https://github.com/ponylang/lori), the Pony networking library, uses exactly this pattern. Its `TCPConnection` class runs to roughly 1300 lines of connection management logic: socket setup, read/write buffering, backpressure, error handling. The `TCPConnectionActor` trait is about 40 lines of behavior forwarding. A concrete echo server actor built on top of lori is around 17 lines. All the complexity lives in the class; the actor just plugs in its application-specific callbacks. [Stallion](https://github.com/ponylang/stallion), a Pony HTTP server, layers on top of lori: its `HTTPServer` wraps lori’s TCP connection class, demonstrating that the pattern composes across library boundaries.
+The real payoff shows up in production libraries. Pony’s standard library `net` package uses exactly this pattern. Its `TCPConnection` class runs to roughly 2000 lines of connection management logic: socket setup, read/write buffering, backpressure, error handling. The `TCPConnectionActor` trait is about 40 lines of behavior forwarding. A concrete echo server actor built on top of it is around 17 lines. All the complexity lives in the class; the actor just plugs in its application-specific callbacks. [Stallion](https://github.com/ponylang/stallion), a Pony HTTP server, layers on top of the stdlib’s TCP connection class, demonstrating that the pattern composes across library boundaries.
 
 Because the logic lives in a `class ref` rather than an actor, it can be instantiated and tested synchronously. You don’t need the actor runtime to verify that your protocol handler correctly tracks state transitions or counts bytes. Create the class, call its methods, check the results. Different actors can embed the same class and provide different callback implementations, giving you reuse without duplication. That combination of testability and reuse is what makes this pattern foundational for anyone building I/O libraries in Pony.
 
@@ -3767,7 +3767,7 @@ The type alias and pattern matching work identically to the primitive case. Choo
 
 The [Static Constructor](https://patterns.ponylang.io/creation/static-constructor.html) pattern applies union-type returns to object construction — the factory function returns either the constructed object or an error describing why construction failed. The [Peek Before Consume](https://patterns.ponylang.io/streaming/peek-before-consume.html) pattern uses union-type returns to distinguish three outcomes in streaming protocol parsers: a parsed value, incomplete data, and malformed input.
 
-This pattern appears throughout the Pony ecosystem. The [ponylang/lori](https://github.com/ponylang/lori) networking library defines `SendError` as a union of `SendErrorNotConnected` and `SendErrorNotWriteable`. The [ponylang/postgres](https://github.com/ponylang/postgres) driver uses `ClientQueryError` to distinguish query failures. The standard library’s `files` package uses `FileErrNo` to represent OS-level file errors.
+This pattern appears throughout the Pony ecosystem. The standard library’s `net` package defines `SendToFailure` as a union of `SendToWouldBlock`, `SendToError`, and `SendToNotOpen`. The [ponylang/postgres](https://github.com/ponylang/postgres) driver uses `ClientQueryError` to distinguish query failures. The standard library’s `files` package uses `FileErrNo` to represent OS-level file errors.
 # Object Capabilities Patterns
 
 # Object Capabilities Patterns
@@ -3953,7 +3953,7 @@ graph TD
 
 If you hold a `TCPListenAuth`, you can’t use it to create a `TCPConnectAuth`. The constructor for `TCPConnectAuth` accepts `(AmbientAuth | NetAuth | TCPAuth)`, and `TCPListenAuth` isn’t in that union. You’d need to go back up the hierarchy to `TCPAuth` or higher and come back down the other branch. This is the whole point: authority only flows downward, never sideways.
 
-When designing your own hierarchy, start from the broadest capability your library offers and subdivide by the kinds of side effects it can perform. Each leaf should correspond to one kind of operation. If your library does both network I/O and file I/O, those should be separate branches. Within network I/O, if listening and connecting have different security implications, they should be separate leaves. The [ponylang/lori](https://github.com/ponylang/lori) networking library extends the stdlib hierarchy further with its own `TCPServerAuth` that narrows `TCPListenAuth` by one more level.
+When designing your own hierarchy, start from the broadest capability your library offers and subdivide by the kinds of side effects it can perform. Each leaf should correspond to one kind of operation. If your library does both network I/O and file I/O, those should be separate branches. Within network I/O, if listening and connecting have different security implications, they should be separate leaves. The standard library’s `net` package extends this hierarchy further with `TCPServerAuth`, which narrows `TCPListenAuth` by one more level.
 
 Authority hierarchy controls *what* a component is allowed to do. The [Single Use Object Capabilities](https://patterns.ponylang.io/object-capabilities/single-use.html) pattern addresses a different dimension: *how many times* a component can exercise its authority. The two compose naturally. You might define a hierarchy of auth tokens to control which operations are available, then wrap a leaf token in an `iso` class to make it single-use. The hierarchy narrows the scope; the single-use wrapper limits the count.
 
@@ -4397,30 +4397,34 @@ Your Pony program has actors that hold resources: a TCP listener waiting for con
 
 ```
 use "net"
+use notifier = "net/notifier"
 
-class MyListener is TCPListenNotify
+class MyListenNotify is notifier.TCPListenNotify
   let _env: Env
 
-  new iso create(env: Env) =>
+  new create(env: Env) =>
     _env = env
 
-  fun ref listening(listen: TCPListener ref) =>
+  fun ref on_listening(listen: notifier.TCPListener ref) =>
     _env.out.print("Listening")
 
-  fun ref not_listening(listen: TCPListener ref) =>
+  fun ref on_not_listening(listen: notifier.TCPListener ref) =>
     _env.out.print("Failed to listen")
 
-  fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
-    object iso is TCPConnectionNotify
-      fun ref received(conn: TCPConnection ref, data: Array[U8] iso,
-        times: USize): Bool => true
-      fun ref connect_failed(conn: TCPConnection ref) => None
+  fun ref on_connected(listen: notifier.TCPListener ref):
+    notifier.ServerTCPConnectionNotify iso^
+  =>
+    object iso is notifier.ServerTCPConnectionNotify
+      fun ref on_start_failure(conn: notifier.ServerTCPConnection ref,
+        reason: StartFailureReason) => None
+      fun ref on_received(conn: notifier.ServerTCPConnection ref,
+        data: Array[U8] iso): ReadAction => KeepReading
     end
 
 actor Main
   new create(env: Env) =>
-    TCPListener(TCPListenAuth(env.root),
-      recover MyListener(env) end, "localhost", "8989")
+    notifier.TCPListener(TCPListenAuth(env.root),
+      recover MyListenNotify(env) end, "localhost", "8989")
     env.out.print("Started")
 ```
 
@@ -4441,7 +4445,7 @@ interface tag DisposableActor
 
 One behavior, no arguments, no return value. An actor that implements `dispose()` is making a promise: “call this and I’ll clean up after myself.” The `tag` capability means you can call `dispose()` on any reference to the actor, regardless of what capability you hold. That’s the whole point: shutdown messages need to reach actors from anywhere.
 
-Many standard library actors already implement this. `TCPListener.dispose()` stops listening and closes the socket. `TCPConnection.dispose()` finishes pending writes and closes the connection. `Timers.dispose()` cancels all pending timers and unsubscribes from the event system. You don’t need to do anything special to use them with this pattern; they’re ready to go.
+Many standard library actors already implement this. `net/notifier`’s `TCPListener.dispose()` stops listening and closes the socket. `ServerTCPConnection.dispose()` and `ClientTCPConnection.dispose()` from the same package close the connection. `Timers.dispose()` cancels all pending timers and unsubscribes from the event system. You don’t need to do anything special to use them with this pattern; they’re ready to go.
 
 For your own actors, implementing `dispose()` means deciding what “clean up” looks like. An actor managing a database connection pool might close all connections. An actor coordinating workers might tell each worker to stop. The specifics depend on what your actor owns:
 
@@ -4471,12 +4475,13 @@ Now, you could call `dispose()` on each actor yourself. With two or three actors
 
 ```
 use "bureaucracy"
+use notifier = "net/notifier"
 
 actor Main
   new create(env: Env) =>
     let custodian = Custodian
 
-    let listener = TCPListener(...)
+    let listener = notifier.TCPListener(...)
     let ticker = Ticker(env)
 
     custodian(listener)
@@ -4493,26 +4498,30 @@ In practice, “shutdown time” is usually a signal. Here’s a complete progra
 ```
 use "bureaucracy"
 use "net"
+use notifier = "net/notifier"
 use "signals"
 use "time"
 
-class MyListener is TCPListenNotify
+class MyListenNotify is notifier.TCPListenNotify
   let _env: Env
 
-  new iso create(env: Env) =>
+  new create(env: Env) =>
     _env = env
 
-  fun ref listening(listen: TCPListener ref) =>
+  fun ref on_listening(listen: notifier.TCPListener ref) =>
     _env.out.print("Listening on 8989")
 
-  fun ref not_listening(listen: TCPListener ref) =>
+  fun ref on_not_listening(listen: notifier.TCPListener ref) =>
     _env.out.print("Failed to listen")
 
-  fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
-    object iso is TCPConnectionNotify
-      fun ref received(conn: TCPConnection ref, data: Array[U8] iso,
-        times: USize): Bool => true
-      fun ref connect_failed(conn: TCPConnection ref) => None
+  fun ref on_connected(listen: notifier.TCPListener ref):
+    notifier.ServerTCPConnectionNotify iso^
+  =>
+    object iso is notifier.ServerTCPConnectionNotify
+      fun ref on_start_failure(conn: notifier.ServerTCPConnection ref,
+        reason: StartFailureReason) => None
+      fun ref on_received(conn: notifier.ServerTCPConnection ref,
+        data: Array[U8] iso): ReadAction => KeepReading
     end
 
 class TermHandler is SignalNotify
@@ -4545,8 +4554,8 @@ actor Main
   new create(env: Env) =>
     let custodian = Custodian
 
-    let listener = TCPListener(TCPListenAuth(env.root),
-      recover MyListener(env) end, "localhost", "8989")
+    let listener = notifier.TCPListener(TCPListenAuth(env.root),
+      recover MyListenNotify(env) end, "localhost", "8989")
     let ticker = Ticker(env)
 
     custodian(listener)
@@ -4561,7 +4570,7 @@ When the process receives SIGTERM, `TermHandler.apply` fires, which disposes the
 
 ## Discussion
 
-Pony uses structural typing, so actors don’t need to explicitly declare `is DisposableActor`. If an actor has a `dispose()` behavior, it satisfies the interface automatically. That’s why `TCPListener`, `TCPConnection`, `Timers`, and `ProcessMonitor` all work with `Custodian` even though none of them mention `DisposableActor` in their type declarations. You just pass them in and it works.
+Pony uses structural typing, so actors don’t need to explicitly declare `is DisposableActor`. If an actor has a `dispose()` behavior, it satisfies the interface automatically. That’s why `net/notifier`’s `TCPListener` and `ServerTCPConnection`, along with `Timers` and `ProcessMonitor`, all work with `Custodian` even though none of them mention `DisposableActor` in their type declarations. You just pass them in and it works.
 
 `Custodian` itself implements `dispose()`, which means it’s a `DisposableActor` too. You can nest custodians. A subsystem might have its own custodian managing its internal actors, and you register that custodian with a top-level one. Disposing the top-level custodian cascades through the tree. This is useful for larger programs where different subsystems have independent lifecycles but you still want a single kill switch at the top.
 
@@ -4961,7 +4970,7 @@ The patterns in this chapter will cover various ways of testing your Pony code. 
 
 ## Problem
 
-Event driven code is very common in Pony. Many classes take a “notifier” class that has callbacks that get triggered when certain events happen. The network code such as `UDPNotify` and `TCPNotify` are examples of this. As you write your own Pony code, the notifier pattern is one you’ll end up using quite a bit. Testing that your code is correctly interacting with notifiers is straightforward; however, how you go about doing that isn’t immediately obvious. Imagine for a moment that you have the following actor:
+Event driven code is very common in Pony. Many classes take a “notifier” class that has callbacks that get triggered when certain events happen. The network code such as `UDPSocketNotify` and `TCPListenNotify` in `net/notifier` are examples of this. As you write your own Pony code, the notifier pattern is one you’ll end up using quite a bit. Testing that your code is correctly interacting with notifiers is straightforward; however, how you go about doing that isn’t immediately obvious. Imagine for a moment that you have the following actor:
 
 ```
 actor Receiver
