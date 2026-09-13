@@ -6,7 +6,6 @@ are grouped by date (UTC) with newest first.
 ## 2026-09-13
 
 - CHANGED: Broaden pony-release-notes trigger to fire on any code or dependency change ([PR #76](https://github.com/ponylang/llm-skills/pull/76))
-- CHANGED: Broaden pony-release-notes trigger to fire on any code or dependency change
 
 ## 2026-09-09
 
