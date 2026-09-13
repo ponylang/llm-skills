@@ -1,6 +1,6 @@
 ---
 name: pony-release-notes
-description: Load when writing release notes, updating CHANGELOG, or preparing a PR that includes user-facing changes in a Pony project.
+description: Load when working in a Pony project on any change that touches source code or dependencies.
 disable-model-invocation: false
 ---
 

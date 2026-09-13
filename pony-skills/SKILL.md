@@ -21,7 +21,7 @@ When one of these applies, load the named skill.
 | Writing tests, or assessing test quality | `pony-test-design` |
 | Writing property-based or generative tests | `pony-pbt-patterns` |
 | Before forming a hypothesis about a non-trivial bug | `pony-debug` |
-| Making a user-facing change in a released project (VERSION is not `0.0.0`) | `pony-release-notes` |
+| Any change that touches source code or dependencies | `pony-release-notes` |
 | Writing or updating a library's README | `pony-library-readme` |
 | Adding, updating, or reorganizing examples | `pony-examples-readme` |
 | Running the ensemble workflow (on request) | `pony-ensemble` |
