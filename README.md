@@ -244,7 +244,7 @@ Prefer to pick individually? Add any of these instead:
 
 ### pony-release-notes trigger
 
-> **Load `pony-release-notes` for release notes and CHANGELOG**: Load it when writing release notes, updating CHANGELOG, or preparing a PR that includes user-facing changes in a Pony project.
+> **Load `pony-release-notes` for release notes and CHANGELOG**: Load it when working in a Pony project on any change that touches source code or dependencies.
 
 ### pony-software-design trigger
 

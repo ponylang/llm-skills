@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file. Entries
 are grouped by date (UTC) with newest first.
 
+## 2026-09-13
+
+- CHANGED: Broaden pony-release-notes trigger to fire on any code or dependency change
+
 ## 2026-09-09
 
 - ADDED: Add portability evaluation persona to pony-test-design ([PR #75](https://github.com/ponylang/llm-skills/pull/75))
