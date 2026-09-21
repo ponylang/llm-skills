@@ -672,6 +672,8 @@ It’s pretty normal to write a Pony program that uses hundreds of thousands of 
 
 Like classes, actors can have finalisers. The finaliser definition is the same (`fun _final()`). All guarantees and restrictions for a class finaliser are also valid for an actor finaliser. In addition, an actor will not receive any further message after its finaliser is called.
 
+When [`--ponynoblock`](https://tutorial.ponylang.io/runtime-basics/runtime-options.html) is used, the [cycle detector](https://tutorial.ponylang.io/runtime-basics/garbage-collection.html) is disabled. Dead actors in a cycle will never be collected, and their finalisers will not run. Actors that are not part of a cycle are still collected and finalised normally.
+
 # Traits and Interfaces
 
 Like other object-oriented languages, Pony has **subtyping**. That is, some types serve as *categories* that other types can be members of.
@@ -6384,7 +6386,7 @@ Pony solves this with ORCA, a concurrent garbage collection protocol for actors.
 
 A dedicated cycle detector actor periodically scans for groups of blocked actors that reference each other but are unreachable from any alive actor. When it finds such a group, it collects the entire cycle.
 
-The cycle detector’s scan interval can be tuned with the `--ponycdinterval` [runtime option](https://tutorial.ponylang.io/runtime-basics/runtime-options.html), and it can be disabled entirely with `--ponynoblock` (though this means dead actor cycles will never be collected).
+The cycle detector’s scan interval can be tuned with the `--ponycdinterval` [runtime option](https://tutorial.ponylang.io/runtime-basics/runtime-options.html), and it can be disabled entirely with `--ponynoblock` (though this means dead actor cycles will never be collected, and their finalisers will not run).
 
 For the full details of the ORCA protocol, see [Orca: GC and Type System Co-Design for Actor Languages](https://www.ponylang.io/media/papers/orca_gc_and_type_system_co-design_for_actor_languages.pdf).
 
@@ -6471,7 +6473,7 @@ You can see the full list by running any compiled Pony program with `--ponyhelp`
 | `--ponycdinterval` | N        | Run cycle detection every N milliseconds (range: 10–1000 ms). Defaults to 100 ms.                                                     |
 | `--ponygcinitial`  | N        | Defer garbage collection until an actor is using at least 2^N bytes of heap memory. Defaults to 14 (16 KB).                           |
 | `--ponygcfactor`   | N        | After GC, next collection triggers when heap usage reaches N times the current size. This is a floating-point value. Defaults to 2.0. |
-| `--ponynoblock`    | none     | Disable the cycle detector. Dead actor cycles will never be collected.                                                                |
+| `--ponynoblock`    | none     | Disable the cycle detector. Dead actor cycles will never be collected, and their finalisers will not run.                             |
 
 ### Diagnostics
 
