@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file. Entries
 are grouped by date (UTC) with newest first.
 
+## 2026-09-27
+
+- FIXED: Remove stale PonyCheck gotcha about missing F32/F64 generators ([PR #78](https://github.com/ponylang/llm-skills/pull/78))
+
 ## 2026-09-13
 
 - CHANGED: Broaden pony-release-notes trigger to fire on any code or dependency change ([PR #76](https://github.com/ponylang/llm-skills/pull/76))
