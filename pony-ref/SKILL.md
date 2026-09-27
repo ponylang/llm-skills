@@ -211,7 +211,6 @@ Do NOT try `primitive MyGen is GenObj[String]` or `class MyGen is GenObj[String]
 **Gotchas**:
 - `flat_map` shrinking is incomplete (TODO in source) — only shrinks on inner generator, not outer
 - Collection shrinking generates fresh random elements, just fewer — shrunken collections are NOT subsets of the original
-- No built-in `F32`/`F64` generators — use `Generators.repeatedly` with a lambda as workaround
 - Seed is printed in test output — pass back via `PropertyParams(where seed' = N)` to reproduce a failure
 - **`value.clone()` in `for_all` lambdas**: Generated `String` values arrive as `ref` capability inside `for_all` lambdas. To use them inside `recover val` blocks (e.g., building a `val` array of tuples), call `value.clone()` first — `clone()` on a `ref` returns an `iso^` which can be consumed into the `recover` block. Without this, the `ref` alias prevents the block from lifting to `val`.
 - **`Generators.array_of[T]` produces `ref` arrays, not `val`**: `Generators.array_of[U8](Generators.u8())` yields `Generator[Array[U8] ref]`, which can't be used in `zip2`/`map2` when the target type needs `Array[U8] val`. Workaround: use `Generators.map2` with a fill byte + length, constructing the `val` array inside the lambda: `{(fill, len) => (fill, recover val Array[U8].init(fill, len) end)}`.
