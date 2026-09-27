@@ -259,7 +259,7 @@ Compiled Pony programs accept `--pony*` command-line flags for tuning scheduler 
 
 ## Custom ponyc Builds
 
-ponyc can be built from source with instrumentation options for debugging: Valgrind annotations, sanitizers (address, thread, undefined behavior), DTrace/SystemTap probes, and systematic testing for the runtime’s own concurrency bugs.
+ponyc can be built from source with instrumentation options for debugging: Valgrind annotations, sanitizers (address, thread, undefined behavior), and systematic testing for the runtime’s own concurrency bugs.
 
 - [Custom ponyc Builds for Debugging](https://www.ponylang.io/use/compiler/custom-ponyc-builds/index.md)
 
@@ -378,7 +378,7 @@ Interested in tracing the execution of a Pony program? Checkout [“Tracing Pony
 
 ## Custom ponyc Builds
 
-ponyc can be built from source with instrumentation options for debugging: Valgrind annotations, sanitizers (address, thread, undefined behavior), DTrace/SystemTap probes, and systematic testing for the runtime’s own concurrency bugs. See [Custom ponyc Builds for Debugging](https://www.ponylang.io/use/compiler/custom-ponyc-builds/index.md).
+ponyc can be built from source with instrumentation options for debugging: Valgrind annotations, sanitizers (address, thread, undefined behavior), and systematic testing for the runtime’s own concurrency bugs. See [Custom ponyc Builds for Debugging](https://www.ponylang.io/use/compiler/custom-ponyc-builds/index.md).
 
 # Dependency Management
 
@@ -854,12 +854,6 @@ Livery supports stateful `LiveComponent` instances for composing UIs from indepe
 ### [mare](https://github.com/ponylang/mare)
 
 Mare is a WebSocket server library for Pony. It implements RFC 6455 and provides a callback-driven API for handling WebSocket connections. You write an actor that implements `WebSocketServerActor` and responds to connection events — `on_open`, `on_text_message`, `on_binary_message`, and `on_closed` — and mare handles the protocol framing, upgrade handshake, and connection lifecycle. Configuration is explicit: bind address, port, and SSL are set through `WebSocketConfig`.
-
-### [ssl](https://github.com/ponylang/ssl)
-
-Pony wrappers for OpenSSL and LibreSSL.
-
-The package provides one-shot hash functions (MD5, SHA-1, SHA-256, SHA-512, and others), streaming digests, HMAC-SHA-256, PBKDF2-SHA-256 key derivation, cryptographic random bytes, and constant-time comparison. Compile with `-Dopenssl_1.1.x`, `-Dopenssl_3.0.x`, or `-Dlibressl` to select the underlying library.
 
 ### [stallion](https://github.com/ponylang/stallion)
 
@@ -1446,38 +1440,6 @@ Not available on OpenBSD
 
 OpenBSD’s base toolchain ships an incomplete profiling runtime, so a coverage-instrumented ponyc can’t be linked there. Configuring with `-DPONY_USES=coverage` is rejected on OpenBSD with an error.
 
-## DTrace / SystemTap
-
-The Pony runtime includes [USDT](https://illumos.org/books/dtrace/chp-usdt.html) (Userland Statically Defined Tracing) probes. They’re consumed by SystemTap on Linux and by DTrace on FreeBSD. No other platform is supported: macOS removed DTrace, and neither DragonFly BSD nor OpenBSD ships a DTrace-compatible probe-generation tool (OpenBSD’s `btrace` is a separate tracer with no USDT support). On DragonFly BSD and OpenBSD, configuring with `-DPONY_USES=dtrace` is rejected with an error rather than failing later in the build.
-
-Building requires a `dtrace`-compatible tool on your `PATH`:
-
-```
-cmake --preset release -DPONY_USES=dtrace
-cmake --build --preset release
-```
-
-The probes are defined under the `pony` provider and cover:
-
-- **Actor lifecycle** — creation, scheduling, descheduling
-- **Message passing** — actor-to-actor and thread message send/receive/push/pop
-- **Backpressure** — overload, mute/unmute, pressure state changes
-- **Garbage collection** — GC start/end, send/receive phases, threshold changes
-- **Memory** — heap allocation
-- **Runtime lifecycle** — init, start, end
-- **Work stealing** — steal success/failure
-- **Thread state** — suspend, resume, nanosleep
-
-For the full list of probes with parameter types and descriptions, see [`src/common/dtrace_probes.d`](https://github.com/ponylang/ponyc/blob/main/src/common/dtrace_probes.d) in the ponyc source.
-
-Static linking on FreeBSD
-
-Statically linked programs (`ponyc --static`) build and run but do not expose their probes to DTrace. FreeBSD registers USDT probes through the runtime linker, which a static binary doesn’t use; trace a dynamically linked build instead.
-
-Runtime bitcode is incompatible with DTrace
-
-A ponyc built with `dtrace` cannot compile programs with `--runtimebc`, and rejects the combination with an error. Probe generation operates on native object files, not LLVM bitcode, so the bitcode runtime carries no probes — a `--runtimebc` binary would have none. Use the default static runtime to trace your program.
-
 ## Runtime Statistics
 
 Runtime statistics tracking instruments the Pony runtime to report memory usage per actor and per scheduler thread. This is useful for understanding where memory is going in a running program.
@@ -1582,6 +1544,12 @@ See the [garbage collector](https://www.ponylang.io/use/performance/pony-perform
 ### `--ponygcfactor`
 
 After GC, an actor will next be GC’d at a heap memory usage N times its current value. This is a floating point value. Defaults to 2.0.
+
+## Allocator Options
+
+### `--ponymemoryprofile`
+
+Trade the allocator’s resident memory against throughput on a scale from 1 to 10: 1 returns freed memory quickly for the smallest footprint, 10 holds it for the most throughput. Defaults to 3 — the scale has little room below it for less memory and much more above it for throughput, so the balanced default sits low on it.
 
 ## Cycle Detector Options
 
@@ -3987,7 +3955,6 @@ Or open the output in KCachegrind (Linux) or QCachegrind (macOS) for a visual ca
 ## See also
 
 - [Tracing Pony Programs](https://www.ponylang.io/use/debugging/tracing/index.md) — runtime event tracing (actor scheduling, GC, message sends) via a custom `ponyc` build. Different from CPU profiling: tracing records what the runtime did and when, while profiling shows where CPU time went.
-- [DTrace / SystemTap](https://www.ponylang.io/use/compiler/custom-ponyc-builds/#dtrace-systemtap) — USDT probes in the Pony runtime for live tracing on Linux (SystemTap) and FreeBSD (DTrace).
 
 # Coverage Reports for Pony
 
@@ -4355,7 +4322,7 @@ An easy to maintain code formatter would share parsing code with the compiler. A
 
 ## Is there SSL support?
 
-Yes! There used to be SSL support in the Pony standard library, but it’s been moved out [into its own library](https://github.com/ponylang/ssl).
+Yes! The standard library’s `crypto` package provides cryptographic primitives (hash functions, HMAC, PBKDF2, random bytes) backed by OpenSSL’s libcrypto. The standard library’s `net` package provides SSL/TLS connections via OpenSSL’s libssl.
 
 # Runtime
 

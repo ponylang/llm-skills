@@ -5554,7 +5554,22 @@ var iov = (data.cpointer(), data.size())
 
 In the example above, the type `Pointer[(Pointer[U8] tag, USize)] tag` is equivalent to the `IOVec` struct type we defined earlier. That is, *a struct type is equivalent to a pointer to a tuple type with the fields of the struct as elements, in the same order as the original struct type defined them*.
 
-**Can I pass struct types by value, instead of passing a pointer?** Not at the moment. This is a known limitation of the current FFI system, but it is something the Pony team is interested in fixing. If you’d like to work on adding support for passing structs by value, contact us [on the Zulip](https://ponylang.zulipchat.com/#narrow/stream/192795-contribute-to-Pony).
+#### Passing structs by value
+
+Some C functions take structs by value rather than by pointer. Pony’s FFI normally passes all structs as pointers, so calling such a function directly would pass the wrong thing. The `\by_value\` annotation on a parameter causes the compiler to generate a wrapper that dereferences the pointer and passes the struct by value, matching the C function’s signature.
+
+```
+// In C: double point_sum(struct Point p)
+use @point_sum[F64](p: Point \by_value\)
+
+struct Point
+  var x: F64 = 0
+  var y: F64 = 0
+```
+
+Annotate each parameter that the C function takes by value. Parameters without the annotation are passed as pointers as usual.
+
+Struct fields must be primitives or pointers. Nested embedded structs, zero-field structs, 128-bit integers, and variadic functions are not supported. If your struct doesn’t meet these requirements, a [C shim](https://tutorial.ponylang.io/c-ffi/c-shims.html) that wraps the function can bridge the gap.
 
 ### Working with Structs: from C to Pony
 
@@ -5578,7 +5593,7 @@ env.out.print(size.height.string())
 
 A `NullablePointer` type can only be used with `structs`, and is only intended for output parameters (like in the example above) or for return types from C. You don’t need to use a `NullablePointer` if you are only passing a `struct` as a regular input parameter.
 
-If you are using a C function that returns a struct, remember, that the C function needs to return a pointer to the struct. The following in Pony should be read as **returns a pointer to struct `Rect`**:
+Without the `\by_value\` annotation, a C function that returns a struct must return a pointer to it. The following in Pony should be read as **returns a pointer to struct `Rect`**:
 
 ```
 use @from_c[Rect]()
@@ -5590,7 +5605,28 @@ struct Rect
 
 As we saw earlier, you can also use a `Pointer[(U16, U16)]` as well. It is the equivalent to our `Rect`.
 
-**Can I return struct types by value, instead of passing a pointer?** Not at the moment. This is a known limitation of the current FFI system, but it is something the Pony team is interested in fixing. If you’d like to work on adding support for returning structs by value, contact us [on the Zulip](https://ponylang.zulipchat.com/#narrow/stream/192795-contribute-to-Pony).
+#### Returning structs by value
+
+The `\by_value\` annotation also works on return types. When a C function returns a struct by value, annotate the return type in the declaration:
+
+```
+// In C: struct Point point_make(double x, double y)
+use @point_make[Point \by_value\](x: F64, y: F64)
+
+struct Point
+  var x: F64 = 0
+  var y: F64 = 0
+```
+
+The compiler generates a wrapper that receives the struct by value from C and writes it into a Pony-allocated struct. The call returns a pointer to the filled-in struct, just like any other Pony struct. The same [struct field restrictions](https://tutorial.ponylang.io/c-ffi/calling-c.html#passing-structs-by-value) apply.
+
+You can combine both — annotate parameters and the return type in the same declaration:
+
+```
+// In C:
+// struct Point scale_point(struct Point p, double factor)
+use @scale_point[Point \by_value\](p: Point \by_value\, factor: F64)
+```
 
 ### Return-type Polymorphism
 
@@ -5968,7 +6004,7 @@ On macOS, shims resolve system headers through the SDK’s `usr/include`; framew
 
 ## Build artifacts
 
-Shims are recompiled on every build. Their object files live in the output directory during the build and are cleaned up after a successful link. Under a non-link mode (`--pass c`, `--pass obj`, and similar) or after a failed link they stay behind, and renaming or deleting a shim source can leave an old object in the output directory. They are plain files, safe to delete.
+Shims are recompiled on every build. Their object files live in the output directory during the build and are cleaned up after a successful link. Under a non-link mode (`--pass c`, `--pass ir`, and similar) or after a failed link they stay behind, and renaming or deleting a shim source can leave an old object in the output directory. They are plain files, safe to delete.
 
 Because ponyc now carries clang inside it, the compiler binary is noticeably larger than before.
 
@@ -7432,6 +7468,8 @@ Annotations are allowed after any scoping keyword or symbol. The full list is:
 - `try`
 - `then` (only when part of a `try` block)
 
+Annotations are also allowed on parameter types and return types in FFI declarations (`use @`). See [`by_value`](https://tutorial.ponylang.io/appendices/annotations.html#by_value) below for the annotation recognised in these positions.
+
 ## The effect of annotations
 
 Annotations are entirely implementation-specific. In other words, the Pony compiler (or any other tool that processes Pony programs) is free to take any action for any annotation that it encounters, including not doing anything at all. Annotations starting with `ponyint` are reserved by the compiler for internal use and shouldn’t be used by external tools.
@@ -7541,6 +7579,23 @@ class \c_api\ val Adder
 ```
 
 See [Exporting Pony Methods to C](https://tutorial.ponylang.io/c-ffi/exporting.html) for the full details.
+
+#### `by_value`
+
+Recognised on parameter types and return types in FFI declarations (`use @`). Causes the compiler to pass or return the annotated struct by value instead of by pointer when calling the C function.
+
+```
+struct Point
+  var x: F64 = 0
+  var y: F64 = 0
+
+use @point_sum[F64](p: Point \by_value\)
+use @point_make[Point \by_value\](x: F64, y: F64)
+```
+
+Struct fields must be primitives or pointers. Nested embedded structs, zero-field structs, 128-bit integers, and variadic functions are not supported.
+
+See [Passing structs by value](https://tutorial.ponylang.io/c-ffi/calling-c.html#passing-structs-by-value) and [Returning structs by value](https://tutorial.ponylang.io/c-ffi/calling-c.html#returning-structs-by-value) for the full details.
 
 # Serialisation
 
