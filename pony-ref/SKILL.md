@@ -1,6 +1,6 @@
 ---
 name: pony-ref
-description: Load the Pony language reference (capabilities, PonyCheck, stdlib pitfalls, mort pattern). Load it before Pony coding sessions.
+description: Load the Pony language reference (capabilities, property testing, stdlib pitfalls, mort pattern). Load it before Pony coding sessions.
 disable-model-invocation: false
 ---
 
@@ -183,11 +183,13 @@ Inference works when each type parameter is determined by at least one argument 
 
 Write type arguments explicitly when using: union-typed parameters, type aliases wrapping a generic type, `where` named-only arguments, or when no argument position determines the type parameter.
 
-## PonyCheck (Property-Based Testing)
+## Property-Based Testing
+
+Property testing lives in `pony_test` alongside unit tests.
 
 **Two ways to write property tests**:
-- `Property1[T]` trait (standalone class, recommended for reusable properties) — implement `name()`, `gen()`, `property()`, register with `test(Property1UnitTest[T](MyProperty))`
-- `PonyCheck.for_all` (inline lambdas within a `UnitTest`) — convenient for quick one-offs, but generators must be `val`: `recover val Generators.u8() end`
+- `Property[T]` trait (standalone class, recommended for reusable properties) — implement `name()`, `gen()`, `property()`, register with `test.property(MyProperty)`
+- `h.for_all` (inline lambdas within a `UnitTest`) — convenient for quick one-offs, but generators must be `val`: `recover val Generators.u8() end`
 
 **Custom generator pattern**: Custom generators MUST be anonymous objects, not named primitives or classes. The correct pattern is always:
 ```pony
@@ -200,22 +202,29 @@ fun gen(): Generator[String] =>
 ```
 Do NOT try `primitive MyGen is GenObj[String]` or `class MyGen is GenObj[String]` — this is a common agent mistake that produces confusing compiler errors ("can't find definition of 'T'"), which then gets misattributed to a compiler bug. It's a usage error. Return either a bare value or `(value, shrink_iterator)` tuple from `generate()`.
 
+**Registration**: Property tests are registered on the test list via `test.property()` and `test.stateful_property()`:
+- `test.property(MyProperty)` — the compiler infers `T` from `Property[T]`
+- `test.property[(T1, T2)](MyProperty2)` — multi-type properties (`Property2`/`Property3`/`Property4`), `IntProperty`, and `IntPairProperty` need explicit type arguments because the compiler can't infer through the intermediate trait
+- `test.stateful_property(MyStatefulProp)` — stateful properties
+
 **Generator composition**: `.filter()`, `.map()`, `.flat_map()`, `.union()`, plus `Generators.zip2/3/4`, `Generators.map2/3/4`, `Generators.frequency` (weighted selection).
 
 **Useful built-ins to remember**:
-- `IntProperty` trait — tests a property across all 14 Pony integer types automatically
+- `IntProperty` trait — tests a property across all 14 Pony integer types automatically; register with `test.property[IntPropertySample](prop)`
+- `IntPairProperty` trait — tests a property across all integer type pairs; register with `test.property[IntPairPropertySample](prop)`
 - ASCII range types (`ASCIIPrintable`, `ASCIILetters`, `ASCIIDigits`, etc.) for controlling string generation character sets
 - `Generators.one_of` for selecting from a fixed set, `Generators.frequency` for weighted selection
 - `Generators.set_of`, `Generators.map_of` take `(gen where min = 0, max = 100)` — pass `min = 1` for non-empty collections
 
 **Gotchas**:
-- `flat_map` shrinking is incomplete (TODO in source) — only shrinks on inner generator, not outer
+- `flat_map` shrinking is incomplete — only shrinks on inner generator, not outer
 - Collection shrinking generates fresh random elements, just fewer — shrunken collections are NOT subsets of the original
 - Seed is printed in test output — pass back via `PropertyParams(where seed' = N)` to reproduce a failure
 - **`value.clone()` in `for_all` lambdas**: Generated `String` values arrive as `ref` capability inside `for_all` lambdas. To use them inside `recover val` blocks (e.g., building a `val` array of tuples), call `value.clone()` first — `clone()` on a `ref` returns an `iso^` which can be consumed into the `recover` block. Without this, the `ref` alias prevents the block from lifting to `val`.
 - **`Generators.array_of[T]` produces `ref` arrays, not `val`**: `Generators.array_of[U8](Generators.u8())` yields `Generator[Array[U8] ref]`, which can't be used in `zip2`/`map2` when the target type needs `Array[U8] val`. Workaround: use `Generators.map2` with a fill byte + length, constructing the `val` array inside the lambda: `{(fill, len) => (fill, recover val Array[U8].init(fill, len) end)}`.
+- **`for_all` is called on `TestHelper`**, not on a `PonyCheck` primitive: `h.for_all[T](gen)`, not `PonyCheck.for_all[T](gen, h)`
 
-**PropertyParams defaults**: 100 samples, 10 max shrink rounds, 5 max generator retries, 60s timeout, non-async. Override by implementing `params()` on your Property trait.
+**PropertyParams defaults**: 100 samples, 10 max shrink rounds, 5 max generator retries, 60s timeout. Override by implementing `params()` on your Property trait.
 
 ## Stdlib Pitfalls and Patterns
 

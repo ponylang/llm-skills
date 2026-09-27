@@ -65,7 +65,7 @@ What's in the quick reference (loaded into context automatically):
 - Common gotchas (iso aliasing, async stdin, scoping, type aliases)
 - Integer arithmetic modes (wrapping, partial, checked)
 - Syntax essentials
-- PonyCheck property-based testing patterns and gotchas
+- Property-based testing patterns and gotchas
 - Stdlib pitfalls (Reader, Array, Writer, buffered)
 - Panic primitives ("mort" pattern)
 
@@ -186,7 +186,7 @@ Has full (8-persona) and lightweight (5-persona) modes. Stage 1 (planning) produ
 
 Property-based and generative testing patterns. Load it when writing property-based tests, generators, or generative test suites.
 
-Built on one idea — chance is not coverage, so a generator must bias toward where bugs live. Covers biasing toward important values, swarm testing (varying which operations are enabled so emergent state reaches the extremes), the valid/invalid/mixed boundary triad, compositional generators, and multi-angle oracles. Maps directly onto PonyCheck.
+Built on one idea — chance is not coverage, so a generator must bias toward where bugs live. Covers biasing toward important values, swarm testing (varying which operations are enabled so emergent state reaches the extremes), the valid/invalid/mixed boundary triad, compositional generators, and multi-angle oracles. Maps directly onto Pony's property testing framework in `pony_test`.
 
 #### pony-debug
 
@@ -268,7 +268,7 @@ Prefer to pick individually? Add any of these instead:
 
 ### pony-pbt-patterns trigger
 
-> **Load `pony-pbt-patterns` when writing property-based tests**: Load it when writing property-based tests, generators, or generative test suites, especially with PonyCheck.
+> **Load `pony-pbt-patterns` when writing property-based tests**: Load it when writing property-based tests, generators, or generative test suites.
 
 ### pony-debug trigger
 
