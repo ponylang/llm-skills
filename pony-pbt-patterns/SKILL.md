@@ -17,7 +17,7 @@ The job of a good generator is therefore not to be *random* — it is to **struc
 
 This bias matters wherever the code *branches* on a value or *accumulates* state across operations. For a property that holds uniformly across its whole domain — an algebraic law, an encode/decode round-trip — there are no edges to seek out and broad uniform generation is already right. Bias toward where bugs live without starving the ordinary middle, where plenty of logic bugs also sit.
 
-The two scales are cross-cutting lenses, not the document's organizing axis. The patterns below are grouped by the goal you have at the moment: making the generator reach the space chance won't (A), probing a validation boundary precisely (B), and building generators and oracles you can trust (C). They map onto PonyCheck — see `pony-ref` for its generator API and gotchas.
+The two scales are cross-cutting lenses, not the document's organizing axis. The patterns below are grouped by the goal you have at the moment: making the generator reach the space chance won't (A), probing a validation boundary precisely (B), and building generators and oracles you can trust (C). They map onto Pony's property testing framework (in `pony_test`) — see `pony-ref` for the generator API and gotchas.
 
 ## A. Reach the space chance won't
 
@@ -27,7 +27,7 @@ These are not a sequence — reach for whichever fits the situation. The first t
 
 Some values are where bugs cluster regardless of the domain. For integers: `0`, `1`, `-1`, the type's `min` and `max`, powers of two, and the neighbor just above and just below every boundary the code branches on. For collections: the empty one, the single-element one, and a very large one. For strings: empty, a single character, the maximum length, a length just past a boundary, and embedded multibyte or control characters. For floats: `NaN`, positive and negative infinity, and `-0.0` — and note that Pony's `NaN == NaN` is `true` (it is *not* IEEE 754 here), so never write a generator or assertion that assumes NaN is unequal to itself.
 
-PonyCheck's numeric generators (`Generators.u64()` and friends) sample *uniformly* across their range and inject none of these values. The only special-value handling PonyCheck does is during shrinking, not generation — so a full-range `Generators.u64()` will, in practice, never hand you `0` or `U64.max_value()`. Build the bias yourself with `Generators.frequency`, weighting a broad uniform generator against a `one_of` over the constants that bite:
+The numeric generators (`Generators.u64()` and friends) sample *uniformly* across their range and inject none of these values. The only special-value handling the framework does is during shrinking, not generation — so a full-range `Generators.u64()` will, in practice, never hand you `0` or `U64.max_value()`. Build the bias yourself with `Generators.frequency`, weighting a broad uniform generator against a `one_of` over the constants that bite:
 
 ```pony
 // Mostly the broad uniform range, with the values that bite mixed in (8:1).
@@ -40,7 +40,7 @@ Generators.frequency[U64]([
 
 `frequency` does the weighting; `one_of` picks uniformly from a fixed list of *values* (not generators) — here, the constants that bite. Each array entry is a `(weight, generator)` tuple, and the `as WeightedGenerator[U64]:` line types the literal so those tuples resolve. Don't reach for `union` here: it is an unweighted 50/50 combine of two *generators*, a different tool for a different job.
 
-PonyCheck ships no float generator, so for floats you build your own — map a `u32()`/`u64()` bit pattern onto a float, or `repeatedly` a hand-built value — and make sure it can emit `NaN`, the infinities, and `-0.0`. For collection sizes, the important values are reached through the size arguments — `min`/`max` on `seq_of`/`array_of`, `max` alone on `set_of` (whose size always starts at zero) — or a `frequency` over sizes, not by hoping the default range happens to land on empty or huge.
+There is no built-in float generator, so for floats you build your own — map a `u32()`/`u64()` bit pattern onto a float, or `repeatedly` a hand-built value — and make sure it can emit `NaN`, the infinities, and `-0.0`. For collection sizes, the important values are reached through the size arguments — `min`/`max` on `seq_of`/`array_of`, `max` alone on `set_of` (whose size always starts at zero) — or a `frequency` over sizes, not by hoping the default range happens to land on empty or huge.
 
 ### Vary which operations are enabled (swarm testing)
 
@@ -54,7 +54,7 @@ Three things the construction must get right:
 - **Make the sequence draw only from the enabled operations.** Bind the configuration with `flat_map` so the action-sequence generator — e.g. a `seq_of` whose element generator is `one_of` over the enabled ops — uses only that subset.
 - **Carry the configuration into the generated value.** Inside that `flat_map`, `map` the action sequence into a `(config, actions)` pair so the property receives both — a swarm failure is nearly useless if you can't see which operations were enabled. Do *not* use `zip2` to pair them: `zip2` draws its two arguments independently, so the config it reports would not be the one the sequence was actually built from.
 
-On diagnosis: PonyCheck's `flat_map` does not yet shrink the configuration it binds, and sequence shrinking regenerates a fresh, shorter sequence rather than removing operations from the failing one. So treat the printed `(config, actions)` as your primary evidence — don't expect a cleanly minimized counterexample for a swarm failure.
+On diagnosis: `flat_map` does not yet shrink the configuration it binds, and sequence shrinking regenerates a fresh, shorter sequence rather than removing operations from the failing one. So treat the printed `(config, actions)` as your primary evidence — don't expect a cleanly minimized counterexample for a swarm failure.
 
 ### Spend the budget where bugs live
 
