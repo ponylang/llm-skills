@@ -725,7 +725,7 @@ A routing index for the other skills. Load it — or reference it from a project
 
 #### pony-ref
 
-The Pony language reference. Covers the capabilities table, subtyping rules, viewpoint adaptation, common gotchas, PonyCheck property-based testing patterns, and standard library pitfalls. Behind the quick reference, deeper documents are available for the LLM to read on demand: the full text of the nine Pony papers as PDFs, type-system and runtime/GC synopses distilled from them, and snapshots of the tutorial, patterns cookbook, and main website.
+The Pony language reference. Covers the capabilities table, subtyping rules, viewpoint adaptation, common gotchas, property-based testing patterns, and standard library pitfalls. Behind the quick reference, deeper documents are available for the LLM to read on demand: the full text of the nine Pony papers as PDFs, type-system and runtime/GC synopses distilled from them, and snapshots of the tutorial, patterns cookbook, and main website.
 
 The reference documentation updates nightly from the Pony website and tutorial. Pull the repo often.
 
@@ -763,7 +763,7 @@ Two-stage ensemble for planning meaningful tests. Counters the tendency to write
 
 #### pony-pbt-patterns
 
-Property-based and generative testing patterns, built on one idea: chance is not coverage, so a generator has to bias toward where bugs live. Covers biasing toward important values, swarm testing (varying which operations are enabled so emergent state reaches the extremes), the valid/invalid/mixed boundary triad, compositional generators, and multi-angle oracles. Maps directly onto PonyCheck.
+Property-based and generative testing patterns, built on one idea: chance is not coverage, so a generator has to bias toward where bugs live. Covers biasing toward important values, swarm testing (varying which operations are enabled so emergent state reaches the extremes), the valid/invalid/mixed boundary triad, compositional generators, and multi-angle oracles. Maps directly onto PonyTest’s property-based testing support.
 
 #### pony-debug
 
@@ -1179,11 +1179,11 @@ For more details, see the [Pony Zed extension project documentation](https://git
 
 # Testing
 
-Pony ships two testing packages in its standard library: PonyTest for unit testing and PonyCheck for property-based testing. Both run inside the same test harness.
+Pony’s standard library includes PonyTest, which provides both unit testing and property-based testing.
 
 ## Unit Testing
 
-[PonyTest](https://stdlib.ponylang.io/pony_test--index/) is Pony’s unit testing framework. Each test is a class that implements `UnitTest`. You provide a `name()` and an `apply(h: TestHelper)` function that contains your assertions.
+[PonyTest](https://stdlib.ponylang.io/pony_test--index/) is Pony’s testing framework. Each unit test is a class that implements `UnitTest`. You provide a `name()` and an `apply(h: TestHelper)` function that contains your assertions.
 
 ```
 use "pony_test"
@@ -1201,45 +1201,44 @@ Tests can optionally define `set_up(h: TestHelper)?` and `tear_down(h: TestHelpe
 
 ## Property-Based Testing
 
-[PonyCheck](https://stdlib.ponylang.io/pony_check--index/) is Pony’s property-based testing library. Instead of specifying individual examples, you define a property that should hold for all inputs and let PonyCheck generate random test data. This is effective at finding edge cases you wouldn’t write by hand.
+Instead of specifying individual examples, you define a property that should hold for all inputs and let the framework generate random test data. This is effective at finding edge cases you wouldn’t write by hand.
 
-A property test implements `Property1`. You provide a `name()`, a `gen()` that returns a `Generator` for your input type, and a `property()` function that asserts the property.
+A property test implements `Property`. You provide a `name()`, a `gen()` that returns a `Generator` for your input type, and a `property()` function that asserts the property.
 
 ```
 use "collections"
-use "pony_check"
+use "pony_test"
 
-class iso _ListReverseProperty is Property1[List[USize]]
+class iso _ListReverseProperty is Property[List[USize]]
   fun name(): String => "list/reverse"
 
   fun gen(): Generator[List[USize]] =>
     Generators.list_of[USize](Generators.usize())
 
-  fun property(arg1: List[USize], ph: PropertyHelper) =>
+  fun ref property(arg1: List[USize], ph: PropertyHelper) =>
     ph.assert_array_eq[USize](arg1, arg1.reverse().reverse())
 ```
 
-When a property fails, PonyCheck shrinks the failing input to find the smallest counterexample, making failures easier to diagnose.
+When a property fails, PonyTest shrinks the failing input to find the smallest counterexample, making failures easier to diagnose.
 
-You can also run properties inline within a `UnitTest` using `PonyCheck.for_all`:
+You can also run properties inline within a `UnitTest` using `h.for_all`:
 
 ```
 use "collections"
-use "pony_check"
 use "pony_test"
 
 class iso _TestListReverse is UnitTest
   fun name(): String => "list/reverse/inline"
 
-  fun apply(h: TestHelper) =>
+  fun apply(h: TestHelper) ? =>
     let gen = recover val Generators.list_of[USize](Generators.usize()) end
-    PonyCheck.for_all[List[USize]](gen, h)(
+    h.for_all[List[USize]](gen)(
       {(sample, ph) =>
         ph.assert_array_eq[USize](sample, sample.reverse().reverse())
-      })
+      })?
 ```
 
-See the [PonyCheck stdlib docs](https://stdlib.ponylang.io/pony_check--index/) for the full set of generators and configuration options.
+See the [PonyTest stdlib docs](https://stdlib.ponylang.io/pony_test--index/) for the full set of generators and configuration options.
 
 ## Testing Async Code
 
@@ -1458,17 +1457,6 @@ cmake --build --preset release
 
 For details on the available tracking functions and how to call them from Pony code, see [Tracking Memory Usage at Runtime](https://www.ponylang.io/use/debugging/track-memory-usage/index.md).
 
-## Runtime Tracing
-
-Runtime tracing records events from the Pony scheduler, actor lifecycle, and message passing. Events can be written to a trace file in the background, or stored in in-memory circular buffers that dump to stderr when the program crashes — a fatal signal such as SIGSEGV or SIGILL on Linux and macOS, or a fault such as an access violation on Windows. Trace files use Chromium JSON format and can be viewed with [Perfetto](https://perfetto.dev/).
-
-```
-cmake --preset release -DPONY_USES=runtime_tracing
-cmake --build --preset release
-```
-
-For details on tracing options and usage, see [Tracing Pony Programs](https://www.ponylang.io/use/debugging/tracing/index.md).
-
 ## Systematic Testing
 
 Systematic testing replaces the Pony scheduler with a deterministic, single-threaded scheduler that explores different actor interleaving orders. It’s a tool for working on the runtime itself: when a runtime change has a bug that only shows up under some scheduler interleaving, systematic testing lets you replay that interleaving from a seed.
@@ -1597,7 +1585,71 @@ Print the runtime usage options and exit.
 
 ## Tracing Options
 
-When `ponyc` is built with runtime tracing enabled, additional `--ponytracing*` options become available for tracing actor, scheduler, and GC events. See [Trace Pony Programs](https://www.ponylang.io/use/debugging/tracing/index.md) for details.
+These options control the runtime’s built-in tracing system for recording actor, scheduler, and GC events. When no tracing flags are passed, the runtime checks a single boolean at each trace point and skips the call — the overhead is not measurable. See [Tracing Pony Programs](https://www.ponylang.io/use/debugging/tracing/index.md) for usage details.
+
+### `--ponytracingmode`
+
+Mode for tracing. Valid options:
+
+- `file` — write trace events to a file
+- `flight_recorder` — save events to a per-thread in-memory circular buffer; events are written to stderr when the program crashes (a fatal signal such as SIGSEGV, SIGILL, SIGBUS, or SIGFPE on Linux and macOS, or a fault such as an access violation on Windows)
+
+Defaults to `file`.
+
+### `--ponytracingformat`
+
+Output format for tracing in file mode. Valid options:
+
+- `json` — Chromium trace JSON format (viewable with [Perfetto](https://perfetto.dev/))
+
+Defaults to `json`.
+
+### `--ponytracingoutput`
+
+Output file for tracing in file mode. Valid options:
+
+- `-` — stdout
+- `~` — stderr
+- any string — filename/path to write to
+
+Defaults to `ponytrace.json`.
+
+### `--ponytracingcategories`
+
+Tracing categories to enable, as comma-separated glob patterns. Valid categories:
+
+- `actor` — basic actor events
+- `actor_behavior` — actor behavior run events
+- `actor_gc` — actor garbage collection events
+- `actor_state_change` — actor state change events
+- `scheduler` — basic scheduler events
+- `scheduler_messaging` — inter-scheduler messaging events
+- `systematic_testing` — systematic testing events
+- `systematic_testing_details` — detailed systematic testing events
+
+Defaults to all categories disabled.
+
+### `--ponytracingforceactortracing`
+
+Force tracing for actors. Valid options:
+
+- `all` — force tracing for all actors
+- `cd_only` — only force tracing for the cycle detector
+- `none` — do not force tracing for any actors
+
+Defaults to `none`.
+
+### `--ponytracingflightrecorderbuffer`
+
+Number of events to buffer per-thread in flight recorder mode. The value is rounded up to the nearest power of 2; the minimum allowed is 1. Defaults to 16384.
+
+### `--ponytracingflightrecorderhandletermint`
+
+Also trap on SIGINT (Ctrl-C) and SIGTERM in flight recorder mode.
+
+### `--ponypintracingthread`
+
+Pin the tracing thread to a CPU the way scheduler threads are pinned to CPUs. Requires `--ponypin` to be set to have any effect.
 
 ## Programmatic Overrides
 
@@ -2127,21 +2179,6 @@ Traces are written in chromium json format and trace files can be viewed with th
 A number of Pony runtime options are enabled when tracing is enabled. The details can be found by running `<pony program> --ponyhelp` (e.g.: `./helloworld --ponyhelp`) and looking at the options that begin with `--ponytracing*` for how to enable and configure tracing.
 
 Once a trace has been captured, it can be viewed with the [perfetto trace viewer](https://perfetto.dev/).
-
-## Building ponyc to enable tracing
-
-Tracing is not enabled by default. You need to build ponyc from source with the `runtime_tracing` option:
-
-```
-cmake --preset release -DPONY_USES=runtime_tracing
-cmake --build --preset release
-```
-
-The resulting `ponyc` binary is in `build/release-runtime_tracing/` — enabling an option suffixes the output directory with the option name. Use it in place of your system `ponyc` to compile programs with tracing enabled.
-
-The commands above are for the Unix build. To enable `runtime_tracing` on Windows, build ponyc from source following ponyc’s [BUILD.md](https://github.com/ponylang/ponyc/blob/main/BUILD.md).
-
-For full source build instructions, see [Custom ponyc Builds for Debugging](https://www.ponylang.io/use/compiler/custom-ponyc-builds/index.md).
 
 ## See also
 

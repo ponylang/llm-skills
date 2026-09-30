@@ -82,7 +82,7 @@ The Pony Tutorial is a comprehensive guide to the Pony programming language, an 
 
 - [Overview](https://tutorial.ponylang.io/testing/index.md)
 - [Testing with PonyTest](https://tutorial.ponylang.io/testing/ponytest.md)
-- [Testing with PonyCheck](https://tutorial.ponylang.io/testing/ponycheck.md)
+- [Property-Based Testing](https://tutorial.ponylang.io/testing/property-testing.md)
 
 ## C-FFI
 
