@@ -51,7 +51,7 @@ One that doesn't is worse than none — it costs the reader effort and returns n
 
 ## Never leave dead status prose
 
-`// WIP`. A `// TODO: add validation` after validation exists. Dated notes. Apologetic stubs. Commented-out code. Section banners the code structure already conveys — a banner survives only when it marks something the structure cannot, like a "do not reorder" boundary.
+`// WIP`. A `// TODO: add validation` after validation exists. Dated notes. Apologetic stubs. Commented-out code. Section separator comments (`// --- Section Name ---` and variants) — ponylang projects don't use them; files and types serve that purpose. A "do not reorder" boundary earns a comment, but it's a constraint comment, not a section banner.
 
 ## Never list your callers
 
