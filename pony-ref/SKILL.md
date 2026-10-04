@@ -257,6 +257,20 @@ Byte-by-byte is the last resort, not the first workaround. If the refcaps won't 
 
 Implementation: uses `@fprintf`/`@exit`/`@pony_os_stderr` FFI, takes `SourceLoc = __loc` for automatic location, includes project issues URL. A dummy return value may be needed after the call since the compiler doesn't know the primitive diverges. Group multiple variants in a `_mort.pony` file; use `unreachable.pony` for a single primitive. Public or private (`_Unreachable`) depending on package visibility needs. Use `ifdef debug then ... end` wrapper for less-certain cases.
 
+## Compiler Flags for Build Speed vs. Binary Performance
+
+`ponyc` defaults to optimized builds with fat LTO. The flags that matter:
+
+- `--debug` — disables optimizations (fast compile, slower binary)
+- `--thin-lto` — uses thin LTO instead of fat LTO (faster link, slightly less optimization)
+- `--fat-lto` — full LTO (default; slowest link, best optimization)
+
+**Fastest compile time**: `ponyc --debug --thin-lto`. Use this during development iteration when you're rebuilding frequently and don't care about runtime performance.
+
+**Maximum binary performance**: use the defaults (no flags needed). Fat LTO is on by default.
+
+Mix and match as needed — `--debug` alone skips optimization but still does fat LTO; `--thin-lto` alone keeps optimizations but speeds up the link step.
+
 ## Deep Reference Material
 
 For deeper type system and runtime questions, read files in the `references/` directory alongside this skill. Start with `type-system-synopsis.md` for a distilled overview, then consult specific papers as needed.
