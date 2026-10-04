@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file. Entries
 are grouped by date (UTC) with newest first.
 
+## 2026-10-04
+
+- ADDED: Add ponyc compiler flags guidance to pony-ref ([PR #81](https://github.com/ponylang/llm-skills/pull/81))
+
 ## 2026-10-03
 
 - CHANGED: Explicitly prohibit section separator comments ([PR #80](https://github.com/ponylang/llm-skills/pull/80))
