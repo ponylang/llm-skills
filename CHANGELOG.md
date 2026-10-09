@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file. Entries
 are grouped by date (UTC) with newest first.
 
+## 2026-10-09
+
+- CHANGED: Add invariant layer to pony-debug protocol ([PR #83](https://github.com/ponylang/llm-skills/pull/83))
+
 ## 2026-10-04
 
 - ADDED: Add ponyc compiler flags guidance to pony-ref ([PR #81](https://github.com/ponylang/llm-skills/pull/81))
