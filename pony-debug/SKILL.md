@@ -74,17 +74,19 @@ This is the core of debugging. It's an OODA loop — observe, orient, decide, ac
 
 3. **Act**: Run the experiment — instrument the code, add logging or assertions, run the reproduction. Report what was observed.
 
-4. **Observe**: What did the evidence show? Did it confirm, refute, or reveal something unexpected? Update your understanding of the problem space.
+4. **Observe**: What did the evidence show? This is where you branch. If the prediction held, *refine* — narrow the hypothesis toward a more specific cause. If it failed, *replace* — form a new hypothesis from what the evidence actually showed. If the result was unexpected, update your model of the problem space before doing either.
 
 Then loop. Each iteration should narrow the space — ruling out possibilities, confirming parts of the causal chain, surfacing new information. Keep going until your hypothesis accounts for all observed symptoms.
 
-**Artifact per iteration**: The hypothesis, the experiment, what was observed, and what was learned. Accumulate these — the trail of evidence is how you build toward a complete explanation.
+**Artifact — debugging logbook**: Maintain a single cumulative document across iterations. Each entry records the hypothesis, the prediction, the experiment, the outcome, and the decision — refine or replace — with the resulting hypothesis that starts the next iteration. Read it top to bottom: you narrow the hypothesis with each confirmed prediction, or change direction when one fails. Without accumulation, per-iteration notes are disconnected snapshots.
 
 **When the symptom is nondeterministic, orient at the scheduling layer first.** A test that fails on different runs, or passes on some platforms and not others, points at concurrency — scheduler contention, CPU count, actor scheduling, concurrent vs sequential execution — not at code logic. Tracing code paths to prove two versions are logically equivalent is the wrong level of analysis for a scheduling problem; a refactor that preserves logic can still change timing.
 
+**When evidence confirms a hypothesis**: Confirming a broad hypothesis does not end investigation — narrow further. Ask what more specific cause, within the region you just confirmed, would produce exactly these symptoms. "The parser drops trailing fields" becomes "the parser treats repeated delimiters as a single delimiter, consuming the empty field between them." Each refinement is a new hypothesis with its own prediction and experiment. Stop refining when the hypothesis names a specific mechanism you can point to in the code.
+
 **When evidence refutes a hypothesis**: Form a NEW hypothesis from what the evidence actually shows. Do not shift the old hypothesis — "maybe it happens earlier" is the same hypothesis moved upstream. That's defending a theory, not following evidence.
 
-**When a hypothesis contradicts an invariant.** A hypothesis that requires an invariant from checkpoint 4 to be false is not investigated at face value. Exhaust hypotheses consistent with the invariant first. When nothing else explains the symptoms, question the invariant — but treat that as a separate, explicit investigation with its own evidence requirements. You need direct evidence that the invariant doesn't hold, not just an inability to explain the symptoms another way. If the invariant falls, go back to checkpoint 4 and revise the list — every conclusion built on that invariant is now suspect.
+**When a hypothesis contradicts an invariant**: A hypothesis that requires an invariant from checkpoint 4 to be false is not investigated at face value. Exhaust hypotheses consistent with the invariant first. When nothing else explains the symptoms, question the invariant — but treat that as a separate, explicit investigation with its own evidence requirements. You need direct evidence that the invariant doesn't hold, not just an inability to explain the symptoms another way. If the invariant falls, go back to checkpoint 4 and revise the list — every conclusion built on that invariant is now suspect.
 
 **If stuck after 2-3 iterations without progress**: You are likely anchored to a bad hypothesis. Spawn a fresh-eyes subagent with the original problem, what you've tried, and your current hypothesis. The subagent's job is to verify your assumptions, generate alternative hypotheses, and report back. Act on its findings — don't dismiss them to defend your original theory.
 
