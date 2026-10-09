@@ -10,7 +10,7 @@ A structured protocol for debugging non-trivial issues. Each checkpoint requires
 
 ## Overarching principle
 
-Don't assert a cause. State hypotheses explicitly. Prove the execution path with evidence. When evidence contradicts your hypothesis, discard it entirely and form a new one from what the evidence actually shows. Don't shift the same hypothesis upstream — that's defending a theory, not following the evidence.
+Don't assert a cause without evidence. State hypotheses explicitly. Establish the execution path with measurements, not code reading alone. When established evidence contradicts your hypothesis, discard it and form a new one from what the evidence shows. If the contradiction depends on an unverified assumption about a measurement, verify that assumption before deciding. Don't shift the same hypothesis upstream — that's defending a theory, not following the evidence.
 
 A hypothesis is not knowledge. If you can test it, test it. This protocol makes that concrete for debugging sessions.
 
@@ -32,35 +32,37 @@ What's broken? State the expected behavior vs observed behavior. What invariant 
 
 ### Checkpoint 2: Gather context
 
-Read the relevant code paths. Understand the execution context, what state is involved, what the entry points are. For intermittent failures, note the reproduction rate and what conditions affect it.
+Gather observations of the failure and their sources before interpreting them. Record the version, configuration, workload, and environment for each relevant artifact or measurement. Compare with successful runs, unaffected cases, or another failure mode. Record known differences before treating those cases as controls; a difference in configuration or workload may explain the result. Check whether a control shares the suspected defect before relying on the comparison.
 
-**Artifact**: Summary of relevant code paths and state involved.
+Read the relevant code paths to understand the execution context, state, and entry points, and to locate useful measurements. For intermittent failures, note the reproduction rate and what conditions affect it. Keep observations separate from explanations inferred from the code.
+
+**Artifact**: Observations with sources and context, available controls and their known differences, and a summary of relevant code paths and state involved.
 
 ### Checkpoint 3: Minimal reproduction
 
-Build a minimal reproduction — the smallest, simplest case that triggers the failure. Don't just re-run the failing test suite. Strip away everything that isn't necessary to trigger the bug. A minimal reproduction has less surface area, simpler generated code, fewer interacting components, and fewer possible explanations. This makes every subsequent checkpoint easier.
+Build a minimal reproduction — the smallest, simplest case that triggers the failure. Don't just re-run the failing test suite. Compare its measurements with the incident evidence: the same error or visible symptom can result from a different mechanism. Preserve the observations that distinguish the incident from those alternatives as you reduce the case. A minimal reproduction has less surface area, simpler generated code, fewer interacting components, and fewer possible explanations. This makes every subsequent checkpoint easier.
 
-For intermittent failures, try to increase the rate — stress test in a tight loop, reduce timing margins, run on constrained resources. If reproduction isn't achievable, state why explicitly.
+For intermittent failures, try to increase the rate — stress test in a tight loop, reduce timing margins, run on constrained resources. Record how those changes affect the distinguishing measurements. Until the comparison matches, or when incident evidence is unavailable, call it a candidate reproduction and state what remains unverified. If reproduction isn't achievable, state why explicitly and use the available incident evidence to guide measurements. Revisit the comparison when later evidence changes your understanding of the failure.
 
-**Artifact**: A minimal reproduction with steps/command and evidence it triggers the failure. If reproduction isn't achievable, an explicit statement of why and what alternative strategy you're using instead.
+**Artifact**: Reproduction steps/command, measurements, and comparison with incident evidence, including differences or unavailable evidence. If reproduction isn't achievable, an explicit statement of why and what alternative strategy you're using instead.
 
 ### Checkpoint 4: State your ground
 
 Without a written record of what you're standing on, a hypothesis that contradicts a system guarantee goes unnoticed — the debugger investigates a condition the system has already ruled out.
 
-Before forming hypotheses, write down what you're treating as true and where each belief comes from. These are the invariants you'll stand on while investigating — properties you accept could be wrong, but won't question unless evidence forces you to.
+Before forming hypotheses, write down what you're treating as true and where each belief comes from. Separate guarantees and contracts from raw observations and their interpretations. Keep the artifact sources and version/configuration context from checkpoint 2. Measurements establish what happened in the measured runs; an interpretation of those measurements is a separate claim.
 
-Sources of invariants, roughly ordered by how costly they are to question:
+Sources of these beliefs, roughly ordered by how costly they are to question:
 
-- **Language and runtime guarantees.** Properties the language or runtime enforces. Pony's reference capabilities guarantee no data races. The type system guarantees a `val` reference is never written to. Questioning these means asserting a compiler or runtime bug.
+- **Language and runtime guarantees.** Properties the language or runtime enforces. For operations governed by Pony's type system, reference capabilities guarantee no data races and the type system guarantees a `val` reference is never written to. Disputing these guarantees within that scope means asserting a compiler or runtime bug. Checking their applicability does not: incorrect FFI use or foreign code can violate them without such a bug.
 - **Protocol and design contracts.** Properties the system's design is supposed to enforce. Phase 1 of a protocol clears all external references before phase 2 begins. A constructor establishes an invariant that methods depend on. Questioning these means asserting the implementation doesn't match the design.
 - **External specifications.** Properties documented in an external authority — an RFC, a C library's API contract, a hardware manual. Relevant when debugging FFI bindings, protocol implementations, or codec conformance. Questioning these means asserting the specification is wrong, version-mismatched, or misread.
 - **Empirical observations from this session.** Things you've verified by running code — a specific value at a specific point, a code path that executes, a timing you measured. These are evidence, but they're samples; they don't prove the general case.
 - **Code-reading inferences.** Things you concluded by reading the source. These are the most fragile — you may have missed a branch, misread control flow, or not noticed an override.
 
-State each invariant, its source, and what it rules out. This list is the ground for checkpoint 5's investigation loop — the reference point for checking whether a hypothesis contradicts what the system guarantees.
+State each belief, its source, its scope, and what it rules out. Check whether a measurement's collection method and context support the interpretation. Preserve the raw evidence when an interpretation changes. Uncertainty about a measurement does not justify discarding a language guarantee. This list is the ground for checkpoint 5's investigation loop — the reference point for checking whether a hypothesis contradicts a guarantee or an established observation.
 
-**Artifact**: The list of invariants, each with its source and what it rules out.
+**Artifact**: Guarantees, contracts, observations, and interpretations, each with its source, scope, and what it rules out; unresolved assumptions stated explicitly.
 
 ### Checkpoint 5: Investigation loop
 
@@ -68,29 +70,29 @@ This is the core of debugging. It's an OODA loop — observe, orient, decide, ac
 
 **Each iteration:**
 
-1. **Orient**: State a hypothesis about some subset of the problem. It doesn't need to explain everything yet — but be explicit about what it covers and what remains unexplained. "I think [cause] because [evidence]. This would explain [symptoms A and B] but not [symptom C]." Name which invariants from checkpoint 4 the hypothesis depends on, and whether it contradicts any.
+1. **Orient**: State a hypothesis about some subset of the problem. It doesn't need to explain everything yet — but be explicit about what it covers and what remains unexplained. "I think [cause] because [evidence]. This would explain [symptoms A and B] but not [symptom C]." Name which beliefs from checkpoint 4 the hypothesis depends on, and whether it contradicts any. Leaving a symptom unexplained is allowed; contradicting an established relevant observation is not.
 
-2. **Decide**: Design an experiment that would confirm or refute this hypothesis. What would you expect to see if it's right? What would you expect if it's wrong?
+2. **Decide**: Design an experiment that would support or refute this hypothesis. What would you expect to see if it's right? What would you expect under competing explanations? If the available observations do not distinguish the candidates, seek a measurement from another layer or view of the execution. If that measurement is unavailable, name it and state which explanations remain indistinguishable. You may compare candidates against observations as supported, contradicted, or unknown; unknown is not support, and the candidates need not cover every possible cause.
 
 3. **Act**: Run the experiment — instrument the code, add logging or assertions, run the reproduction. Report what was observed.
 
-4. **Observe**: What did the evidence show? This is where you branch. If the prediction held, *refine* — narrow the hypothesis toward a more specific cause. If it failed, *replace* — form a new hypothesis from what the evidence actually showed. If the result was unexpected, update your model of the problem space before doing either.
+4. **Observe**: What did the evidence show? This is where you branch. If the prediction held, *refine* — narrow the hypothesis toward a more specific cause. If an established observation contradicts the prediction, *replace* — form a new hypothesis from what the evidence actually showed. If an apparent contradiction depends on an unverified measurement assumption, investigate that assumption before deciding whether to refine or replace. State the assumption and the measurement needed to verify it; the candidate remains unresolved during that investigation. If the result was unexpected, update your model of the problem space before choosing the next step.
 
-Then loop. Each iteration should narrow the space — ruling out possibilities, confirming parts of the causal chain, surfacing new information. Keep going until your hypothesis accounts for all observed symptoms.
+Then loop. Each iteration should narrow the space — ruling out possibilities, supporting parts of the causal chain, surfacing new information. Keep going until your hypothesis accounts for all established relevant observations.
 
-**Artifact — debugging logbook**: Maintain a single cumulative document across iterations. Each entry records the hypothesis, the prediction, the experiment, the outcome, and the decision — refine or replace — with the resulting hypothesis that starts the next iteration. Read it top to bottom: you narrow the hypothesis with each confirmed prediction, or change direction when one fails. Without accumulation, per-iteration notes are disconnected snapshots.
+**Artifact — debugging logbook**: Maintain a single cumulative document across iterations, retaining checkpoint 4's sources and distinctions between observations and interpretations. Each entry records the hypothesis, the prediction, the experiment, the outcome with its source and context, and the decision — refine, replace, or investigate a measurement assumption. Record the resulting hypothesis or the assumption and measurement to investigate next. Record unresolved assumptions and changes to interpretations without rewriting raw evidence. Read it top to bottom: you narrow the hypothesis with each supported prediction, change direction when an established observation contradicts it, or verify a measurement assumption before deciding. Without accumulation, per-iteration notes are disconnected snapshots.
 
-**When the symptom is nondeterministic, orient at the scheduling layer first.** A test that fails on different runs, or passes on some platforms and not others, points at concurrency — scheduler contention, CPU count, actor scheduling, concurrent vs sequential execution — not at code logic. Tracing code paths to prove two versions are logically equivalent is the wrong level of analysis for a scheduling problem; a refactor that preserves logic can still change timing.
+**When the symptom is nondeterministic**: Use the observed differences to choose alternatives to investigate. Scheduling, input variation, resource limits, environment differences, and code logic are possible causes; intermittency alone does not establish any of them. Compare failing and successful runs, then measure what would distinguish the plausible explanations. Code paths that look equivalent may still execute with different state or timing.
 
-**When evidence confirms a hypothesis**: Confirming a broad hypothesis does not end investigation — narrow further. Ask what more specific cause, within the region you just confirmed, would produce exactly these symptoms. "The parser drops trailing fields" becomes "the parser treats repeated delimiters as a single delimiter, consuming the empty field between them." Each refinement is a new hypothesis with its own prediction and experiment. Stop refining when the hypothesis names a specific mechanism you can point to in the code.
+**When evidence supports a hypothesis**: Supporting a broad hypothesis does not end investigation — narrow further. Ask what more specific cause, within the region you just measured, would produce exactly these symptoms. "The parser drops trailing fields" becomes "the parser treats repeated delimiters as a single delimiter, consuming the empty field between them." Each refinement is a new hypothesis with its own prediction and experiment. A prediction holding does not prove that only this explanation is possible. Stop refining when the hypothesis names a specific mechanism whose execution you have measured and whose causal links you can support.
 
-**When evidence refutes a hypothesis**: Form a NEW hypothesis from what the evidence actually shows. Do not shift the old hypothesis — "maybe it happens earlier" is the same hypothesis moved upstream. That's defending a theory, not following evidence.
+**When evidence refutes a hypothesis**: Reject the candidate, or identify and verify the assumption on which the apparent contradiction depends. Do not reinterpret the raw observation to preserve the candidate. Once refuted, form a NEW hypothesis from what the evidence actually shows. Do not shift the old hypothesis — "maybe it happens earlier" is the same hypothesis moved upstream. That's defending a theory, not following evidence.
 
-**When a hypothesis contradicts an invariant**: A hypothesis that requires an invariant from checkpoint 4 to be false is not investigated at face value. Exhaust hypotheses consistent with the invariant first. When nothing else explains the symptoms, question the invariant — but treat that as a separate, explicit investigation with its own evidence requirements. You need direct evidence that the invariant doesn't hold, not just an inability to explain the symptoms another way. If the invariant falls, go back to checkpoint 4 and revise the list — every conclusion built on that invariant is now suspect.
+**When a hypothesis contradicts an invariant**: A hypothesis that requires a guarantee or contract from checkpoint 4 to be false is not investigated at face value. Exhaust hypotheses consistent with the invariant first. When nothing else explains the symptoms, question the invariant — but treat that as a separate, explicit investigation with its own evidence requirements. You need direct evidence that the invariant doesn't hold, not just an inability to explain the symptoms another way. If the invariant falls, go back to checkpoint 4 and revise the list — every conclusion built on that invariant is now suspect.
 
-**If stuck after 2-3 iterations without progress**: You are likely anchored to a bad hypothesis. Spawn a fresh-eyes subagent with the original problem, what you've tried, and your current hypothesis. The subagent's job is to verify your assumptions, generate alternative hypotheses, and report back. Act on its findings — don't dismiss them to defend your original theory.
+**If stuck after 2-3 iterations without progress**: You are likely anchored to a bad hypothesis. Spawn a fresh-eyes subagent with the original problem, what you've tried, your current hypothesis, and the evidence sources. Have it verify assumptions, generate alternatives, and try to falsify the control comparisons, reproduction fidelity, and unsupported causal claims. Act on its findings — don't dismiss them to defend your original theory. Agreement between agents is not evidence that a code path executed.
 
-**Exit condition**: You can explain all observed symptoms and have evidence supporting each link in the causal chain. Only then proceed to checkpoint 6.
+**Exit condition**: You can explain all established relevant observations, including the distinguishing incident measurements and applicable controls, and have evidence supporting each link in the causal chain. Cite that evidence and state limits where incident evidence or reproduction is unavailable. Those limits do not prevent proceeding when other evidence supports each causal link. You need not prove a unique cause or investigate every conceivable explanation. If plausible alternatives leave the incident's cause unresolved, stay in investigation and seek a measurement that distinguishes them. If that measurement is unavailable, report a blocked diagnosis and the measurement needed; recording the uncertainty does not satisfy this exit condition. Proceed to checkpoint 6 only when the causal explanation is supported.
 
 ### Checkpoint 6: Find where the cause reaches
 
@@ -138,11 +140,11 @@ If the cause reaches places you are not going to fix, that is a decision to rais
 
 ### Checkpoint 8: Fix and verify
 
-Fix the cause, in the place checkpoint 7 identified. Explain why this addresses the cause. A sleep, a retry, or a "just check again" that masks the problem is not a fix. Run the reproduction to confirm. For the other places checkpoint 6 found, build a check for each — and where you can't build one, say so rather than assume.
+Fix the cause, in the place checkpoint 7 identified. Explain why this addresses the cause, citing the causal evidence from the logbook. A sleep, a retry, or a "just check again" that masks the problem is not a fix. Run the reproduction and recheck the distinguishing incident measurements and applicable controls. Confirm the expected change in the mechanism as well as the symptom. If incident evidence or reproduction is unavailable, state what you checked and what remains unverified. For the other places checkpoint 6 found, build a check for each — and where you can't build one, say so rather than assume.
 
 Read the fix you just wrote. Can you say why that code is there without mentioning the bug report? "The reader never returns an empty list" needs no report to make sense. "We check for an empty list here, because empty configs crashed" cannot be explained without one — the code is shaped like the report instead of like the program. If you need the report to explain the fix, you fixed the report. Go back to checkpoint 7.
 
-**Artifact**: The fix, the rationale for why it addresses the cause, and evidence it resolves the issue.
+**Artifact**: The fix, the rationale with causal evidence references, verification measurements and control comparisons, and explicit limits on what was verified.
 
 ## Honest use
 
