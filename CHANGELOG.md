@@ -5,6 +5,7 @@ are grouped by date (UTC) with newest first.
 
 ## 2026-10-09
 
+- CHANGED: Strengthen evidence requirements in the debugging protocol ([PR #85](https://github.com/ponylang/llm-skills/pull/85))
 - ADDED: Add hypothesis refinement and debugging logbook to pony-debug ([PR #84](https://github.com/ponylang/llm-skills/pull/84))
 - CHANGED: Add invariant layer to pony-debug protocol ([PR #83](https://github.com/ponylang/llm-skills/pull/83))
 
