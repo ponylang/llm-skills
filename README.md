@@ -192,7 +192,7 @@ Built on one idea — chance is not coverage, so a generator must bias toward wh
 
 Structured debugging protocol with checkpoints. Load it when debugging non-trivial issues — before forming any hypothesis about the cause.
 
-Provides an OODA-loop investigation process: characterize the failure, gather context, build a minimal reproduction, state your ground (the invariants you'll stand on while investigating), then iterate through hypothesis/experiment/observe cycles until all symptoms are explained. A hypothesis that contradicts a stated invariant is not investigated at face value — the debugger exhausts alternatives consistent with the invariant first. Then find every place the cause reaches, and only then where the fix belongs. Especially valuable for Pony's subtle failure modes (capability violations, FFI issues, actor lifecycle problems, CI timeouts from undisposed resources).
+Provides an OODA-loop investigation process: gather observations and controls, compare reproduction measurements with incident evidence, and separate guarantees, observations, and interpretations in a cumulative logbook. Use discriminating measurements to investigate hypotheses, retaining evidence sources and unresolved limits. Exhaust alternatives consistent with a stated invariant before questioning it. Once the causal links have evidence, find every place the cause reaches, decide where the fix belongs, and verify the mechanism and symptom against incident measurements and applicable controls. Especially valuable for Pony's subtle failure modes (capability violations, FFI issues, actor lifecycle problems, CI timeouts from undisposed resources).
 
 ### Infrastructure
 
