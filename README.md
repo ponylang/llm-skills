@@ -68,6 +68,7 @@ What's in the quick reference (loaded into context automatically):
 - Property-based testing patterns and gotchas
 - Stdlib pitfalls (Reader, Array, Writer, buffered)
 - Panic primitives ("mort" pattern)
+- pony-agent-server — a JSON query server for type information (ponyc 0.75.0+)
 
 What's in the `references/` directory (read on demand for deeper questions):
 
