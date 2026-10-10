@@ -271,6 +271,10 @@ Implementation: uses `@fprintf`/`@exit`/`@pony_os_stderr` FFI, takes `SourceLoc 
 
 Mix and match as needed — `--debug` alone skips optimization but still does fat LTO; `--thin-lto` alone keeps optimizations but speeds up the link step.
 
+## pony-agent-server (ponyc 0.75.0+)
+
+A JSON query server that ships with ponyc. It compiles a Pony package and answers questions about types, definitions, capabilities, and structure over stdin/stdout. Run `pony-agent-server --queries` for the full query reference, or read the README at `tools/pony-agent-server/README.md` in the ponyc source tree.
+
 ## Deep Reference Material
 
 For deeper type system and runtime questions, read files in the `references/` directory alongside this skill. Start with `type-system-synopsis.md` for a distilled overview, then consult specific papers as needed.
