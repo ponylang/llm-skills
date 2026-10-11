@@ -72,11 +72,11 @@ The Pony Tutorial is a comprehensive guide to the Pony programming language, an 
 - [Generics and Reference Capabilities](https://tutorial.ponylang.io/generics/generics-and-reference-capabilities.md)
 - [Constraints](https://tutorial.ponylang.io/generics/generic-constraints.md)
 
-## Packages
+## Modules
 
-- [Overview](https://tutorial.ponylang.io/packages/index.md)
-- [Use Statement](https://tutorial.ponylang.io/packages/use-statement.md)
-- [Standard Library](https://tutorial.ponylang.io/packages/standard-library.md)
+- [Overview](https://tutorial.ponylang.io/modules/index.md)
+- [Use Statement](https://tutorial.ponylang.io/modules/use-statement.md)
+- [Standard Library](https://tutorial.ponylang.io/modules/standard-library.md)
 
 ## Testing
 

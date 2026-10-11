@@ -64,7 +64,7 @@ Throughout the design and development of the language the following principles s
 - Efficient hardware access must be available, but this does not have to pervade the whole language.
 - The standard library should be implemented in Pony.
 - Interoperability. Must be interoperable with other languages, but this may require a shim layer if non primitive types are used.
-- Avoid library pain. Use of 3rd party Pony libraries should be as easy as possible, with no surprises. This includes writing and distributing libraries and using multiple versions of a library in a single program.
+- Avoid library pain. Use of 3rd party Pony packages should be as easy as possible, with no surprises. This includes writing and distributing packages and using multiple versions of a package in a single program.
 
 ## More help
 
@@ -336,7 +336,7 @@ class Wombat
 
 Here, a `Wombat` has a `name`, which is a `String`, and a `_hunger_level`, which is a `U64` (an unsigned 64-bit integer).
 
-**What does the leading underscore mean?** It means something is **private**. A **private** field can only be accessed by code in the same type. A **private** constructor, function, or behaviour can only be accessed by code in the same package. We’ll talk more about packages later.
+**What does the leading underscore mean?** It means something is **private**. A **private** field can only be accessed by code in the same type. A **private** constructor, function, or behaviour can only be accessed by code in the same module. We’ll talk more about modules later.
 
 ### Constructors
 
@@ -841,7 +841,7 @@ primitive Blue
 type Color is (Red | Blue)
 ```
 
-In our trait based example, we can add new colors at any time. With the type union based approach, we can only add them by modifying definition of `Color` in the package that provides it.
+In our trait based example, we can add new colors at any time. With the type union based approach, we can only add them by modifying definition of `Color` in the module that provides it.
 
 Interfaces can’t be used for open world enumerations. If we defined `Color` as an interface:
 
@@ -3106,7 +3106,7 @@ They are presented more in-depth in the [Object Literals section](https://tutori
 
 ## Privacy
 
-In Pony, method names start either with a lower case letter or with an underscore followed by a lowercase letter. Methods with a leading underscore are private. This means they can only be called by code within the same package. Methods without a leading underscore are public and can be called by anyone.
+In Pony, method names start either with a lower case letter or with an underscore followed by a lowercase letter. Methods with a leading underscore are private. This means they can only be called by code within the same module. Methods without a leading underscore are public and can be called by anyone.
 
 **Can I start my method name with 2 (or more) underscores?** No. If the first character is an underscore then the second one MUST be a lower case letter.
 
@@ -4505,7 +4505,7 @@ actor Main
     Connect(env.out, TCPConnectAuth(env.root))
 ```
 
-The `use notifier = "net/notifier"` line imports the `net/notifier` subpackage under the name `notifier`, so its types are accessed as `notifier.ClientTCPConnection`. The [Use Statement](https://tutorial.ponylang.io/packages/use-statement.html) page covers this syntax in detail.
+The `use notifier = "net/notifier"` line imports the `net/notifier` subpackage under the name `notifier`, so its types are accessed as `notifier.ClientTCPConnection`. The [Use Statement](https://tutorial.ponylang.io/packages/use-statement.md) page covers this syntax in detail.
 
 The `Main` actor authorizes the `Connect` actor by passing a `TCPConnectAuth` token created from the ambient authority token in `env.root`. The ambient authority token is unforgeable since the `AmbientAuth` constructor is private and the only existing instance is provided by the runtime itself.
 
@@ -4539,13 +4539,13 @@ actor Main
     Connect(env.out, TCPConnectAuth(env.root))
 ```
 
-Now we are sure it cannot access the filesystem or listen on a TCP or UDP port. Pay close attention to the authority that code you are calling is asking for. Never give `AmbientAuth` to **any** code you do not trust completely both now and in the future. You should always create the most specific authority and give the library that authority. If the library is asking for more authority than it needs, **do not use the library**.
+Now we are sure it cannot access the filesystem or listen on a TCP or UDP port. Pay close attention to the authority that code you are calling is asking for. Never give `AmbientAuth` to **any** code you do not trust completely both now and in the future. You should always create the most specific authority and give the package that authority. If the package is asking for more authority than it needs, **do not use the package**.
 
 ## Authorization-friendly interface
 
 Consider the above example again, but this time let’s think of the `Connect` actor being part of a 3rd party package that we are building. Our goal is to write the actor in such a way that users of our package can grant it only the authority necessary for it to function.
 
-As the package author, it is then our responsibility to realize that the minimal authority possible is the `TCPConnectAuth`. We should only request `TCPConnectAuth` from our users. Our current implementation already satisfies this requirement. Rather than requesting a less specific authority like `AmbientAuth` from our users and creating the `TCPConnectAuth` in our library, we only ask for the `TCPConnectAuth` that is required.
+As the package author, it is then our responsibility to realize that the minimal authority possible is the `TCPConnectAuth`. We should only request `TCPConnectAuth` from our users. Our current implementation already satisfies this requirement. Rather than requesting a less specific authority like `AmbientAuth` from our users and creating the `TCPConnectAuth` in our package, we only ask for the `TCPConnectAuth` that is required.
 
 ## Authority hierarchies
 
@@ -4613,13 +4613,13 @@ When we talk about trust, we don’t mean things you trust because you think the
 
 In Pony, when you use the C-FFI, you are basically declaring that you trust the C code that’s being executed. That’s fine, because you may need it to get work done. But what about trusting someone else’s code to use the C-FFI? You may need to, but you definitely want to know that it’s happening.
 
-## Safe packages
+## Safe modules
 
 The normal way to handle that is to be sure you’re using just the code you need to use in your program. Pretty simple! Don’t use some random package from the internet without looking at the code and making sure it doesn’t do nasty FFI stuff.
 
 But we can do better than that.
 
-In Pony, you can optionally declare a set of *safe* packages on the `ponyc` command line, like this:
+In Pony, you can optionally declare a set of *safe* modules on the `ponyc` command line, like this:
 
 ```
 ponyc --safe=files:net:process my_project
@@ -5048,32 +5048,32 @@ actor Main
 ```
 
 Constraints restrict what types a caller can provide. If you need different behavior depending on the actual type used, see [iftype](https://tutorial.ponylang.io/expressions/control-structures.html#iftype) — a compile-time conditional that branches on subtype relationships.
-# Packages
+# Modules
 
 # Overview
 
-Pony code is organised into **packages**. Each program and library is a single package, possibly using other packages.
+Pony code is organised into **modules**. Each program is a single module, possibly using other modules. A reusable set of Pony source files is a **package**.
 
-## The package structure
+## The module structure
 
-The package is the basic unit of code in Pony. It corresponds directly to a directory in the file system, all Pony source files within that directory are within that package. Note that this does not include files in any sub-directories.
+The module is the basic unit of code in Pony. It corresponds directly to a directory in the file system, all Pony source files within that directory are within that module. Note that this does not include files in any sub-directories.
 
-Every source file is within exactly one package. Hence all Pony code is in packages.
+Every source file is within exactly one module. Hence all Pony code is in modules.
 
-A package is usually split into several source files, although it does not have to be. This is purely a convenience to allow better code organisation and the compiler treats all the code within a package as if it were from a single file.
+A module is usually split into several source files, although it does not have to be. This is purely a convenience to allow better code organisation and the compiler treats all the code within a module as if it were from a single file.
 
-The package is the privacy boundary for types and methods. That is:
+The module is the privacy boundary for types and methods. That is:
 
-1. Private types (those whose name starts with an underscore) can be used only within the package in which they are defined.
-1. Private methods (those whose name starts with an underscore) can be called only from code within the package in which they are defined.
+1. Private types (those whose name starts with an underscore) can be used only within the module in which they are defined.
+1. Private methods (those whose name starts with an underscore) can be called only from code within the module in which they are defined.
 
-It follows that all code within a package is assumed to know and trust, all the rest of the code in the package.
+It follows that all code within a module is assumed to know and trust, all the rest of the code in the module.
 
-There is no such concept as a sub-package in Pony. For example, the packages “foo/bar” and “foo/bar/wombat” will, presumably, perform related tasks but they are two independent packages. Package “foo/bar” does not contain package “foo/bar/wombat” and neither has access to the private elements of the other.
+There is no such concept as a sub-module in Pony. For example, the modules “foo/bar” and “foo/bar/wombat” will, presumably, perform related tasks but they are two independent modules. Module “foo/bar” does not contain module “foo/bar/wombat” and neither has access to the private elements of the other.
 
 # Use Statement
 
-To use a package in your code you need to have a **use** command. This tells the compiler to find the package you need and make the types defined in it available to you. Every Pony file that needs to know about a type from a package must have a use command for it.
+To use a module in your code you need to have a **use** command. This tells the compiler to find the module you need and make the types defined in it available to you. Every Pony file that needs to know about a type from a module must have a use command for it.
 
 Use commands are a similar concept to Python and Java “import”, C/C++ “#include” and C# “using” commands, but not exactly the same. They come at the beginning of Pony files and look like this:
 
@@ -5102,7 +5102,7 @@ class Foo
 
 ## Use names
 
-As we saw above the use command adds all the public types from a package into the namespace of the using file. This means that using a package may define type names that you want to use for your own types. Furthermore, if you use two packages within a file they may both define the same type name, causing a clash in your namespace. For example:
+As we saw above the use command adds all the public types from a module into the namespace of the using file. This means that using a module may define type names that you want to use for your own types. Furthermore, if you use two modules within a file they may both define the same type name, causing a clash in your namespace. For example:
 
 ```
 // In package A
@@ -5119,7 +5119,7 @@ class Bar
   var _x: Foo
 ```
 
-The declarations of \_x is an error because we don’t know which `Foo` is being referred to. Actually using ‘Foo’ is not even required, simply using both `packageA` and `packageB` is enough to cause an error here.
+The declarations of \_x is an error because we don’t know which `Foo` is being referred to. Actually using ‘Foo’ is not even required, simply using both `moduleA` and `moduleB` is enough to cause an error here.
 
 To avoid this problem the use command allows you to specify an alias. If you do this then only that alias is put into your namespace. The types from the used package can then be accessed using this alias as a qualifier. Our example now becomes:
 
@@ -5139,7 +5139,7 @@ class Bar
   var _y: b.Foo  // The Foo from package B
 ```
 
-If you prefer you can give an alias to only one of the packages. `Foo` will then still be added to your namespace referring to the unaliased package:
+If you prefer you can give an alias to only one of the modules. `Foo` will then still be added to your namespace referring to the unaliased module:
 
 ```
 // In package A
@@ -5157,13 +5157,13 @@ class Bar
   var _y: b.Foo  // The Foo from package B
 ```
 
-**Can I just specify the full package path and forget about the use command, like I do in Java and C#?** No, you can’t do that in Pony. You can’t refer to one package based on a `use` command for another package and you can’t use types from a package without a use command for that package. Every package that you want to use must have its own `use` command.
+**Can I just specify the full module path and forget about the use command, like I do in Java and C#?** No, you can’t do that in Pony. You can’t refer to one module based on a `use` command for another module and you can’t use types from a module without a use command for that module. Every module that you want to use must have its own `use` command.
 
 **Are there limits on the names I can use for an alias?** Use alias names have to start with a lower case letter. Other than that you can use whatever name you want, as long as you’re not using that name for any other purpose in your file.
 
 ## Scheme indicators
 
-The string we give to a `use` command is known as the *specifier*. This consists of a *scheme* indicator and a *locator*, separated by a colon. The scheme indicator tells the `use` command what we want it to do, for example, the scheme indicator for including a package is “package”. If no colon is found within the specifier string then the use command assumes you meant “package”.
+The string we give to a `use` command is known as the *specifier*. This consists of a *scheme* indicator and a *locator*, separated by a colon. The scheme indicator tells the `use` command what we want it to do. The default scheme specifier for including a module is currently `package`. If no colon is found within the specifier string then the use command assumes you meant `package`.
 
 The following two use commands are exactly equivalent:
 
@@ -5172,7 +5172,7 @@ use "foo"
 use "package:foo"
 ```
 
-If you are using a locator string that includes a colon, for example, an absolute path in Windows, then you **have** to include the “package” scheme specifier:
+If you are using a locator string that includes a colon, for example, an absolute path in Windows, then you **have** to include the `package` scheme specifier:
 
 ```
 use "C:/foo/bar"  // Error, scheme "C" is unknown
@@ -5206,7 +5206,7 @@ When any assertion function fails the test is counted as a fail. However, tests 
 
 ## Example program
 
-To use PonyTest simply write a class for each test and a `TestList` type that tells the PonyTest object about the tests. Typically the `TestList` will be Main for the package.
+To use PonyTest simply write a class for each test and a `TestList` type that tells the PonyTest object about the tests. Typically the `TestList` will be Main for the module.
 
 The following is a complete program with 2 trivial tests.
 
@@ -5239,7 +5239,7 @@ class iso _TestSub is UnitTest
 
 The make() constructor is not needed for this example. However, it allows for easy aggregation of tests (see below) so it is recommended that all test Mains provide it.
 
-Main.create() is called only for program invocations on the current package. Main.make() is called during aggregation. If so desired extra code can be added to either of these constructors to perform additional tasks.
+Main.create() is called only for program invocations on the current module. Main.make() is called during aggregation. If so desired extra code can be added to either of these constructors to perform additional tasks.
 
 ## Test names
 
@@ -5249,9 +5249,9 @@ Arbitrary strings can be used for these names, but for large projects, it is str
 
 ## Aggregation
 
-Often it is desirable to run a collection of unit tests from multiple different source files. For example, if several packages within a bundle each have their own unit tests it may be useful to run all tests for the bundle together.
+Often it is desirable to run a collection of unit tests from multiple different source files. For example, if several modules within a project each have their own unit tests it may be useful to run all tests together.
 
-This can be achieved by writing an aggregate test list class, which calls the list function for each package. The following is an example that aggregates the tests from packages `foo` and `bar`.
+This can be achieved by writing an aggregate test list class, which calls the list function for each module. The following is an example that aggregates the tests from modules `foo` and `bar`.
 
 ```
 use "pony_test"
@@ -5448,7 +5448,7 @@ The use @ command can take a condition just like other `use` commands. This is u
 
 If the name of the C function that you want to call is also a [reserved keyword in Pony](https://tutorial.ponylang.io/appendices/keywords.html) (such as `box`), you will need to wrap the name in double quotes (`@"box"`). If you forget to do so, your program will not compile.
 
-An FFI signature is public to all Pony files inside the same package, so you only need to write them once.
+An FFI signature is public to all Pony files inside the same module, so you only need to write them once.
 
 ## C types
 
@@ -5742,7 +5742,7 @@ A function that calls the `pony_error` function should only be called from insid
 
 ## Type signature compatibility
 
-Since type signature declarations are scoped to a single Pony package, separate packages might define different FFI signatures for the same C function. In this case, as well as the case where you specify a different return type for an FFI call, the compiler will make sure that all calls and declarations are compatible with each other. Two functions are compatible if their arguments and return types are compatible. Two types are compatible with each other if they have the same ABI size and they can be safely cast to each other. The compiler allows the following type casts:
+Since type signature declarations are scoped to a single Pony module, separate modules might define different FFI signatures for the same C function. In this case, as well as the case where you specify a different return type for an FFI call, the compiler will make sure that all calls and declarations are compatible with each other. Two functions are compatible if their arguments and return types are compatible. Two types are compatible with each other if they have the same ABI size and they can be safely cast to each other. The compiler allows the following type casts:
 
 - Any `struct` type can be cast to any other `struct` (as they are both pointer types)
 - Pointers and integers can be cast to each other.
@@ -5757,11 +5757,11 @@ use @memcmp[I32](dst: Pointer[None] tag, src: Pointer[None] tag, len: USize)
 use @memcmp[I32](dst: Pointer[None] tag, src: USize, len: U64)
 ```
 
-These two declarations have different types for the `src` and `len` parameters. In the case of `src`, the types are compatible since an integer can be cast as a pointer, and vice versa. For `len`, the types will not be compatible on 32 bit platforms, where `USize` is equivalent to `U32`. It is important to take the rules around casting into account when writing type declarations in libraries that will be used by others, as it will avoid any compatibility problems with other libraries.
+These two declarations have different types for the `src` and `len` parameters. In the case of `src`, the types are compatible since an integer can be cast as a pointer, and vice versa. For `len`, the types will not be compatible on 32 bit platforms, where `USize` is equivalent to `U32`. It is important to take the rules around casting into account when writing type declarations in packages that will be used by others, as it will avoid any compatibility problems with other packages.
 
 ## Calling FFI functions from Interfaces or Traits
 
-We mentioned in the previous section that FFI declarations are scoped to a single Pony package, with separate packages possibly defining different FFI signatures for the same C function. Importing an external package will not import any FFI declarations, since any name collisions would produce multiple declarations for the same C function name, and thus deciding which declaration to use would be ambiguous.
+We mentioned in the previous section that FFI declarations are scoped to a single Pony module, with separate modules possibly defining different FFI signatures for the same C function. Importing an external module will not import any FFI declarations, since any name collisions would produce multiple declarations for the same C function name, and thus deciding which declaration to use would be ambiguous.
 
 Given the above fact, if you define any default methods (or behaviors) in an interface or trait, you will not be able to perform an FFI call from them. For example, the code below will fail to compile:
 
@@ -5778,7 +5778,7 @@ actor Main is Foo
     this.apply()
 ```
 
-If the trait `Foo` above was part of the public API of a package, allowing its `apply` method to perform an FFI call would render `Foo` unusable for any external users, given that the declaration for `printf` would not be in scope.
+If the trait `Foo` above was part of the public API of a module, allowing its `apply` method to perform an FFI call would render `Foo` unusable for any external users, given that the declaration for `printf` would not be in scope.
 
 Fortunately, avoiding this limitation is relatively painless. Whenever you need to call an FFI function from a default method implementation, consider moving said function to a separate type:
 
@@ -5854,7 +5854,7 @@ The mechanics above apply to any library you link, whether it’s third-party or
 
 Sometimes the easiest way to call C from Pony is a small piece of C of your own that bridges the gap: a wrapper that flattens a macro into a function, fixes up a calling convention, or adapts a struct-heavy API into something the FFI can call directly. ponyc can compile that C for you.
 
-A `.c` file placed in a package’s directory — next to its `.pony` files — is a *C shim*. ponyc discovers it, compiles it with an embedded copy of clang, and links the resulting object directly into your program. There is no second build system, no separate compiler invocation, and no library to link with `use "lib:..."`.
+A `.c` file placed in a module’s directory — next to its `.pony` files — is a *C shim*. ponyc discovers it, compiles it with an embedded copy of clang, and links the resulting object directly into your program. There is no second build system, no separate compiler invocation, and no library to link with `use "lib:..."`.
 
 A shim is for that kind of glue — code that helps your Pony talk to C — not for writing a C library. If you’re writing a library’s worth of C, build it as a library and link it like any other: see [Linking to C Libraries](https://tutorial.ponylang.io/c-ffi/linking-c.html).
 
@@ -5891,9 +5891,9 @@ A shim can `#include <pony.h>` and call runtime APIs with no configuration. pony
 
 ## Configuring the compile
 
-The minimal shim above needed no configuration. When a shim needs a preprocessor macro or an external header, two `use` schemes supply them; each affects only the package it appears in, and both accept guards, just like platform-specific linking.
+The minimal shim above needed no configuration. When a shim needs a preprocessor macro or an external header, two `use` schemes supply them; each affects only the module it appears in, and both accept guards, just like platform-specific linking.
 
-`use "cdefine:NAME"` or `use "cdefine:NAME=VALUE"` defines a C preprocessor macro (clang’s `-D`). The macro name must be a plain C identifier; function-like macros such as `cdefine:CALLBACK(x)=...` are rejected — define a plain macro and let your C code do the rest. Defining the same name twice in one package is an error, even when the values match. Platform-specific values belong behind guards, where only the active target’s definition counts:
+`use "cdefine:NAME"` or `use "cdefine:NAME=VALUE"` defines a C preprocessor macro (clang’s `-D`). The macro name must be a plain C identifier; function-like macros such as `cdefine:CALLBACK(x)=...` are rejected — define a plain macro and let your C code do the rest. Defining the same name twice in one module is an error, even when the values match. Platform-specific values belong behind guards, where only the active target’s definition counts:
 
 ```
 use "cdefine:USE_EPOLL" if linux
@@ -5901,9 +5901,9 @@ use "cdefine:USE_EPOLL" if linux
 
 `cdefine:` is unrelated to ponyc’s own `--define`/`-D` flag, which drives Pony’s `ifdef`. One sets a C preprocessor macro for your shims; the other selects Pony build flags.
 
-`use "cincludedir:PATH"` adds an include search directory (clang’s `-I`). A relative path is resolved against the package’s directory.
+`use "cincludedir:PATH"` adds an include search directory (clang’s `-I`). A relative path is resolved against the module’s directory.
 
-A `cdefine:` or `cincludedir:` in a package that has no `.c` files is an error: it could never take effect. If you hit this, the scheme is probably in the wrong package — move it to the one that holds the `.c` it was meant to configure.
+A `cdefine:` or `cincludedir:` in a module that has no `.c` files is an error: it could never take effect. If you hit this, the scheme is probably in the wrong module — move it to the one that holds the `.c` it was meant to configure.
 
 ### Putting it together
 
@@ -5962,9 +5962,9 @@ That is everything you need to write and build a shim. The rest of this page is 
 
 ## How shims are discovered
 
-ponyc scans only the top directory of each package — not its subdirectories — in sorted order for reproducible builds. Only `.c` files are treated as shims; C++ sources (`.cpp`, `.cc`) are not compiled this way, so for C++ you build a library and link it (see [Linking to C Libraries](https://tutorial.ponylang.io/c-ffi/linking-c.html)).
+ponyc scans only the top directory of each module — not its subdirectories — in sorted order for reproducible builds. Only `.c` files are treated as shims; C++ sources (`.cpp`, `.cc`) are not compiled this way, so for C++ you build a library and link it (see [Linking to C Libraries](https://tutorial.ponylang.io/c-ffi/linking-c.html)).
 
-Every `.c` in the package directory is compiled on every platform: the shim sources themselves have no per-file guard. A shim that should only exist on one platform wraps its whole body in `#ifdef` so it compiles to an empty object elsewhere:
+Every `.c` in the module directory is compiled on every platform: the shim sources themselves have no per-file guard. A shim that should only exist on one platform wraps its whole body in `#ifdef` so it compiles to an empty object elsewhere:
 
 ```
 #ifdef __linux__
@@ -5981,17 +5981,17 @@ Shim objects are linked directly into your program, not archived into a library 
 
 ## Replacing a hand-built library
 
-ponyc compiling a `.c` as a shim can silently shadow a library you built by hand. If you previously compiled a `.c` next to your Pony code into a library and linked it with `use "lib:..."`, ponyc now compiles that same file as a shim, and the shim object wins over your hand-built library. Either drop the manual build and the `use "lib:..."` that linked it — the shim path replaces both — or move the `.c` out of the package directory. Only the package’s top directory is scanned, so a subdirectory is enough to keep it out.
+ponyc compiling a `.c` as a shim can silently shadow a library you built by hand. If you previously compiled a `.c` next to your Pony code into a library and linked it with `use "lib:..."`, ponyc now compiles that same file as a shim, and the shim object wins over your hand-built library. Either drop the manual build and the `use "lib:..."` that linked it — the shim path replaces both — or move the `.c` out of the module directory. Only the module’s top directory is scanned, so a subdirectory is enough to keep it out.
 
 ## Restricting C with `--safe`
 
-A C shim is the package doing C, so `--safe` governs it exactly like a C FFI call: compiling a shim requires the package to be allowed to do C FFI. A `.c` in a package that isn’t on the `--safe` list is an error — the same reason you would get one for an FFI call there. The file may sit in the package; `--safe` gates compiling it.
+A C shim is the module doing C, so `--safe` governs it exactly like a C FFI call: compiling a shim requires the module to be allowed to do C FFI. A `.c` in a module that isn’t on the `--safe` list is an error — the same reason you would get one for an FFI call there. The file may sit in the module; `--safe` gates compiling it.
 
-This matters for dependencies, too. A package you depend on can ship a `.c`, and ponyc compiles and links it into your program just like your own shim — so `--safe` is also how you control whether a dependency’s C is built into your program.
+This matters for dependencies, too. A module you depend on can ship a `.c`, and ponyc compiles and links it into your program just like your own shim — so `--safe` is also how you control whether a dependency’s C is built into your program.
 
 ## Platform support
 
-Windows targets are not supported yet. A package containing a `.c` fails on Windows with `C shims are not yet supported when targeting Windows: MSVC include discovery is not implemented`, until that discovery lands. This includes any dependency you pull in that ships a shim.
+Windows targets are not supported yet. A module containing a `.c` fails on Windows with `C shims are not yet supported when targeting Windows: MSVC include discovery is not implemented`, until that discovery lands. This includes any dependency you pull in that ships a shim.
 
 On macOS, shims resolve system headers through the SDK’s `usr/include`; framework-style includes (clang’s `-F`) are not supported.
 
@@ -6011,7 +6011,7 @@ This feature is experimental and may change in future releases.
 
 ## A basic example
 
-This example has two packages. The `Adder` class lives in a library package called `mylib/`, and the main package consumes it through a C shim.
+This example has two modules. The `Adder` class lives in a module called `mylib/`, and the main module consumes it through a C shim.
 
 Annotate the class with `\c_api\` to export its public methods:
 
@@ -6024,10 +6024,10 @@ class \c_api\ val Adder
   fun val base(): I64 => _base
 ```
 
-ponyc generates a wrapper function for each eligible public method (`add` and `base` in this example) and writes their declarations to `mylib_export.h`. A C shim in the main package can include that header and call the wrappers:
+ponyc generates a wrapper function for each eligible public method (`add` and `base` in this example) and writes their declarations to `mylib_export.h`. A C shim in the main module can include that header and call the wrappers:
 
 ```
-// shim.c (in the main package directory)
+// shim.c (in the main module directory)
 #include "mylib_export.h"
 
 int64_t add_from_c(void* adder, int64_t x) {
@@ -6035,7 +6035,7 @@ int64_t add_from_c(void* adder, int64_t x) {
 }
 ```
 
-The main package’s Pony code calls the shim function via FFI, which in turn calls the Pony method through the generated wrapper:
+The main module’s Pony code calls the shim function via FFI, which in turn calls the Pony method through the generated wrapper:
 
 ```
 use "mylib"
@@ -6064,17 +6064,17 @@ Generic types cannot be exported directly. To export a concrete reification of a
 
 The C-facing name of each wrapper function is `[prefix_]TypeName_method_name`.
 
-The prefix comes from the `use` statement in the package that imports the exported type’s package. With `use "mylib"`, the prefix is `mylib`. With an alias — `use math = "mylib"` — the prefix is the alias:
+The prefix comes from the `use` statement in the module that imports the exported type’s module. With `use "mylib"`, the prefix is `mylib`. With an alias — `use math = "mylib"` — the prefix is the alias:
 
 ```
 use math = "mylib"
 ```
 
-| `use` statement         | Wrapper name      | Header file         |
-| ----------------------- | ----------------- | ------------------- |
-| `use "mylib"`           | `mylib_Adder_add` | `mylib_export.h`    |
-| `use math = "mylib"`    | `math_Adder_add`  | `math_export.h`     |
-| Main package (no `use`) | `Adder_add`       | `<binary>_export.h` |
+| `use` statement        | Wrapper name      | Header file         |
+| ---------------------- | ----------------- | ------------------- |
+| `use "mylib"`          | `mylib_Adder_add` | `mylib_export.h`    |
+| `use math = "mylib"`   | `math_Adder_add`  | `math_export.h`     |
+| Main module (no `use`) | `Adder_add`       | `<binary>_export.h` |
 
 Characters that are not valid in C identifiers are replaced with underscores.
 
@@ -6161,9 +6161,9 @@ Pony types map to C types in the generated header as follows:
 
 ## Working with C shims
 
-The generated header is written to the output directory before C shim files are compiled. Packages that `use` a package with exports get `-I<output-dir>` added to their C compiler flags automatically, so `#include "mylib_export.h"` resolves without any `cincludedir:` configuration.
+The generated header is written to the output directory before C shim files are compiled. Modules that `use` a module with exports get `-I<output-dir>` added to their C compiler flags automatically, so `#include "mylib_export.h"` resolves without any `cincludedir:` configuration.
 
-A typical pattern: a Pony library package annotates its types with `\c_api\`, and a consuming package provides a C shim that includes the generated header, defines C functions, and calls the exported wrappers. The Pony code in the consuming package then calls those C functions via FFI.
+A typical pattern: a Pony module annotates its types with `\c_api\`, and a consuming module provides a C shim that includes the generated header, defines C functions, and calls the exported wrappers. The Pony code in the consuming module then calls those C functions via FFI.
 
 # Callbacks
 
@@ -6734,7 +6734,7 @@ Welcome to the appendices. You’ll find a lexicon of standard Pony terminology,
 
 # `PONYPATH`
 
-When searching for Pony packages, `ponyc` checks both the installation directory (where the standard libraries reside) and any directories listed in the optional environment variable `PONYPATH`.
+When searching for Pony modules, `ponyc` checks both the installation directory (where the standard library resides) and any directories listed in the optional environment variable `PONYPATH`.
 
 ## Adding to `PONYPATH`
 
@@ -6793,11 +6793,17 @@ Words are hard. We can all be saying the same thing but do we *mean* the same th
 
 **Explicit type**: An actor, class or primitive.
 
+**File**: A single `.pony` source file.
+
 **Member**: Method or field.
 
 **Method**: Something callable on a concrete type/object. Function, behaviour or constructor.
 
+**Module**: A directory of `.pony` files; the unit of compilation and the privacy boundary.
+
 **Override**: When a concrete type has its own body for a method with a default body provided by a trait.
+
+**Package**: A tree of directories of `.pony` files; a reusable unit of Pony code.
 
 **Parentheses**: ( ). Synonymous with round brackets.
 
@@ -6835,7 +6841,7 @@ Here is a more elaborate explanation of Pony’s use of special characters: (a l
 | ------- | ------------------------------------------------------------------------------ |
 | `,`     | to separate parameters in a function signature, or the items of a tuple        |
 | `.`     | (1) to call a field or a function on a variable (field access or method call)  |
-|         | (2) to qualify a type/method with its package name                             |
+|         | (2) to qualify a type/method with its module name                              |
 | `.>`    | to call a method on an object and return the receiver (chaining)               |
 | `'`     | used as alternative name in parameters (prime)                                 |
 | `"`     | to delineate a literal string                                                  |
@@ -6855,7 +6861,7 @@ Here is a more elaborate explanation of Pony’s use of special characters: (a l
 |         | (3) a type constraint                                                          |
 | `;`     | only used to separate expressions on the same line                             |
 | `=`     | (1) (destructive) assignment                                                   |
-|         | (2) in: use alias = package name                                               |
+|         | (2) in: use alias = module name                                                |
 |         | (3) supply default argument for method                                         |
 |         | (4) supply default type for generics                                           |
 | `!`     | (1) boolean negation                                                           |
@@ -6938,7 +6944,7 @@ This listing explains the usage of every Pony keyword.
 | `try`               | error handling                                                                                                     |
 | `type`              | to declare a type alias                                                                                            |
 | `until`             | loop statement                                                                                                     |
-| `use`               | (1) using a package                                                                                                |
+| `use`               | (1) using a module                                                                                                 |
 |                     | (2) using an external library foo: use “lib:foo”                                                                   |
 |                     | (3) declaration of an FFI signature                                                                                |
 |                     | (4) add a search path for external libraries: `use "path:/usr/local/lib"`                                          |
@@ -7260,18 +7266,18 @@ Use **docstrings** first! But if you need to put some comments in the implementa
 `ponyc`, the compiler, is usually called in the project directory, where it finds the `.pony` files and its dependencies automatically. There it will create the binary based on the directory name. You can override this and tune the compilation with several options as described via `ponyc --help` and you can pass a separate source directory as an argument.
 
 ```
-ponyc [OPTIONS] <package directory>
+ponyc [OPTIONS] <module directory>
 ```
 
 The most useful options are `--debug`, `--path` or just `-p`, `--output` or just `-o` and `--docs` or `-g`.
 
 `--debug` will skip the LLVM optimizations passes. This should not be mixed up with `make config=debug`, the default make configuration target. `config=debug` will create DWARF symbols, and add slower assertions to ponyc, but not to the generated binaries. For those, you can omit DWARF symbols with the `--strip` or `-s` option.
 
-`--path` or `-p` take a `:` separated path list as the argument and adds those to the compile-time library paths for the linker to find source packages and the native libraries, static or dynamic, being linked at compile-time or via the FFI at run-time. The system adds several paths already, e.g. on windows it queries the registry to find the compiler run-time paths, you can also use `use "lib:path"` statements in the source code and as a final possibility, you can add `-p` paths. But if you want the generated binary to accept such a path to find a dynamic library on your client system, you need to handle that in your source code by yourself. See the `options` package for this.
+`--path` or `-p` take a `:` separated path list as the argument and adds those to the compile-time library paths for the linker to find source modules and the native libraries, static or dynamic, being linked at compile-time or via the FFI at run-time. The system adds several paths already, e.g. on windows it queries the registry to find the compiler run-time paths, you can also use `use "lib:path"` statements in the source code and as a final possibility, you can add `-p` paths. But if you want the generated binary to accept such a path to find a dynamic library on your client system, you need to handle that in your source code by yourself. See the `options` package for this.
 
 `--output` or `-o` takes a directory name where the final binary is created.
 
-`--docs` or -`g` creates a directory of the package with documentation in [Read the Docs](https://readthedocs.org) format, i.e. markdown with nice navigation.
+`--docs` or -`g` creates a directory of the module with documentation in [Read the Docs](https://readthedocs.org) format, i.e. markdown with nice navigation.
 
 Let’s study the documentation of the builtin standard library:
 

@@ -233,7 +233,7 @@ Bot to update a Pony format changelogs with new entries.
 
 ### [library-documentation-action-v2](https://github.com/ponylang/library-documentation-action-v2)
 
-Generates documentation for Pony packages.
+Generates documentation for Pony modules.
 
 ### [release-bot-action](https://github.com/ponylang/release-bot-action)
 
@@ -382,7 +382,7 @@ ponyc can be built from source with instrumentation options for debugging: Valgr
 
 # Dependency Management
 
-[Corral](https://github.com/ponylang/corral) is the dependency manager for Pony. It handles fetching dependencies, managing versions, and setting up the `PONYPATH` so the compiler can find your packages. Corral is currently in beta.
+[Corral](https://github.com/ponylang/corral) is the dependency manager for Pony. It handles fetching dependencies, managing versions, and setting up the `PONYPATH` so the compiler can find your modules. Corral is currently in beta.
 
 ## Installation
 
@@ -474,7 +474,7 @@ See the corral [README](https://github.com/ponylang/corral) for an overview and 
 
 # Documentation Generation
 
-pony-doc generates API documentation for Pony packages. It produces a complete [MkDocs](https://www.mkdocs.org/) site with the [Material](https://squidfunk.github.io/mkdocs-material/) theme, including type pages, method signatures, docstrings, and source code browsing. It is part of the [ponylang/ponyc](https://github.com/ponylang/ponyc) repository, built alongside the compiler, and distributed with it. Installing ponyc from source or via ponyup will include pony-doc.
+pony-doc generates API documentation for Pony modules. It produces a complete [MkDocs](https://www.mkdocs.org/) site with the [Material](https://squidfunk.github.io/mkdocs-material/) theme, including type pages, method signatures, docstrings, and source code browsing. It is part of the [ponylang/ponyc](https://github.com/ponylang/ponyc) repository, built alongside the compiler, and distributed with it. Installing ponyc from source or via ponyup will include pony-doc.
 
 ## Usage
 
@@ -482,11 +482,11 @@ pony-doc generates API documentation for Pony packages. It produces a complete [
 # Generate docs for the current directory
 pony-doc
 
-# Generate docs for a specific package
-pony-doc path/to/my-package
+# Generate docs for a specific module
+pony-doc path/to/my-module
 
 # Write output to a specific directory
-pony-doc -o docs path/to/my-package
+pony-doc -o docs path/to/my-module
 
 # Include private types and methods
 pony-doc --include-private
@@ -495,14 +495,14 @@ pony-doc --include-private
 pony-doc --version
 ```
 
-pony-doc compiles the package through the type-checking pass, extracts type information from the AST, and writes MkDocs-compatible markdown. The output lands in a directory named `<package>-docs/` inside the output directory (current directory by default).
+pony-doc compiles the module through the type-checking pass, extracts type information from the AST, and writes MkDocs-compatible markdown. The output lands in a directory named `<module>-docs/` inside the output directory (current directory by default).
 
 ## Output
 
 The generated site includes:
 
-- A home page listing all packages
-- A page per package with its public (and optionally private) types
+- A home page listing all modules
+- A page per module with its public (and optionally private) types
 - A page per type with constructors, fields, methods, parameters, and return types
 - Source code pages with line-numbered Pony source
 - Cross-reference links between types
@@ -515,7 +515,7 @@ The generated output is a MkDocs project. To view it locally:
 
 ```
 pip install mkdocs-material
-cd <package>-docs
+cd <module>-docs
 mkdocs serve
 ```
 
@@ -523,7 +523,7 @@ Then open `http://127.0.0.1:8000` in a browser.
 
 ## Using with Corral
 
-For projects that use [corral](https://github.com/ponylang/corral) for dependency management, run pony-doc through `corral run` so that dependencies are on the package search path:
+For projects that use [corral](https://github.com/ponylang/corral) for dependency management, run pony-doc through `corral run` so that dependencies are on the module search path:
 
 ```
 corral run -- pony-doc
@@ -557,7 +557,7 @@ pony-lint --version
 
 ## Using with Corral
 
-For projects that use [corral](https://github.com/ponylang/corral) for dependency management, run pony-lint through `corral run` so that dependencies are on the package search path:
+For projects that use [corral](https://github.com/ponylang/corral) for dependency management, run pony-lint through `corral run` so that dependencies are on the module search path:
 
 ```
 corral run -- pony-lint
@@ -590,8 +590,8 @@ corral run -- pony-lint src/ test/
 | `style/member-naming`               | on      | Member names should be snake_case                                                          |
 | `style/method-declaration-format`   | on      | Multiline method declaration formatting (parameter layout, return type and `=>` alignment) |
 | `style/operator-spacing`            | on      | Binary operators need surrounding spaces and belong at line end; no space after unary `-`  |
-| `style/package-docstring`           | on      | Package should have a `<package>.pony` file with a docstring                               |
-| `style/package-naming`              | off     | Package directory name should be snake_case                                                |
+| `style/module-docstring`            | on      | Module should have a `<module>.pony` file with a docstring                                 |
+| `style/module-naming`               | off     | Module directory name should be snake_case                                                 |
 | `style/partial-call-spacing`        | on      | `?` at call site must immediately follow `)`                                               |
 | `style/partial-spacing`             | on      | `?` in method declaration needs surrounding spaces                                         |
 | `style/prefer-chaining`             | on      | Local variable can be replaced with `.>` chaining                                          |
@@ -628,12 +628,12 @@ Config file discovery order:
 
 `.pony-lint.json` files in subdirectories override the root config for all files in that subtree. The format is the same as the root config.
 
-For example, to turn off `style/package-docstring` for everything under `examples/`, add an `examples/.pony-lint.json`:
+For example, to turn off `style/module-docstring` for everything under `examples/`, add an `examples/.pony-lint.json`:
 
 ```
 {
   "rules": {
-    "style/package-docstring": "off"
+    "style/module-docstring": "off"
   }
 }
 ```
@@ -913,7 +913,7 @@ The library wraps PCRE2 (the 8-bit variant) via FFI, with JIT compilation enable
 
 A semantic versioning package for Pony.
 
-The library is organized into three sub-packages. `semver/version` handles parsing, validation, comparison, and stringification of semver 2.0.0 version strings, including pre-release fields and build metadata. `semver/range` provides interval-based version ranges with inclusive/exclusive bounds. `semver/solver` is a constraint-based dependency resolver that takes a set of available artifacts with their version-constrained dependencies and finds a compatible combination using a backtracking search. Parsing never throws — `ParseVersion` always returns a `Version` object, and `is_valid()` plus the `errors` field indicate whether parsing succeeded.
+The library is organized into three sub-modules. `semver/version` handles parsing, validation, comparison, and stringification of semver 2.0.0 version strings, including pre-release fields and build metadata. `semver/range` provides interval-based version ranges with inclusive/exclusive bounds. `semver/solver` is a constraint-based dependency resolver that takes a set of available artifacts with their version-constrained dependencies and finds a compatible combination using a backtracking search. Parsing never throws — `ParseVersion` always returns a `Version` object, and `is_valid()` plus the `errors` field indicate whether parsing succeeded.
 
 ### [templates](https://github.com/ponylang/templates)
 
@@ -1039,7 +1039,7 @@ Your editor launches the `pony-lsp` binary as a subprocess. See the [editor conf
 
 ## Workspace Detection
 
-pony-lsp needs to know the root of your project so it can resolve packages correctly. It determines this by scanning parent directories for a workspace root marker. The following are recognised as markers:
+pony-lsp needs to know the root of your project so it can resolve modules correctly. It determines this by scanning parent directories for a workspace root marker. The following are recognised as markers:
 
 - `corral.json` (Pony’s dependency manager)
 - `bundle.json`
@@ -1051,19 +1051,19 @@ Most Pony projects will have at least one of these already. If yours doesn’t, 
 
 pony-lsp supports settings via [`workspace/configuration`](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#workspace_configuration) request and [`workspace/didChangeConfiguration`](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#workspace_didChangeConfiguration) notification.
 
-| Setting    | Type            | Example                     | Description                                                               |
-| ---------- | --------------- | --------------------------- | ------------------------------------------------------------------------- |
-| `defines`  | `Array[String]` | `["FOO", "BAR"]`            | Defines active during compilation, equivalent to the `-D` flag in `ponyc` |
-| `ponypath` | `Array[String]` | `["/path/to/pony/package"]` | Additional package search paths for pony-lsp                              |
+| Setting    | Type            | Example                    | Description                                                               |
+| ---------- | --------------- | -------------------------- | ------------------------------------------------------------------------- |
+| `defines`  | `Array[String]` | `["FOO", "BAR"]`           | Defines active during compilation, equivalent to the `-D` flag in `ponyc` |
+| `ponypath` | `Array[String]` | `["/path/to/pony/module"]` | Additional module search paths for pony-lsp                               |
 
-The standard library is discovered automatically from the pony-lsp installation path. You only need `ponypath` if your project depends on packages outside the standard search locations.
+The standard library is discovered automatically from the pony-lsp installation path. You only need `ponypath` if your project depends on modules outside the standard search locations.
 
 Example settings:
 
 ```
 {
   "defines": ["FOO", "BAR"],
-  "ponypath": ["/path/to/pony/package", "/another/path"]
+  "ponypath": ["/path/to/pony/module", "/another/path"]
 }
 ```
 
@@ -1162,8 +1162,8 @@ Next, open your Zed settings to configure `pony-lsp` (all options are optional):
       "settings": {
         "executable": "/pony/bin/pony-lsp",
         "ponypath": [
-          "/path/to/project-a/packages",
-          "/path/to/project-b/packages"
+          "/path/to/project-a/modules",
+          "/path/to/project-b/modules"
         ],
         "defines": [
           "MY_DEFINE_ONE",
@@ -1252,12 +1252,12 @@ Tests that create TCP listeners, connections, timers, or other I/O resources mus
 
 ## Test Project Structure
 
-Pony projects use a single top-level `_test.pony` whose `Main` actor orchestrates all tests. Each subpackage has its own `_test.pony` with a `Main is TestList` actor that provides two constructors:
+Pony projects use a single top-level `_test.pony` whose `Main` actor orchestrates all tests. Each submodule has its own `_test.pony` with a `Main is TestList` actor that provides two constructors:
 
-- `create(env: Env)` — for running the subpackage’s tests directly
+- `create(env: Env)` — for running the submodule’s tests directly
 - `make()` — for aggregation into the top-level runner
 
-The top-level `_test.pony` imports subpackages via aliased `use` statements and delegates to their test lists:
+The top-level `_test.pony` imports submodules via aliased `use` statements and delegates to their test lists:
 
 ```
 use "pony_test"
@@ -1276,7 +1276,7 @@ actor Main is TestList
     bar.Main.make().tests(test)
 ```
 
-Only the top-level package gets compiled and run. The `ponyc/packages/stdlib/` directory in the Pony compiler source is a good example of this pattern in practice.
+Only the top-level module gets compiled and run. The `ponyc/packages/stdlib/` directory in the Pony compiler source is a good example of this pattern in practice.
 
 ## Coverage Reports
 
@@ -2100,7 +2100,7 @@ Method names get mangled by the compiler. The general format for the mangling is
 
 In the above:
 
-`package` : the name of the package (for methods brought in through use expressions)
+`package` : the name of the module (for methods brought in through use expressions)
 
 `type` : the name of the type to which the method belongs
 
@@ -2992,11 +2992,11 @@ let w = a +
   b
 ```
 
-## `style/package-naming`
+## `style/module-naming`
 
 **Default:** off
 
-The package directory name must be snake_case, containing only lowercase letters, digits, and underscores. This rule is off by default because application packages often use hyphens to match CLI naming conventions.
+The module directory name must be snake_case, containing only lowercase letters, digits, and underscores. This rule is off by default because application modules often use hyphens to match CLI naming conventions.
 
 **Incorrect (if enabled):**
 
@@ -3015,11 +3015,11 @@ my_package/
   main.pony
 ```
 
-## `style/package-docstring`
+## `style/module-docstring`
 
 **Default:** on
 
-Each package should have a file named after the package (e.g., `my_package.pony` for a package in the `my_package/` directory) containing a package-level docstring as the first expression. Directory names with hyphens are normalized to underscores (e.g., `pony-lint/` expects `pony_lint.pony`).
+Each module should have a file named after the module (e.g., `my_package.pony` for a module in the `my_package/` directory) containing a module-level docstring as the first expression. Directory names with hyphens are normalized to underscores (e.g., `pony-lint/` expects `pony_lint.pony`).
 
 **Incorrect:**
 
@@ -3038,7 +3038,7 @@ use "collections"   # no docstring before the first use statement
 ```
 // File: my_package/my_package.pony
 """
-Provides utilities for working with packages.
+Provides utilities for working with modules.
 """
 
 use "collections"
