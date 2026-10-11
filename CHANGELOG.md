@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file. Entries
 are grouped by date (UTC) with newest first.
 
+## 2026-10-11
+
+- ADDED: Add pony-agent-server awareness to pony-ref ([PR #86](https://github.com/ponylang/llm-skills/pull/86))
+
 ## 2026-10-09
 
 - CHANGED: Strengthen evidence requirements in the debugging protocol ([PR #85](https://github.com/ponylang/llm-skills/pull/85))
