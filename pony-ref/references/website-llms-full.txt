@@ -192,7 +192,7 @@ Continuation of the hands-on learning session.
 
 The Use section collects practical information for developing with Pony.
 
-**Development Environment** covers tools for setting up and managing your project: dependency management with corral, the Pony language server for editor integration, linting with pony-lint, documentation generation with pony-doc, and LLM skills for AI-assisted development.
+**Development Environment** covers tools for setting up and managing your project: dependency management with corral, the Pony language server for editor integration, linting with pony-lint, documentation generation with pony-doc, LLM skills for AI-assisted development, and a query server for AI coding agents.
 
 **Development** covers writing, testing, debugging, and optimizing Pony code. You’ll find guides on unit testing and property-based testing with the standard library, step debugging with LLDB, memory tracking, tracing, and performance tuning.
 
@@ -1014,6 +1014,50 @@ Compiled Pony programs accept `--pony*` runtime flags for tuning scheduler threa
 ## Performance Testing
 
 Performance testing is very hard to get right. Most people do it poorly. That’s just a fact. The environment you use to test is very important, we suggest you take a look at the documentation we’ve put together for [testing Pony runtime changes](https://www.ponylang.io/contribute/developer-resources/performance-testing-setup/index.md). It might give you some inspiration for doing better testing of your own programs.
+
+# Pony Agent Server
+
+`pony-agent-server` is a query server that gives AI coding agents access to Pony type information from the compiler. It compiles a Pony package, then returns query results about types, definitions, scopes, and APIs over a JSON protocol. It is part of the [ponylang/ponyc](https://github.com/ponylang/ponyc) repository, built alongside the compiler.
+
+`pony-agent-server` is experimental. The query interface is subject to change.
+
+## How It Works
+
+On startup, `pony-agent-server` compiles the package you point it at. Once compilation finishes, it accepts queries over stdin and writes responses to stdout — one JSON object per line in each direction. This is a standard stdio transport that AI agent tool integrations use.
+
+When source files change, you can send the server a reload query without restarting it.
+
+## Starting It
+
+```
+pony-agent-server <package-directory> [-D define]...
+```
+
+The server accepts the same `-D` flags as `ponyc`. Run `pony-agent-server --queries` to see a summary of available queries.
+
+## Using with Corral
+
+For projects that use [corral](https://github.com/ponylang/corral) for dependency management, run `pony-agent-server` through `corral run` so that dependencies are on the package search path:
+
+```
+corral run -- pony-agent-server .
+```
+
+## What It Can Answer
+
+`pony-agent-server` exposes type and definition information at source positions, scope visibility at a given location, and the full list of exports from a package. It can list the methods on a type filtered by what a particular reference capability can call, check whether one type is a subtype of another (using the compiler’s actual subtype checker, not a reimplementation), and find every type that implements a given trait or interface. It also reports compilation errors from the most recent load.
+
+## Using It with AI Agents
+
+There are three ways to connect an AI agent to `pony-agent-server`:
+
+- ponylang’s [llm-skills](https://github.com/ponylang/llm-skills) will include guidance for agents that support skill loading.
+- Add instructions to your project’s `AGENTS.md` or `CLAUDE.md` telling your agent to use it.
+- Prompt your agent directly during a session.
+
+## Getting pony-agent-server
+
+`pony-agent-server` is distributed via [ponyup](https://github.com/ponylang/ponyup) alongside `ponyc`. Installing a recent `ponyc` will also install `pony-agent-server`. See the [ponyc installation instructions](https://github.com/ponylang/ponyc/blob/main/INSTALL.md) for details.
 
 # Pony Language Server
 
@@ -3864,6 +3908,16 @@ The pre-built Pony packages are quite conservative with the optimizations they a
 ### Profile it!
 
 Intuitions about program performance are often wrong. The only way to find out for sure is to measure. You are going to need to profile your code. It will help you find hot spots. You can use standard profiling tools like `perf`, Instruments, VTune, and Callgrind on your Pony application. Our [profiling guide](https://www.ponylang.io/use/performance/profiling/index.md) covers `perf`, Instruments, and Callgrind, plus the compiler flags you need and how to read the Pony-specific parts of a profile.
+
+### Control inlining
+
+The compiler normally decides which functions to inline. When profiling shows that a particular call site matters, three annotations let you override that decision on `fun` methods:
+
+- `\inline\` — always inline the function
+- `\inline(N)\` — raise the function’s inline cost threshold to `N`, making the compiler more willing to inline it
+- `\noinline\` — never inline the function
+
+These are blunt instruments. Use them after profiling confirms that inlining (or the lack of it) is the bottleneck — not as a substitute for profiling.
 
 # Profiling Pony Programs
 

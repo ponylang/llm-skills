@@ -71,6 +71,7 @@ The Pony Tutorial is a comprehensive guide to the Pony programming language, an 
 - [Using Generics](https://tutorial.ponylang.io/generics/using-generics.md)
 - [Generics and Reference Capabilities](https://tutorial.ponylang.io/generics/generics-and-reference-capabilities.md)
 - [Constraints](https://tutorial.ponylang.io/generics/generic-constraints.md)
+- [Iftype Specialization](https://tutorial.ponylang.io/generics/iftype-specialization.md)
 
 ## Modules
 

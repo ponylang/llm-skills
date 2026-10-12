@@ -64,7 +64,7 @@ Throughout the design and development of the language the following principles s
 - Efficient hardware access must be available, but this does not have to pervade the whole language.
 - The standard library should be implemented in Pony.
 - Interoperability. Must be interoperable with other languages, but this may require a shim layer if non primitive types are used.
-- Avoid library pain. Use of 3rd party Pony packages should be as easy as possible, with no surprises. This includes writing and distributing packages and using multiple versions of a package in a single program.
+- Avoid library pain. Use of 3rd party Pony libraries should be as easy as possible, with no surprises. This includes writing and distributing libraries and using multiple versions of a library in a single program.
 
 ## More help
 
@@ -888,6 +888,10 @@ class Compactor
 ```
 
 The flexibility of `interface` has allowed us to define a type `Compactable` that we can use to allow our `Compactor` to accept a variety of data types including `Array`, `Map`, and `String` from the standard library.
+
+### Method groups
+
+Traits and interfaces can declare [method groups](https://tutorial.ponylang.io/generics/iftype-specialization.html) — a default method body paired with one or more `iftype`-guarded specializations. A concrete type that provides the trait inherits the entire group, including the specializations, unless it overrides them with its own definitions. When an interface declares a method group, the compiler checks that a conforming type provides both the default and each declared specialization.
 
 # Structs
 
@@ -2465,6 +2469,8 @@ Like other control structures in Pony, `iftype` is an expression. Its value is t
 
 **What if my iftype doesn’t have an else?** Any `else` branch that doesn’t exist gives an implicit `None`, just like `if`.
 
+**Can I use iftype on a method declaration instead of inside a method body?** Yes. [Iftype specialization](https://tutorial.ponylang.io/generics/iftype-specialization.html) puts the guard on the method declaration itself, giving you a separate method body for each case rather than branching inside a single body.
+
 # Match Expressions
 
 If we want to compare an expression to a value then we use an `if`. But if we want to compare an expression to a lot of values this gets very tedious. Pony provides a powerful pattern matching facility, combining matching on values and types, without any special code required.
@@ -2888,7 +2894,7 @@ After the return value, there’s a `=>` and then finally the function body. The
 
 If you want to exit a function early then use the `return` command. If the function has a return type then you need to provide a value to return. If the function does not have a return type then `return` should appear on its own, without a value.
 
-**Can I overload functions by argument type?** No, you cannot have multiple methods with the same name in the same type.
+**Can I overload functions by argument type?** Not by argument type, no. However, any method with type parameters — whether from the enclosing type or the method itself — can have multiple definitions distinguished by [`iftype` guards](https://tutorial.ponylang.io/generics/iftype-specialization.html). Each definition must have the same parameter types and receiver capability — the guard selects which body to use based on the type parameter’s constraint, not on argument types. The compiler selects the matching body at compile time.
 
 ## Constructors
 
@@ -4539,13 +4545,13 @@ actor Main
     Connect(env.out, TCPConnectAuth(env.root))
 ```
 
-Now we are sure it cannot access the filesystem or listen on a TCP or UDP port. Pay close attention to the authority that code you are calling is asking for. Never give `AmbientAuth` to **any** code you do not trust completely both now and in the future. You should always create the most specific authority and give the package that authority. If the package is asking for more authority than it needs, **do not use the package**.
+Now we are sure it cannot access the filesystem or listen on a TCP or UDP port. Pay close attention to the authority that code you are calling is asking for. Never give `AmbientAuth` to **any** code you do not trust completely both now and in the future. You should always create the most specific authority and give the library that authority. If the library is asking for more authority than it needs, **do not use the library**.
 
 ## Authorization-friendly interface
 
-Consider the above example again, but this time let’s think of the `Connect` actor being part of a 3rd party package that we are building. Our goal is to write the actor in such a way that users of our package can grant it only the authority necessary for it to function.
+Consider the above example again, but this time let’s think of the `Connect` actor being part of a 3rd party library that we are building. Our goal is to write the actor in such a way that users of our library can grant it only the authority necessary for it to function.
 
-As the package author, it is then our responsibility to realize that the minimal authority possible is the `TCPConnectAuth`. We should only request `TCPConnectAuth` from our users. Our current implementation already satisfies this requirement. Rather than requesting a less specific authority like `AmbientAuth` from our users and creating the `TCPConnectAuth` in our package, we only ask for the `TCPConnectAuth` that is required.
+As the library author, it is then our responsibility to realize that the minimal authority possible is the `TCPConnectAuth`. We should only request `TCPConnectAuth` from our users. Our current implementation already satisfies this requirement. Rather than requesting a less specific authority like `AmbientAuth` from our users and creating the `TCPConnectAuth` in our library, we only ask for the `TCPConnectAuth` that is required.
 
 ## Authority hierarchies
 
@@ -4634,7 +4640,7 @@ Often when writing code you want to create similar classes or functions that dif
 
 A generic class or method takes type parameters — types that the caller provides, much like a method takes value parameters. Pony uses square brackets for type parameters and parentheses for value parameters, so `Foo[U32]` creates a `Foo` whose type parameter is `U32`, and `Foo[U32](42)` also passes the value `42` to its constructor.
 
-The following sections cover [how to use generics](https://tutorial.ponylang.io/generics/using-generics.html) in Pony, how generics interact with [reference capabilities](https://tutorial.ponylang.io/generics/generics-and-reference-capabilities.html), and how to [constrain](https://tutorial.ponylang.io/generics/generic-constraints.html) what types a generic accepts.
+The following sections cover [how to use generics](https://tutorial.ponylang.io/generics/using-generics.html) in Pony, how generics interact with [reference capabilities](https://tutorial.ponylang.io/generics/generics-and-reference-capabilities.html), how to [constrain](https://tutorial.ponylang.io/generics/generic-constraints.html) what types a generic accepts, and how to provide [specialized method bodies](https://tutorial.ponylang.io/generics/iftype-specialization.html) depending on what the type parameter turns out to be.
 
 # Using Generics
 
@@ -5047,7 +5053,303 @@ actor Main
     env.out.print(b.get().string())
 ```
 
-Constraints restrict what types a caller can provide. If you need different behavior depending on the actual type used, see [iftype](https://tutorial.ponylang.io/expressions/control-structures.html#iftype) — a compile-time conditional that branches on subtype relationships.
+Constraints restrict what types a caller can provide. If you need different behaviour depending on the actual type used, you can branch inside a method body with [iftype](https://tutorial.ponylang.io/expressions/control-structures.html#iftype) or provide separate method bodies with [iftype specialization](https://tutorial.ponylang.io/generics/iftype-specialization.html).
+
+# Iftype Specialization
+
+You sometimes want different behaviour from a generic type depending on what its type parameter turns out to be. With an [`iftype` expression](https://tutorial.ponylang.io/expressions/control-structures.html#iftype), you can branch inside a method body. With iftype specialization, you can provide an entirely separate method body that the compiler selects at compile time. There is no runtime dispatch — the compiler picks the matching body and return type and discards the rest.
+
+## A first example
+
+```
+class val Opaque
+
+class Container[A: Any val]
+  var _data: A
+
+  new create(data: A) =>
+    _data = data
+
+  fun describe(): String =>
+    "opaque value"
+
+  fun describe(): String iftype A <: Stringable val =>
+    _data.string()
+```
+
+`Container` has two definitions of `describe`. The first has no guard — it is the **default**. The second has an `iftype` guard that matches when `A` is a subtype of `Stringable val`. When you create a `Container[U32]`, `U32 <: Stringable val` holds and the compiler selects the specialization. When you create a `Container[Opaque]`, the guard does not match, and the default is used.
+
+```
+actor Main
+  new create(env: Env) =>
+    let c1 = Container[Opaque](Opaque)
+    env.out.print(c1.describe())  // prints "opaque value"
+
+    let c2 = Container[U32](99)
+    env.out.print(c2.describe())  // prints "99"
+```
+
+Every method group — the set of definitions sharing the same method name — must have exactly one unguarded definition, the default. Without it, there would be no body to use when no guard matches.
+
+## Type narrowing
+
+Inside a specialization, the guard is guaranteed to hold. You can call methods on values of that type that only exist on the constraining type:
+
+```
+class Container[A: Any val]
+  var _data: A
+
+  new create(data: A) =>
+    _data = data
+
+  fun describe(): String =>
+    "opaque"
+
+  fun describe(): String iftype A <: Stringable val =>
+    "value is: " + _data.string()
+```
+
+In the specialization, `A` is known to be a subtype of `Stringable val`, so calling `_data.string()` is valid even though the class constraint `Any val` does not provide `string()`.
+
+## Multiple specializations
+
+A method can have more than one specialization. The compiler checks the guards in declaration order and picks the first one that matches:
+
+```
+class Container[A: Any val]
+  var _data: A
+
+  new create(data: A) =>
+    _data = data
+
+  fun describe(): String =>
+    "unknown"
+
+  fun describe(): String iftype A <: Stringable val =>
+    "stringable"
+
+  fun describe(): String iftype A <: Printable val =>
+    "printable"
+```
+
+`Tagged` satisfies both `Stringable` and `Printable`. Because the `Stringable` guard appears first, `Container[Tagged]` uses that specialization. Order matters — put the more specific guard first.
+
+**What happens if a later guard is always subsumed by an earlier one?** The compiler rejects it. If two guards on the same type parameter are ordered so that anything matching the second must already match the first, the second is unreachable and the compiler reports an error.
+
+## Method-level type parameters
+
+The enclosing type does not have to be generic. A non-generic class with a generic method can use specialization on the method’s own type parameters:
+
+```
+class Formatter
+  new create() => None
+
+  fun format[A: Any val](a: A): String =>
+    "unknown"
+
+  fun format[A: Any val](a: A): String iftype A <: Stringable val =>
+    a.string()
+```
+
+`Formatter` itself has no type parameters. The method `format` introduces its own type parameter `A`, and the guard constrains that parameter. When you call `f.format[U32](42)`, the compiler selects the specialization because `U32 <: Stringable val` holds.
+
+## Compound guards
+
+### Conjunction
+
+Use `and` to require multiple constraints at once:
+
+```
+class Pair[A: Any val, B: Any val]
+  var _a: A
+  var _b: B
+
+  new create(a: A, b: B) =>
+    _a = a
+    _b = b
+
+  fun describe(): String =>
+    "generic pair"
+
+  fun describe(): String
+    iftype A <: Stringable val and B <: Stringable val
+  =>
+    _a.string() + ", " + _b.string()
+```
+
+The specialization matches only when both `A` and `B` are subtypes of `Stringable val`. If either one is not, the default is used. Unlike `or` guards, an `and` guard can constrain different type parameters.
+
+### Disjunction
+
+Use `or` when any one of several constraints is enough:
+
+```
+class Container[A: Any val]
+  var _data: A
+
+  new create(data: A) =>
+    _data = data
+
+  fun describe(): String =>
+    "opaque"
+
+  fun describe(): String
+    iftype A <: Stringable val or A <: Displayable val
+  =>
+    "has a text representation"
+```
+
+The specialization is selected when `A` is a subtype of `Stringable val` or a subtype of `Displayable val`. Every clause in an `or` guard must name the same type parameter on the left side of `<:` — you cannot write `A <: X or B <: Y`.
+
+**Can I mix `and` and `or` in a single guard?** No. A guard is either all `and` or all `or`. If you need a more complex condition, use multiple specializations.
+
+## Constructors and behaviours
+
+Specialization works for all three method kinds: functions, constructors, and behaviours. Here is a constructor example:
+
+```
+class Container[A: Any val]
+  var _data: A
+  var _label: String
+
+  new create(data: A) =>
+    _data = data
+    _label = "opaque"
+
+  new create(data: A) iftype A <: Stringable val =>
+    _data = data
+    _label = _data.string()
+
+  fun label(): String => _label
+```
+
+The same rules apply. Each constructor specialization must initialize every field, just as any constructor must. Behaviour specializations follow the same pattern — add an `iftype` guard after the return type on a `be` declaration.
+
+## Partial methods
+
+A specialization can be partial only when the default is partial. The `?` goes after the `iftype` guard:
+
+```
+class Container[A: Any val]
+  var _data: A
+
+  new create(data: A) =>
+    _data = data
+
+  fun get(): String ? =>
+    error
+
+  fun get(): String iftype A <: Stringable val ? =>
+    _data.string()
+```
+
+The caller compiles against the default’s signature. A non-partial default promises the caller that no call can error, so a partial specialization would break that promise.
+
+## Traits and interfaces
+
+Traits can declare a method group — a default definition and one or more specializations — and concrete types inherit the entire group.
+
+### Inheriting a method group
+
+```
+trait Describable[A: Any val]
+  fun describe(): String =>
+    "unknown"
+
+  fun describe(): String iftype A <: Stringable val =>
+    "stringable"
+
+class Container[A: Any val] is Describable[A]
+  var _data: A
+
+  new create(data: A) =>
+    _data = data
+
+actor Main
+  new create(env: Env) =>
+    let c = Container[U32](42)
+    env.out.print(c.describe())  // prints "stringable"
+```
+
+`Container` provides `Describable[A]` and defines no `describe` of its own, so it inherits both the default and the specialization from the trait. When `A` is `U32`, the compiler selects the specialization.
+
+### Trait chains
+
+A class that provides a trait through an intermediate trait inherits the full method group:
+
+```
+trait Base[A: Any val]
+  fun describe(): String => "base"
+  fun describe(): String iftype A <: Stringable val => "stringable"
+
+trait Middle[A: Any val] is Base[A]
+
+class Impl[A: Any val] is Middle[A]
+  var _a: A
+```
+
+`Impl` inherits the method group from `Base` through `Middle`, even though `Middle` adds nothing of its own.
+
+### Overriding a method group
+
+A concrete type can provide its own definitions, replacing the trait’s:
+
+```
+trait Describable[A: Any val]
+  fun describe(): String =>
+    "unknown"
+
+  fun describe(): String iftype A <: Stringable val =>
+    "stringable"
+
+class Container[A: Any val] is Describable[A]
+  var _data: A
+
+  new create(data: A) =>
+    _data = data
+
+  fun describe(): String =>
+    "container default"
+
+  fun describe(): String iftype A <: Stringable val =>
+    "container: " + _data.string()
+
+actor Main
+  new create(env: Env) =>
+    let c = Container[U32](42)
+    env.out.print(c.describe())  // prints "container: 42"
+```
+
+`Container` overrides both the default and the specialization. You can override any combination — just the default, just a specialization, or the entire group. Any definition you do not override is inherited from the trait unchanged.
+
+### Interfaces
+
+Interfaces can declare method groups too. An interface specialization has no body — it declares the signature that a conforming type must provide:
+
+```
+interface Describable[A: Any val]
+  fun describe(): String
+
+  fun describe(): String iftype A <: Stringable val
+```
+
+A concrete type that provides `Describable` must have both a default `describe` and a matching specialization. Since interfaces use structural subtyping, the compiler checks that any type with the right shape matches the requirement, whether or not it names `Describable` in its `is` clause.
+
+## Rules
+
+Specializations are subject to several constraints:
+
+- The left side of `<:` in a guard must be a type parameter (or a tuple of type parameters). You cannot use concrete types.
+- The default and all specializations must have the same parameter types, the same receiver capability, the same method kind (`fun`, `be`, or `new`), and the same method-level type parameters.
+- The return type of a specialization must be a subtype of the default’s return type. When the type arguments are concrete and a guard matches, the caller sees the specialization’s return type.
+- A specialization can be partial (`?`) only if the default is also partial.
+- If a later guard’s constraint is subsumed by an earlier guard on the same type parameter, the later guard is unreachable and the compiler rejects it.
+
+## Iftype specialization vs. iftype expressions
+
+Pony uses `iftype` in two different places. An [iftype expression](https://tutorial.ponylang.io/expressions/control-structures.html#iftype) is a control structure inside a method body — it branches on a type parameter at compile time, much like `if` branches on a value at runtime. Iftype specialization puts the guard on the method declaration itself, giving you a separate method body and return type for each case.
+
+The two can be used together. A specialization provides a separate body; an `iftype` expression within that body can branch further. When each branch needs a completely different implementation, specialization keeps the bodies separate and applies type narrowing to the whole body rather than just one branch of an expression.
 # Modules
 
 # Overview
@@ -5757,7 +6059,7 @@ use @memcmp[I32](dst: Pointer[None] tag, src: Pointer[None] tag, len: USize)
 use @memcmp[I32](dst: Pointer[None] tag, src: USize, len: U64)
 ```
 
-These two declarations have different types for the `src` and `len` parameters. In the case of `src`, the types are compatible since an integer can be cast as a pointer, and vice versa. For `len`, the types will not be compatible on 32 bit platforms, where `USize` is equivalent to `U32`. It is important to take the rules around casting into account when writing type declarations in packages that will be used by others, as it will avoid any compatibility problems with other packages.
+These two declarations have different types for the `src` and `len` parameters. In the case of `src`, the types are compatible since an integer can be cast as a pointer, and vice versa. For `len`, the types will not be compatible on 32 bit platforms, where `USize` is equivalent to `U32`. It is important to take the rules around casting into account when writing type declarations in libraries that will be used by others, as it will avoid any compatibility problems with other libraries.
 
 ## Calling FFI functions from Interfaces or Traits
 
@@ -6799,9 +7101,11 @@ Words are hard. We can all be saying the same thing but do we *mean* the same th
 
 **Method**: Something callable on a concrete type/object. Function, behaviour or constructor.
 
+**Method group**: A set of method definitions sharing the same name, consisting of one unguarded default and zero or more iftype-guarded specializations. See [iftype specialization](https://tutorial.ponylang.io/generics/iftype-specialization.html).
+
 **Module**: A directory of `.pony` files; the unit of compilation and the privacy boundary.
 
-**Override**: When a concrete type has its own body for a method with a default body provided by a trait.
+**Override**: When a concrete type has its own body for a method with a default body provided by a trait. A concrete type can also override individual specializations within a method group.
 
 **Package**: A tree of directories of `.pony` files; a reusable unit of Pony code.
 
@@ -6813,6 +7117,8 @@ Words are hard. We can all be saying the same thing but do we *mean* the same th
 
 **Single type**: Any type which is not defined as a collection of other types. Actors, classes, primitives, traits and structural types are all single types. Opposite of a compound type.
 
+**Specialization**: A method definition with an `iftype` guard on a type parameter. The compiler selects it when the type parameter satisfies the guard’s constraint. See [iftype specialization](https://tutorial.ponylang.io/generics/iftype-specialization.html).
+
 **Square brackets**: [ ]
 
 **Trait clash**: A trait clashes with another type if it contains a method with the same name, but incompatible signature as a method in the other type. A clashing trait is incompatible with the other type. Traits can clash with actors, classes, primitives, intersections, structural types and other traits.
@@ -6821,73 +7127,74 @@ Words are hard. We can all be saying the same thing but do we *mean* the same th
 
 Pony, like just about any other programming language, has plenty of odd symbols that make up its syntax. If you don’t remember what one means, it can be hard to search for them. Below you’ll find a table with various Pony symbols and what you should search the tutorial for in order to learn more about the symbol.
 
-| Symbol | Search Keywords       |
-| ------ | --------------------- |
-| `!`    | Alias                 |
-| `->`   | Arrow type, viewpoint |
-| `.>`   | Chaining              |
-| `^`    | Ephemeral             |
-| `@`    | FFI                   |
-| `&`    | Intersection          |
-| `=>`   | Match arrow           |
-| `~`    | Partial application   |
-| `?`    | Partial function      |
-| `'`    | Prime                 |
-| `<:`   | Subtype, iftype       |
+| Symbol | Search Keywords                 |
+| ------ | ------------------------------- |
+| `!`    | Alias                           |
+| `->`   | Arrow type, viewpoint           |
+| `.>`   | Chaining                        |
+| `^`    | Ephemeral                       |
+| `@`    | FFI                             |
+| `&`    | Intersection                    |
+| `=>`   | Match arrow                     |
+| `~`    | Partial application             |
+| `?`    | Partial function                |
+| `'`    | Prime                           |
+| `<:`   | Subtype, iftype, specialization |
 
 Here is a more elaborate explanation of Pony’s use of special characters: (a line with (2) or (3) means an alternate usage of the symbol of the previous line)
 
-| Symbol  | Usage                                                                          |
-| ------- | ------------------------------------------------------------------------------ |
-| `,`     | to separate parameters in a function signature, or the items of a tuple        |
-| `.`     | (1) to call a field or a function on a variable (field access or method call)  |
-|         | (2) to qualify a type/method with its module name                              |
-| `.>`    | to call a method on an object and return the receiver (chaining)               |
-| `'`     | used as alternative name in parameters (prime)                                 |
-| `"`     | to delineate a literal string                                                  |
-| `"""`   | to delineate a documentation string                                            |
-| `(`     | (1) start of line: start of a tuple                                            |
-|         | (2) middle of line: method call                                                |
-| `()`    | (1) parentheses, for function or behavior parameters                           |
-|         | (2) making a tuple (values separated by `,`)                                   |
-|         | (3) making an enumeration (values separated by                                 |
-| `[`     | (1) start of line: start of an array literal                                   |
-|         | (2) middle of line: generic formal parameters                                  |
-| `[]`    | (1) to indicate a generic type, for example `Range[U64]`                       |
-|         | (2) to indicate the return type of an FFI function call                        |
-| `{}`    | a function type                                                                |
-| `:`     | (1) after a variable: is followed by the type name                             |
-|         | (2) to indicate a function return type                                         |
-|         | (3) a type constraint                                                          |
-| `;`     | only used to separate expressions on the same line                             |
-| `=`     | (1) (destructive) assignment                                                   |
-|         | (2) in: use alias = module name                                                |
-|         | (3) supply default argument for method                                         |
-|         | (4) supply default type for generics                                           |
-| `!`     | (1) boolean negation                                                           |
-|         | (2) a type that is an alias of another type                                    |
-| `?`     | (1) partial functions                                                          |
-|         | (2) a call to a C function that could raise an error                           |
-| `-`     | (1) start of line: unary negation                                              |
-|         | (2) middle of line: subtraction                                                |
-| `_`     | (1) to indicate a private variable, constructor, function, behavior            |
-|         | (2) to ignore a tuple item in a pattern match                                  |
-| `~`     | partial application                                                            |
-| `^`     | an ephemeral type                                                              |
-|         |                                                                                |
-|         | (2) starts a branch in a match                                                 |
-| `&`     | (1) separates the types in a complex type (the value is of all of these types) |
-|         | (2) intersection                                                               |
-| `@`     | FFI call                                                                       |
-| `//`    | comments                                                                       |
-| `/* */` | multi-line or block comments                                                   |
-| `=>`    | (1) start of a function body                                                   |
-|         | (2) starts the code of a matching branch                                       |
-| `->`    | (1) arrow type                                                                 |
-|         | (2) viewpoint                                                                  |
-| `._i`   | where `i = 1,2,…` means the item at position i in the tuple                    |
-| `<:`    | (1) “is a subtype of” or “can be substituted for”                              |
-|         | (2) used in `iftype` conditions to check subtype relationships                 |
+| Symbol  | Usage                                                                                                                               |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `,`     | to separate parameters in a function signature, or the items of a tuple                                                             |
+| `.`     | (1) to call a field or a function on a variable (field access or method call)                                                       |
+|         | (2) to qualify a type/method with its module name                                                                                   |
+| `.>`    | to call a method on an object and return the receiver (chaining)                                                                    |
+| `'`     | used as alternative name in parameters (prime)                                                                                      |
+| `"`     | to delineate a literal string                                                                                                       |
+| `"""`   | to delineate a documentation string                                                                                                 |
+| `(`     | (1) start of line: start of a tuple                                                                                                 |
+|         | (2) middle of line: method call                                                                                                     |
+| `()`    | (1) parentheses, for function or behavior parameters                                                                                |
+|         | (2) making a tuple (values separated by `,`)                                                                                        |
+|         | (3) making an enumeration (values separated by                                                                                      |
+| `[`     | (1) start of line: start of an array literal                                                                                        |
+|         | (2) middle of line: generic formal parameters                                                                                       |
+| `[]`    | (1) to indicate a generic type, for example `Range[U64]`                                                                            |
+|         | (2) to indicate the return type of an FFI function call                                                                             |
+| `{}`    | a function type                                                                                                                     |
+| `:`     | (1) after a variable: is followed by the type name                                                                                  |
+|         | (2) to indicate a function return type                                                                                              |
+|         | (3) a type constraint                                                                                                               |
+| `;`     | only used to separate expressions on the same line                                                                                  |
+| `=`     | (1) (destructive) assignment                                                                                                        |
+|         | (2) in: use alias = module name                                                                                                     |
+|         | (3) supply default argument for method                                                                                              |
+|         | (4) supply default type for generics                                                                                                |
+| `!`     | (1) boolean negation                                                                                                                |
+|         | (2) a type that is an alias of another type                                                                                         |
+| `?`     | (1) partial functions                                                                                                               |
+|         | (2) a call to a C function that could raise an error                                                                                |
+| `-`     | (1) start of line: unary negation                                                                                                   |
+|         | (2) middle of line: subtraction                                                                                                     |
+| `_`     | (1) to indicate a private variable, constructor, function, behavior                                                                 |
+|         | (2) to ignore a tuple item in a pattern match                                                                                       |
+| `~`     | partial application                                                                                                                 |
+| `^`     | an ephemeral type                                                                                                                   |
+|         |                                                                                                                                     |
+|         | (2) starts a branch in a match                                                                                                      |
+| `&`     | (1) separates the types in a complex type (the value is of all of these types)                                                      |
+|         | (2) intersection                                                                                                                    |
+| `@`     | FFI call                                                                                                                            |
+| `//`    | comments                                                                                                                            |
+| `/* */` | multi-line or block comments                                                                                                        |
+| `=>`    | (1) start of a function body                                                                                                        |
+|         | (2) starts the code of a matching branch                                                                                            |
+| `->`    | (1) arrow type                                                                                                                      |
+|         | (2) viewpoint                                                                                                                       |
+| `._i`   | where `i = 1,2,…` means the item at position i in the tuple                                                                         |
+| `<:`    | (1) “is a subtype of” or “can be substituted for”                                                                                   |
+|         | (2) used in `iftype` conditions to check subtype relationships                                                                      |
+|         | (3) used in [iftype specialization](https://tutorial.ponylang.io/generics/iftype-specialization.html) guards on method declarations |
 
 # Keywords
 
@@ -6917,7 +7224,8 @@ This listing explains the usage of every Pony keyword.
 | `if`                | (1) conditional statement                                                                                          |
 |                     | (2) to define a guard in a pattern match                                                                           |
 | `ifdef`             | when defining a build flag at compile time: ponyc –D “foo”                                                         |
-| `iftype`            | type conditional statement `iftype A <: B` checks if `A` is a subtype of `B`                                       |
+| `iftype`            | (1) type conditional statement `iftype A <: B` checks if `A` is a subtype of `B`                                   |
+|                     | (2) method specialization guard: provides an alternate method body selected at compile time                        |
 | `in`                | used in a for in - loop statement                                                                                  |
 | `interface`         | used in structural subtyping                                                                                       |
 | `is`                | (1) used in nominal subtyping                                                                                      |
@@ -7432,9 +7740,10 @@ In Pony, we provide a special syntax for implementation-specific annotations to 
 
 ```
 \annotation1, annotation2\
+\annotation_with_argument(100)\
 ```
 
-Here, `annotation1` and `annotation2` can be any valid Pony identifier, i.e. a sequence of alphanumeric characters starting with a letter or an underscore.
+Here, `annotation1` and `annotation2` can be any valid Pony identifier, i.e. a sequence of alphanumeric characters starting with a letter or an underscore. An annotation can optionally carry an integer argument in parentheses, as shown with `annotation_with_argument(100)` above.
 
 ## What can be annotated
 
@@ -7595,6 +7904,23 @@ use @point_make[Point \by_value\](x: F64, y: F64)
 Struct fields must be primitives or pointers. Nested embedded structs, zero-field structs, 128-bit integers, and variadic functions are not supported.
 
 See [Passing structs by value](https://tutorial.ponylang.io/c-ffi/calling-c.html#passing-structs-by-value) and [Returning structs by value](https://tutorial.ponylang.io/c-ffi/calling-c.html#returning-structs-by-value) for the full details.
+
+#### `inline`, `inline(N)`, and `noinline`
+
+Recognised on `fun` declarations (not `be` or `new`). These annotations control LLVM’s inlining decisions for the annotated function.
+
+`\inline\` forces the function to be inlined at every call site. `\inline(N)\` raises LLVM’s inline cost threshold to `N` for the function, making it more likely to be inlined without forcing it. `\noinline\` prevents the function from being inlined.
+
+```
+primitive Foo
+  fun \inline\ always(): U64 => 42
+primitive Bar
+  fun \inline(500)\ threshold(): U64 => 43
+primitive Baz
+  fun \noinline\ never(): U64 => 44
+```
+
+These annotations cannot be combined with each other — `\inline, noinline\` or `\inline, inline(500)\` will produce a compiler error.
 
 # Serialisation
 
