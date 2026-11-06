@@ -1635,14 +1635,14 @@ Print the runtime usage options and exit.
 
 ## Tracing Options
 
-These options control the runtime’s built-in tracing system for recording actor, scheduler, and GC events. When no tracing flags are passed, the runtime checks a single boolean at each trace point and skips the call — the overhead is not measurable. See [Tracing Pony Programs](https://www.ponylang.io/use/debugging/tracing/index.md) for usage details.
+These options control the runtime’s built-in tracing system for recording actor, scheduler, and GC events. When no tracing flags are passed, the runtime checks a single boolean at each trace point and skips the call — the overhead is not measurable. Categories can also be toggled at runtime via the `runtime_tracing` standard library package. The tracing fields are available in `RuntimeOptions` for programmatic defaults via `@runtime_override_defaults`. See [Tracing Pony Programs](https://www.ponylang.io/use/debugging/tracing/index.md) for usage details and a programmatic example.
 
 ### `--ponytracingmode`
 
 Mode for tracing. Valid options:
 
 - `file` — write trace events to a file
-- `flight_recorder` — save events to a per-thread in-memory circular buffer; events are written to stderr when the program crashes (a fatal signal such as SIGSEGV, SIGILL, SIGBUS, or SIGFPE on Linux and macOS, or a fault such as an access violation on Windows)
+- `flight_recorder` — save events to a per-thread in-memory circular buffer; events are written to stderr when the program crashes (SIGABRT, SIGBUS, SIGFPE, SIGILL, SIGSEGV, or SIGSYS on Linux and macOS; access violations, illegal instructions, and other faults on Windows)
 
 Defaults to `file`.
 
@@ -1650,7 +1650,7 @@ Defaults to `file`.
 
 Output format for tracing in file mode. Valid options:
 
-- `json` — Chromium trace JSON format (viewable with [Perfetto](https://perfetto.dev/))
+- `json` — Chromium trace JSON format, viewable with [Perfetto](https://perfetto.dev/)
 
 Defaults to `json`.
 
@@ -1675,21 +1675,14 @@ Tracing categories to enable, as comma-separated glob patterns. Valid categories
 - `scheduler` — basic scheduler events
 - `scheduler_messaging` — inter-scheduler messaging events
 - `scheduler_stealing` — scheduler work-stealing events
-- `systematic_testing` — systematic testing events
 - `runtime` — runtime lifecycle events (init, start, shutdown)
+- `systematic_testing` — systematic testing events
 - `systematic_testing_details` — detailed systematic testing events
+- `cycle_detector` — actor events for the cycle detector only
 
-Defaults to all categories disabled.
+Actor event categories (`actor`, `actor_behavior`, `actor_gc`, `actor_state_change`) trace all actors when enabled. `cycle_detector` enables actor events for the cycle detector only, without enabling them for every actor.
 
-### `--ponytracingforceactortracing`
-
-Force tracing for actors. Valid options:
-
-- `all` — force tracing for all actors
-- `cd_only` — only force tracing for the cycle detector
-- `none` — do not force tracing for any actors
-
-Defaults to `none`.
+Defaults to all categories disabled. Categories can also be toggled at runtime via the `runtime_tracing` package; see [Controlling tracing from code](https://www.ponylang.io/use/debugging/tracing/#controlling-tracing-from-code).
 
 ### `--ponytracingflightrecorderbuffer`
 
@@ -2220,20 +2213,133 @@ Each behavior has an associated send method (\_\_send) that is used to send a me
 
 # Tracing Pony Programs
 
-The Pony runtime can be built to be able to either write a trace to file in the background or work in a “flight recorder” mode where events are stored into in memory circular buffers and written to stderr when the program crashes — a fatal signal such as SIGSEGV or SIGILL on Linux and macOS, or a fault such as an access violation on Windows.
+The Pony runtime records actor, scheduler, and GC events as trace data. Traces can be written to a file in the background or kept in per-thread in-memory ring buffers (“flight recorder” mode) that dump to stderr on a crash signal (Linux and macOS) or fault (Windows).
 
-Runtime tracing is helpful in understanding how the runtime works and for debugging issues with the runtime.
+Traces are written in Chromium trace JSON format and can be viewed with the [Perfetto trace viewer](https://perfetto.dev/).
 
-Traces are written in chromium json format and trace files can be viewed with the perfetto trace viewer.
+When no tracing categories are enabled, the runtime checks a single boolean at each trace point and skips the call. The overhead is not measurable.
 
-## Usage
+## Categories
 
-A number of Pony runtime options are enabled when tracing is enabled. The details can be found by running `<pony program> --ponyhelp` (e.g.: `./helloworld --ponyhelp`) and looking at the options that begin with `--ponytracing*` for how to enable and configure tracing.
+Categories control which kinds of events the runtime records. All categories are disabled by default.
 
-Once a trace has been captured, it can be viewed with the [perfetto trace viewer](https://perfetto.dev/).
+| Category                     | Events                                                  |
+| ---------------------------- | ------------------------------------------------------- |
+| `scheduler`                  | Basic scheduler events                                  |
+| `scheduler_messaging`        | Inter-scheduler messaging events                        |
+| `scheduler_stealing`         | Scheduler work-stealing events                          |
+| `actor`                      | Actor lifecycle and scheduling events                   |
+| `actor_behavior`             | Actor behavior run events                               |
+| `actor_gc`                   | Actor garbage collection and GC threshold change events |
+| `actor_state_change`         | Actor state change and batch size change events         |
+| `runtime`                    | Runtime lifecycle events (init, start, shutdown)        |
+| `systematic_testing`         | Systematic testing events                               |
+| `systematic_testing_details` | Detailed systematic testing events                      |
+| `cycle_detector`             | Actor events for the cycle detector only                |
+
+Actor event categories (`actor`, `actor_behavior`, `actor_gc`, `actor_state_change`) trace all actors when enabled. `cycle_detector` enables actor events for the cycle detector only, without enabling them for every actor.
+
+## Enabling tracing from the command line
+
+Set categories at startup with `--ponytracingcategories`:
+
+```
+./my_program --ponytracingcategories='actor,scheduler'
+```
+
+See the [Tracing Options](https://www.ponylang.io/use/compiler/runtime-options/#tracing-options) reference for the full flag list.
+
+## Controlling tracing from code
+
+The `runtime_tracing` standard library package toggles categories while a program is running. No trace output file is created until the first call that enables a category, so programs that never call the API pay no I/O cost.
+
+### Category operations
+
+- `RuntimeTracing.enable_categories` — add the listed categories to the active set.
+- `RuntimeTracing.disable_categories` — remove the listed categories from the active set.
+- `RuntimeTracing.set_categories` — replace the active set with exactly the listed categories. Pass an empty collection to disable all.
+
+Each operation returns a `TracingResult`: `TracingOk` on success, `TracingNotAvailable` if the caller is not on a scheduler thread, or `TracingLogFileError` if the trace output file cannot be opened.
+
+All operations require a `RuntimeTracingAuth`, obtained from `AmbientAuth`.
+
+### Specifying categories
+
+Categories are passed as a collection of primitives — typically an array literal:
+
+```
+RuntimeTracing.enable_categories(
+  auth, [SchedulerTracing; ActorBehaviorTracing])
+```
+
+The category primitives are: `SchedulerTracing`, `SchedulerMessagingTracing`, `SchedulerStealingTracing`, `ActorTracing`, `ActorBehaviorTracing`, `ActorGCTracing`, `ActorStateChangeTracing`, `RuntimeLifecycleTracing`, `SystematicTestingTracing`, `SystematicTestingDetailsTracing`, and `CycleDetectorTracing`.
+
+### Example
+
+This program enables tracing at startup, does some work, narrows the active categories, and then disables tracing:
+
+```
+use "runtime_tracing"
+
+actor Worker
+  let _env: Env
+
+  new create(env: Env) =>
+    _env = env
+    do_work()
+
+  be do_work() =>
+    _env.out.print("Worker running")
+
+actor Main
+  new create(env: Env) =>
+    let auth = RuntimeTracingAuth(env.root)
+
+    // Enable scheduler and actor behavior tracing.
+    match RuntimeTracing.enable_categories(
+      auth, [SchedulerTracing; ActorBehaviorTracing])
+    | TracingOk => env.out.print("tracing enabled")
+    | TracingNotAvailable => env.out.print("not on a scheduler thread")
+    | TracingLogFileError => env.out.print("could not open trace file")
+    end
+
+    // Spawn a worker — its behavior run will appear in the trace.
+    Worker(env)
+
+    // Narrow to just actor categories.
+    RuntimeTracing.set_categories(
+      auth,
+      [ ActorTracing; ActorBehaviorTracing
+        ActorGCTracing; ActorStateChangeTracing ])
+
+    // Turn off all tracing.
+    RuntimeTracing.set_categories(auth, [])
+```
+
+Run with tracing output flags if you want a custom output path (the defaults — JSON format, `ponytrace.json` — work without any flags):
+
+```
+./my_program --ponytracingoutput=my-trace.json
+```
+
+## Setting tracing defaults from code
+
+Tracing configuration can be set before the runtime starts via `@runtime_override_defaults` on the `Main` actor. This sets initial values for all tracing flags. Command-line arguments still override them.
+
+```
+actor Main
+  new create(env: Env) =>
+    env.out.print("Hello, world.")
+
+  fun @runtime_override_defaults(rto: RuntimeOptions) =>
+    rto.ponytracingcategories = "scheduler,actor_behavior".cstring()
+```
+
+See [Programmatic Overrides](https://www.ponylang.io/use/compiler/runtime-options/#programmatic-overrides) for more on `@runtime_override_defaults`.
 
 ## See also
 
+- [Runtime Options: Tracing Options](https://www.ponylang.io/use/compiler/runtime-options/#tracing-options) — full reference for all `--ponytracing*` command-line flags
 - [Profiling Pony Programs](https://www.ponylang.io/use/performance/profiling/index.md) — CPU profiling with `perf`, Instruments, and Callgrind. Different from runtime tracing: profiling shows where CPU time went, while tracing records runtime events like actor scheduling and GC.
 
 # Tracking memory usage at runtime
@@ -3619,6 +3725,8 @@ Just remember, if you want to maximise performance:
 
 Some of you probably looked at the `String` performance enhancement above and thought, “doesn’t the JVM do that for you?” You’d be right. That’s a standard optimization in many languages. It’s an optimization we are adding to Pony. However, the basic pattern applies. Be aware of triggering extra allocations that you don’t need to. Your compiler and runtime can add many optimizations to avoid allocations, but it’s not going to do everything for you. You still need to understand your allocations. They’re called “your allocations” because in the end, you end up owning them and they end up owning your performance.
 
+If you’ve done the work to get allocations out of a hot path, the `\noalloc\` annotation keeps it that way. Mark the method, and the compiler checks everything it calls in release builds. If anything in the call tree allocates, the build fails. When someone changes a helper three files away and adds an allocation, you find out at compile time instead of in production. The [Program Annotations](https://tutorial.ponylang.io/appendices/annotations#noalloc) page in the tutorial covers how it works.
+
 ### Give in to your “primitive obsession”
 
 Many collections of programming “best practices” teach you to avoid [“primitive obsession”](https://refactoring.guru/smells/primitive-obsession). This is great advice, normally. It’s not such great advice if you are worried about performance. Let’s take two ways you can represent a short form American zip code:
@@ -4061,7 +4169,7 @@ Or open the output in KCachegrind (Linux) or QCachegrind (macOS) for a visual ca
 
 ## See also
 
-- [Tracing Pony Programs](https://www.ponylang.io/use/debugging/tracing/index.md) — runtime event tracing (actor scheduling, GC, message sends) via a custom `ponyc` build. Different from CPU profiling: tracing records what the runtime did and when, while profiling shows where CPU time went.
+- [Tracing Pony Programs](https://www.ponylang.io/use/debugging/tracing/index.md) — runtime event tracing (actor scheduling, GC, message sends). Different from CPU profiling: tracing records what the runtime did and when, while profiling shows where CPU time went.
 
 # Coverage Reports for Pony
 
