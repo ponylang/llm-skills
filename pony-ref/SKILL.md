@@ -222,7 +222,6 @@ Do NOT try `primitive MyGen is GenObj[String]` or `class MyGen is GenObj[String]
 - Seed is printed in test output — pass back via `PropertyParams(where seed' = N)` to reproduce a failure
 - **`value.clone()` in `for_all` lambdas**: Generated `String` values arrive as `ref` capability inside `for_all` lambdas. To use them inside `recover val` blocks (e.g., building a `val` array of tuples), call `value.clone()` first — `clone()` on a `ref` returns an `iso^` which can be consumed into the `recover` block. Without this, the `ref` alias prevents the block from lifting to `val`.
 - **`Generators.array_of[T]` produces `ref` arrays, not `val`**: `Generators.array_of[U8](Generators.u8())` yields `Generator[Array[U8] ref]`, which can't be used in `zip2`/`map2` when the target type needs `Array[U8] val`. Workaround: use `Generators.map2` with a fill byte + length, constructing the `val` array inside the lambda: `{(fill, len) => (fill, recover val Array[U8].init(fill, len) end)}`.
-- **`for_all` is called on `TestHelper`**, not on a `PonyCheck` primitive: `h.for_all[T](gen)`, not `PonyCheck.for_all[T](gen, h)`
 
 **PropertyParams defaults**: 100 samples, 10 max shrink rounds, 5 max generator retries, 60s timeout. Override by implementing `params()` on your Property trait.
 
