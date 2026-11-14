@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file. Entries
 are grouped by date (UTC) with newest first.
 
+## 2026-11-14
+
+- FIXED: Remove stale PonyCheck gotcha from pony-ref ([PR #87](https://github.com/ponylang/llm-skills/pull/87))
+
 ## 2026-10-11
 
 - ADDED: Add pony-agent-server awareness to pony-ref ([PR #86](https://github.com/ponylang/llm-skills/pull/86))
